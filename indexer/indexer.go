@@ -479,6 +479,9 @@ func (indexer *Indexer) StartWalletMode(runType string) {
 
 // Manually add/inject a SCID to be indexed. Checks validity and then stores within owner tree (no signer addr) and stores a set of current variables.
 func (indexer *Indexer) AddSCIDToIndex(scidstoadd map[string]*structures.FastSyncImport, skipfsrecheck bool, varstoreonly bool) (err error) {
+	if len(scidstoadd) < 1 || scidstoadd == nil {
+		return nil
+	}
 	var wg sync.WaitGroup
 	wg.Add(len(scidstoadd))
 
