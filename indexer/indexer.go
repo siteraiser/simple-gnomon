@@ -1794,7 +1794,6 @@ func (indexer *Indexer) getInfo() {
 		}
 		indexer.Lock()
 		indexer.ChainHeight = info.TopoHeight
-		logger.Info("chain height ", indexer.ChainHeight)
 		indexer.Unlock()
 
 		time.Sleep(5 * time.Second)
