@@ -482,8 +482,6 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd map[string]*structures.FastSyn
 	if len(scidstoadd) < 1 || scidstoadd == nil {
 		return nil
 	}
-	var wg sync.WaitGroup
-	wg.Add(len(scidstoadd))
 
 	var scilock sync.RWMutex
 	var scidstoindexstage []SCIDToIndexStage
@@ -499,72 +497,65 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd map[string]*structures.FastSyn
 	treenames = append(treenames, "owner")
 
 	for scid, fsi := range scidstoadd {
-		go func(scid string, fsi *structures.FastSyncImport) {
-			// Check if already validated
-			if (scidExist(indexer.ValidatedSCs, scid) || indexer.Closing) && !varstoreonly {
-				//logger.Debugf("[AddSCIDToIndex] SCID '%v' already in validated list.", scid)
-				wg.Done()
+		// Check if already validated
+		if (scidExist(indexer.ValidatedSCs, scid) || indexer.Closing) && !varstoreonly {
+			//logger.Debugf("[AddSCIDToIndex] SCID '%v' already in validated list.", scid)
 
-				return
-			} else if scidExist(indexer.SFSCIDExclusion, scid) {
-				logger.Debugf("[StartDaemonMode] Not appending scidstoadd SCID '%s' as it resides within SFSCIDExclusion - '%v'.", scid, indexer.SFSCIDExclusion)
+			return
+		} else if scidExist(indexer.SFSCIDExclusion, scid) {
+			logger.Debugf("[StartDaemonMode] Not appending scidstoadd SCID '%s' as it resides within SFSCIDExclusion - '%v'.", scid, indexer.SFSCIDExclusion)
 
-				wg.Done()
+			return
+		} else {
+			// Validate SCID is *actually* a valid SCID
+			var scVars []*structures.SCIDVariable
+			var scCode string
+			var contains bool
+			if !skipfsrecheck {
+				scVars, scCode, _, _ = indexer.RPC.GetSCVariables(scid, indexer.ChainHeight, nil, nil, nil, false)
 
-				return
-			} else {
-				// Validate SCID is *actually* a valid SCID
-				var scVars []*structures.SCIDVariable
-				var scCode string
-				var contains bool
-				if !skipfsrecheck {
-					scVars, scCode, _, _ = indexer.RPC.GetSCVariables(scid, indexer.ChainHeight, nil, nil, nil, false)
-
-					// If we can get the SC and searchfilter is "" (get all), contains is true. Otherwise evaluate code against searchfilter
-					if len(indexer.SearchFilter) == 0 {
-						contains = true
-					} else {
-						// Ensure scCode is not blank (e.g. an invalid scid)
-						if scCode != "" {
-							for _, sfv := range indexer.SearchFilter {
-								contains = strings.Contains(scCode, sfv)
-								if contains {
-									// Break b/c we want to ensure contains remains true. Only care if it matches at least 1 case
-									break
-								}
-							}
-						}
-					}
-				} else if !indexer.FastSyncConfig.NoCode {
-					_, scCode, _, _ = indexer.RPC.GetSCVariables(scid, indexer.ChainHeight, nil, nil, nil, true)
-
-					// If we can get the SC and searchfilter is "" (get all), contains is true. Otherwise evaluate code against searchfilter
-					if len(indexer.SearchFilter) == 0 {
-						contains = true
-					} else {
-						// Ensure scCode is not blank (e.g. an invalid scid)
-						if scCode != "" {
-							for _, sfv := range indexer.SearchFilter {
-								contains = strings.Contains(scCode, sfv)
-								if contains {
-									// Break b/c we want to ensure contains remains true. Only care if it matches at least 1 case
-									break
-								}
+				// If we can get the SC and searchfilter is "" (get all), contains is true. Otherwise evaluate code against searchfilter
+				if len(indexer.SearchFilter) == 0 {
+					contains = true
+				} else {
+					// Ensure scCode is not blank (e.g. an invalid scid)
+					if scCode != "" {
+						for _, sfv := range indexer.SearchFilter {
+							contains = strings.Contains(scCode, sfv)
+							if contains {
+								// Break b/c we want to ensure contains remains true. Only care if it matches at least 1 case
+								break
 							}
 						}
 					}
 				}
+			} else if !indexer.FastSyncConfig.NoCode {
+				_, scCode, _, _ = indexer.RPC.GetSCVariables(scid, indexer.ChainHeight, nil, nil, nil, true)
 
-				scilock.Lock()
-				add := SCIDToIndexStage{scid: scid, fsi: fsi, scVars: scVars, scCode: scCode, contains: contains}
-				scidstoindexstage = append(scidstoindexstage, add)
-				logger.Printf("scid:%+v height:%+v contain:%+v", add.scid, add.fsi.Height, add.contains)
-				scilock.Unlock()
+				// If we can get the SC and searchfilter is "" (get all), contains is true. Otherwise evaluate code against searchfilter
+				if len(indexer.SearchFilter) == 0 {
+					contains = true
+				} else {
+					// Ensure scCode is not blank (e.g. an invalid scid)
+					if scCode != "" {
+						for _, sfv := range indexer.SearchFilter {
+							contains = strings.Contains(scCode, sfv)
+							if contains {
+								// Break b/c we want to ensure contains remains true. Only care if it matches at least 1 case
+								break
+							}
+						}
+					}
+				}
 			}
-			wg.Done()
-		}(scid, fsi)
+
+			scilock.Lock()
+			add := SCIDToIndexStage{scid: scid, fsi: fsi, scVars: scVars, scCode: scCode, contains: contains}
+			scidstoindexstage = append(scidstoindexstage, add)
+			logger.Printf("scid:%+v height:%+v contain:%+v", add.scid, add.fsi.Height, add.contains)
+			scilock.Unlock()
+		}
 	}
-	wg.Wait()
 
 	for _, v := range scidstoindexstage {
 		if v.contains || varstoreonly {
