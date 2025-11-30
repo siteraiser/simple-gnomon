@@ -558,7 +558,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd map[string]*structures.FastSyn
 				scilock.Lock()
 				add := SCIDToIndexStage{scid: scid, fsi: fsi, scVars: scVars, scCode: scCode, contains: contains}
 				scidstoindexstage = append(scidstoindexstage, add)
-				logger.Printf("%+v", add)
+				logger.Printf("scid:%+v height:%+v contain:%+v", add.scid, add.fsi.Height, add.contains)
 				scilock.Unlock()
 			}
 			wg.Done()
