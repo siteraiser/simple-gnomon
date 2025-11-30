@@ -356,7 +356,10 @@ func (indexer *Indexer) StartDaemonMode(blockParallelNum int) {
 				}
 
 				// Ensure SC signature is validated (LOAD("signature") checks out to code validation)
-				if validated || err != nil {
+				if !validated {
+					logger.Errorf("[StartDaemonMode-fastsync] Gnomon SC '%v' code was NOT validated against in-built signature variable. Skipping auto-population of scids.", gnomon_scid)
+
+				} else {
 					logger.Printf("[StartDaemonMode-fastsync] Gnomon SC '%v' code VALID - proceeding to inject scid data.", gnomon_scid)
 
 					scidstoadd := make(map[string]*structures.FastSyncImport)
