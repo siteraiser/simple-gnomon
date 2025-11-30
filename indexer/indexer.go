@@ -496,62 +496,44 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd map[string]*structures.FastSyn
 	}
 	// We know owner is a tree that'll be written to, no need to loop through the scexists func every time when we *know* this one exists and isn't unique by scid etc.
 	treenames = append(treenames, "owner")
-
 	for scid, fsi := range scidstoadd {
 		// Check if already validated
 		if (slices.Contains(indexer.ValidatedSCs, scid) || indexer.Closing) && !varstoreonly {
 			//logger.Debugf("[AddSCIDToIndex] SCID '%v' already in validated list.", scid)
-
 			return
 		} else if slices.Contains(indexer.SFSCIDExclusion, scid) {
 			logger.Debugf("[StartDaemonMode] Not appending scidstoadd SCID '%s' as it resides within SFSCIDExclusion - '%v'.", scid, indexer.SFSCIDExclusion)
-
 			return
 		} else {
 			// Validate SCID is *actually* a valid SCID
-			var scVars []*structures.SCIDVariable
-			var scCode string
-			var contains bool
-			if !skipfsrecheck {
-				scVars, scCode, _, _ = indexer.RPC.GetSCVariables(scid, indexer.ChainHeight, nil, nil, nil, false)
-
+			add := SCIDToIndexStage{scid: scid, fsi: fsi}
+			useSearchFilters := func(indexer *Indexer, add *SCIDToIndexStage) {
 				// If we can get the SC and searchfilter is "" (get all), contains is true. Otherwise evaluate code against searchfilter
 				if len(indexer.SearchFilter) == 0 {
-					contains = true
-				} else {
+					add.contains = true
+				} else if add.scCode != "" {
 					// Ensure scCode is not blank (e.g. an invalid scid)
-					if scCode != "" {
-						for _, sfv := range indexer.SearchFilter {
-							contains = strings.Contains(scCode, sfv)
-							if contains {
-								// Break b/c we want to ensure contains remains true. Only care if it matches at least 1 case
-								break
-							}
-						}
-					}
-				}
-			} else if !indexer.FastSyncConfig.NoCode {
-				_, scCode, _, _ = indexer.RPC.GetSCVariables(scid, indexer.ChainHeight, nil, nil, nil, true)
-
-				// If we can get the SC and searchfilter is "" (get all), contains is true. Otherwise evaluate code against searchfilter
-				if len(indexer.SearchFilter) == 0 {
-					contains = true
-				} else {
-					// Ensure scCode is not blank (e.g. an invalid scid)
-					if scCode != "" {
-						for _, sfv := range indexer.SearchFilter {
-							contains = strings.Contains(scCode, sfv)
-							if contains {
-								// Break b/c we want to ensure contains remains true. Only care if it matches at least 1 case
-								break
-							}
+					for _, sfv := range indexer.SearchFilter {
+						if add.contains = strings.Contains(add.scCode, sfv); add.contains {
+							// Break b/c we want to ensure contains remains true. Only care if it matches at least 1 case
+							break
 						}
 					}
 				}
 			}
 
+			validateRefs := !skipfsrecheck
+			obtainCode := !indexer.FastSyncConfig.NoCode
+
+			if validateRefs {
+				add.scVars, add.scCode, _, _ = indexer.RPC.GetSCVariables(scid, indexer.ChainHeight, nil, nil, nil, false)
+				useSearchFilters(indexer, &add)
+			} else if obtainCode {
+				_, add.scCode, _, _ = indexer.RPC.GetSCVariables(scid, indexer.ChainHeight, nil, nil, nil, true)
+				useSearchFilters(indexer, &add)
+			}
+
 			scilock.Lock()
-			add := SCIDToIndexStage{scid: scid, fsi: fsi, scVars: scVars, scCode: scCode, contains: contains}
 			scidstoindexstage = append(scidstoindexstage, add)
 			logger.Printf("scid:%+v height:%+v contain:%+v", add.scid, add.fsi.Height, add.contains)
 			scilock.Unlock()
