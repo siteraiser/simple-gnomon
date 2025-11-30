@@ -210,106 +210,100 @@ func (indexer *Indexer) StartDaemonMode(blockParallelNum int) {
 		logger.Debugf("[StartDaemonMode] Not appending hardcoded SCID '%s' as it resides within SFSCIDExclusion - '%v'.", name_service_smart_contract, indexer.SFSCIDExclusion)
 	}
 
-		scVars, scCode, _, _ := indexer.RPC.GetSCVariables(vi, storedindex, nil, nil, nil, false)
+	scVars, scCode, _, _ := indexer.RPC.GetSCVariables(name_service_smart_contract, storedindex, nil, nil, nil, false)
 
-		var contains bool
-
-		// If we can get the SC and searchfilter is "" (get all), contains is true. Otherwise evaluate code against searchfilter
-		if len(indexer.SearchFilter) == 0 {
-			contains = true
-		} else {
-			// Ensure scCode is not blank (e.g. an invalid scid)
-			if scCode != "" {
-				for _, sfv := range indexer.SearchFilter {
-					contains = strings.Contains(scCode, sfv)
-					if contains {
-						// Break b/c we want to ensure contains remains true. Only care if it matches at least 1 case
-						break
+	callback := func(scVars []*structures.SCIDVariable) {
+		//logger.Debugf("[AddSCIDToIndex] Hardcoded SCID matches search filter. Adding SCID %v", vi)
+		indexer.Lock()
+		indexer.ValidatedSCs = append(indexer.ValidatedSCs, name_service_smart_contract)
+		indexer.Unlock()
+		writeWait, _ := time.ParseDuration("20ms")
+		switch indexer.DBType {
+		case "gravdb":
+			for indexer.GravDBBackend.Writing {
+				if indexer.Closing {
+					return
+				}
+				//logger.Debugf("[Indexer-NewIndexer] GravitonDB is writing... sleeping for %v...", writeWait)
+				time.Sleep(writeWait)
+			}
+			indexer.GravDBBackend.Writing = true
+			var ctrees []*graviton.Tree
+			sotree, sochanges, err := indexer.GravDBBackend.StoreOwner(name_service_smart_contract, "", true)
+			if err != nil {
+				logger.Errorf("[StartDaemonMode-hardcodedscids] Error storing owner: %v", err)
+			} else {
+				if sochanges {
+					ctrees = append(ctrees, sotree)
+				}
+			}
+			// If scVarsStore length is greater than 0, we can assume there were diffs. Otherwise the varstores are equal and move on.
+			if len(scVars) > 0 {
+				svdtree, svdchanges, err := indexer.GravDBBackend.StoreSCIDVariableDetails(name_service_smart_contract, scVars, storedindex, true)
+				if err != nil {
+					logger.Errorf("[StartDaemonMode-hardcodedscids] ERR - storing scid variable details: %v", err)
+				} else {
+					if svdchanges {
+						ctrees = append(ctrees, svdtree)
+					}
+				}
+				sihtree, sihchanges, err := indexer.GravDBBackend.StoreSCIDInteractionHeight(name_service_smart_contract, storedindex, true)
+				if err != nil {
+					logger.Errorf("[StartDaemonMode-hardcodedscids] ERR - storing scid interaction height: %v", err)
+				} else {
+					if sihchanges {
+						ctrees = append(ctrees, sihtree)
 					}
 				}
 			}
-		}
-
-		if contains {
-			//logger.Debugf("[AddSCIDToIndex] Hardcoded SCID matches search filter. Adding SCID %v", vi)
-			indexer.Lock()
-			indexer.ValidatedSCs = append(indexer.ValidatedSCs, vi)
-			indexer.Unlock()
-			writeWait, _ := time.ParseDuration("20ms")
-			switch indexer.DBType {
-			case "gravdb":
-				for indexer.GravDBBackend.Writing == 1 {
-					if indexer.Closing {
-						return
-					}
-					//logger.Debugf("[Indexer-NewIndexer] GravitonDB is writing... sleeping for %v...", writeWait)
-					time.Sleep(writeWait)
-				}
-				indexer.GravDBBackend.Writing = 1
-				var ctrees []*graviton.Tree
-				sotree, sochanges, err := indexer.GravDBBackend.StoreOwner(vi, "", true)
+			if len(ctrees) > 0 {
+				_, err := indexer.GravDBBackend.CommitTrees(ctrees)
 				if err != nil {
-					logger.Errorf("[StartDaemonMode-hardcodedscids] Error storing owner: %v", err)
+					logger.Errorf("[StartDaemonMode-hardcodedscids] ERR - committing trees: %v", err)
 				} else {
-					if sochanges {
-						ctrees = append(ctrees, sotree)
-					}
+					//logger.Debugf("[StartDaemonMode-hardcodedscids] DEBUG - cv [%v]", cv)
 				}
-				// If scVarsStore length is greater than 0, we can assume there were diffs. Otherwise the varstores are equal and move on.
-				if len(scVars) > 0 {
-					svdtree, svdchanges, err := indexer.GravDBBackend.StoreSCIDVariableDetails(vi, scVars, storedindex, true)
-					if err != nil {
-						logger.Errorf("[StartDaemonMode-hardcodedscids] ERR - storing scid variable details: %v", err)
-					} else {
-						if svdchanges {
-							ctrees = append(ctrees, svdtree)
-						}
-					}
-					sihtree, sihchanges, err := indexer.GravDBBackend.StoreSCIDInteractionHeight(vi, storedindex, true)
-					if err != nil {
-						logger.Errorf("[StartDaemonMode-hardcodedscids] ERR - storing scid interaction height: %v", err)
-					} else {
-						if sihchanges {
-							ctrees = append(ctrees, sihtree)
-						}
-					}
+			}
+			indexer.GravDBBackend.Writing = false
+		case "boltdb":
+			for indexer.BBSBackend.Writing {
+				if indexer.Closing {
+					return
 				}
-				if len(ctrees) > 0 {
-					_, err := indexer.GravDBBackend.CommitTrees(ctrees)
-					if err != nil {
-						logger.Errorf("[StartDaemonMode-hardcodedscids] ERR - committing trees: %v", err)
-					} else {
-						//logger.Debugf("[StartDaemonMode-hardcodedscids] DEBUG - cv [%v]", cv)
-					}
-				}
-				indexer.GravDBBackend.Writing = 0
-			case "boltdb":
-				for indexer.BBSBackend.Writing == 1 {
-					if indexer.Closing {
-						return
-					}
-					//logger.Debugf("[Indexer-StartDaemonMode-hardcodedscids] BoltDB is writing... sleeping for %v... writer %v...", writeWait, indexer.BBSBackend.Writer)
-					time.Sleep(writeWait)
-				}
-				indexer.BBSBackend.Writing = 1
-				//indexer.BBSBackend.Writer = "StartDaemonMode"
-				_, err := indexer.BBSBackend.StoreOwner(vi, "")
+				//logger.Debugf("[Indexer-StartDaemonMode-hardcodedscids] BoltDB is writing... sleeping for %v... writer %v...", writeWait, indexer.BBSBackend.Writer)
+				time.Sleep(writeWait)
+			}
+			indexer.BBSBackend.Writing = true
+			//indexer.BBSBackend.Writer = "StartDaemonMode"
+			_, err := indexer.BBSBackend.StoreOwner(name_service_smart_contract, "")
+			if err != nil {
+				logger.Errorf("[StartDaemonMode-hardcodedscids] Error storing owner: %v", err)
+			}
+			// If scVarsStore length is greater than 0, we can assume there were diffs. Otherwise the varstores are equal and move on.
+			if len(scVars) > 0 {
+				_, err = indexer.BBSBackend.StoreSCIDVariableDetails(name_service_smart_contract, scVars, storedindex)
 				if err != nil {
-					logger.Errorf("[StartDaemonMode-hardcodedscids] Error storing owner: %v", err)
+					logger.Errorf("[StartDaemonMode-hardcodedscids] ERR - storing scid variable details: %v", err)
 				}
-				// If scVarsStore length is greater than 0, we can assume there were diffs. Otherwise the varstores are equal and move on.
-				if len(scVars) > 0 {
-					_, err = indexer.BBSBackend.StoreSCIDVariableDetails(vi, scVars, storedindex)
-					if err != nil {
-						logger.Errorf("[StartDaemonMode-hardcodedscids] ERR - storing scid variable details: %v", err)
-					}
-					_, err = indexer.BBSBackend.StoreSCIDInteractionHeight(vi, storedindex)
-					if err != nil {
-						logger.Errorf("[StartDaemonMode-hardcodedscids] ERR - storing scid interaction height: %v", err)
-					}
+				_, err = indexer.BBSBackend.StoreSCIDInteractionHeight(name_service_smart_contract, storedindex)
+				if err != nil {
+					logger.Errorf("[StartDaemonMode-hardcodedscids] ERR - storing scid interaction height: %v", err)
 				}
-				indexer.BBSBackend.Writing = 0
-				//indexer.BBSBackend.Writer = ""
+			}
+			indexer.BBSBackend.Writing = false
+			//indexer.BBSBackend.Writer = ""
+		}
+	}
+
+	// If we can get the SC and searchfilter is "" (get all), contains is true. Otherwise evaluate code against searchfilter
+	if len(indexer.SearchFilter) == 0 {
+		callback(scVars)
+	} else {
+		for _, sfv := range indexer.SearchFilter {
+			if strings.Contains(scCode, sfv) {
+				callback(scVars)
+				// Break b/c we want to ensure contains remains true. Only care if it matches at least 1 case
+				break
 			}
 		}
 	}
