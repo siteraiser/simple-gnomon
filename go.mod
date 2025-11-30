@@ -1,4 +1,4 @@
-module github.com/civilware/Gnomon
+module github.com/secertnamebasis/Gnomon
 
 go 1.21
 
