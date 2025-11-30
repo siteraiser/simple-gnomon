@@ -309,6 +309,7 @@ func (indexer *Indexer) StartDaemonMode(blockParallelNum int) {
 	}
 
 	if storedindex > indexer.LastIndexedHeight {
+
 		logger.Printf("[StartDaemonMode-storedIndex] Continuing from last indexed height %v", storedindex)
 		indexer.Lock()
 		indexer.LastIndexedHeight = storedindex
@@ -326,10 +327,10 @@ func (indexer *Indexer) StartDaemonMode(blockParallelNum int) {
 		if getinfo != nil && indexer.FastSyncConfig.Enabled {
 			// Define gnomon builtin scid for indexing
 			var gnomon_scid string
-			if !getinfo.Testnet {
-				gnomon_scid = structures.MAINNET_GNOMON_SCID
-			} else {
+			if getinfo.Testnet {
 				gnomon_scid = structures.TESTNET_GNOMON_SCID
+			} else {
+				gnomon_scid = structures.MAINNET_GNOMON_SCID
 			}
 
 			// All could be future optimized .. for now it's slower but works.
