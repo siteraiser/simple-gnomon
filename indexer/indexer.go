@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -196,7 +197,7 @@ func (indexer *Indexer) StartDaemonMode(blockParallelNum int) {
 		logger.Printf("[StartDaemonMode] Appending '%d' pre-validated SCIDs from store to memory.", len(pre_validatedSCIDs))
 
 		for k := range pre_validatedSCIDs {
-			if scidExist(indexer.SFSCIDExclusion, k) {
+			if slices.Contains(indexer.SFSCIDExclusion, k) {
 				logger.Debugf("[StartDaemonMode] Not appending pre-validated SCID '%s' as it resides within SFSCIDExclusion - '%v'.", k, indexer.SFSCIDExclusion)
 				continue
 			}
@@ -206,7 +207,7 @@ func (indexer *Indexer) StartDaemonMode(blockParallelNum int) {
 		}
 	}
 	name_service_smart_contract := structures.Hardcoded_SCIDS[0]
-	if scidExist(indexer.SFSCIDExclusion, name_service_smart_contract) {
+	if slices.Contains(indexer.SFSCIDExclusion, name_service_smart_contract) {
 		logger.Debugf("[StartDaemonMode] Not appending hardcoded SCID '%s' as it resides within SFSCIDExclusion - '%v'.", name_service_smart_contract, indexer.SFSCIDExclusion)
 	}
 
@@ -380,7 +381,7 @@ func (indexer *Indexer) StartDaemonMode(blockParallelNum int) {
 							if scidstoadd[scid] == nil {
 								scidstoadd[scid] = &structures.FastSyncImport{}
 							}
-							if scidExist(indexer.SFSCIDExclusion, scid) {
+							if slices.Contains(indexer.SFSCIDExclusion, scid) {
 								logger.Debugf("[StartDaemonMode] Not appending gnomonsc data SCID '%s' as it resides within SFSCIDExclusion - '%v'.", ckey, indexer.SFSCIDExclusion)
 								continue
 							}
@@ -498,11 +499,11 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd map[string]*structures.FastSyn
 
 	for scid, fsi := range scidstoadd {
 		// Check if already validated
-		if (scidExist(indexer.ValidatedSCs, scid) || indexer.Closing) && !varstoreonly {
+		if (slices.Contains(indexer.ValidatedSCs, scid) || indexer.Closing) && !varstoreonly {
 			//logger.Debugf("[AddSCIDToIndex] SCID '%v' already in validated list.", scid)
 
 			return
-		} else if scidExist(indexer.SFSCIDExclusion, scid) {
+		} else if slices.Contains(indexer.SFSCIDExclusion, scid) {
 			logger.Debugf("[StartDaemonMode] Not appending scidstoadd SCID '%s' as it resides within SFSCIDExclusion - '%v'.", scid, indexer.SFSCIDExclusion)
 
 			return
@@ -607,7 +608,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd map[string]*structures.FastSyn
 						ctrees = append(ctrees, svdtree)
 					}
 				}
-				if !scidExist(treenames, v.scid+"vars") {
+				if !slices.Contains(treenames, v.scid+"vars") {
 					treenames = append(treenames, v.scid+"vars")
 				}
 				sihtree, sihchanges, err := tempdb.StoreSCIDInteractionHeight(v.scid, indexer.ChainHeight, true)
@@ -618,7 +619,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd map[string]*structures.FastSyn
 						ctrees = append(ctrees, sihtree)
 					}
 				}
-				if !scidExist(treenames, v.scid+"heights") {
+				if !slices.Contains(treenames, v.scid+"heights") {
 					treenames = append(treenames, v.scid+"heights")
 				}
 				if len(ctrees) > 0 {
@@ -633,6 +634,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd map[string]*structures.FastSyn
 			} else {
 				logger.Debugf("[AddSCIDToIndex] ERR - SCID '%v' doesn't exist at height %v", v.scid, indexer.ChainHeight)
 			}
+
 		} else if skipfsrecheck {
 			// Generally this clause will be hit if contains is false but also skipfsrecheck is true. This will still store the fastsync data in a limited format
 			indexer.Lock()
@@ -683,6 +685,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd map[string]*structures.FastSyn
 			}
 			tempdb.Writing = false
 		}
+
 	}
 
 	logger.Debugf("[AddSCIDToIndex] Done - Sorting %v SCIDs to index", len(scidstoadd))
@@ -1266,7 +1269,7 @@ func (indexer *Indexer) indexInvokes(bl_sctxs []structures.SCTXParse, bl_txns *s
 		// TODO: Go routine possible for pre-storage components given the number of 'potential' getscvar calls that may be required.. could speed up indexing some more.
 		for i := 0; i < len(bl_sctxs); i++ {
 			// Go ahead and skip any in sfscidexclusion ahead of looking at method. Doesn't matter as we won't store it at all.
-			if scidExist(indexer.SFSCIDExclusion, bl_sctxs[i].Scid) {
+			if slices.Contains(indexer.SFSCIDExclusion, bl_sctxs[i].Scid) {
 				logger.Debugf("[indexInvokes] Not appending invoke data SCID '%s' as it resides within SFSCIDExclusion - '%v'.", bl_sctxs[i].Scid, indexer.SFSCIDExclusion)
 				continue
 			}
@@ -1434,7 +1437,7 @@ func (indexer *Indexer) indexInvokes(bl_sctxs []structures.SCTXParse, bl_txns *s
 					}
 				}
 			} else {
-				if !scidExist(indexer.ValidatedSCs, bl_sctxs[i].Scid) {
+				if !slices.Contains(indexer.ValidatedSCs, bl_sctxs[i].Scid) {
 
 					// Validate SCID is *actually* a valid SCID
 					// This assumes we can return all variables.
@@ -1486,7 +1489,7 @@ func (indexer *Indexer) indexInvokes(bl_sctxs []structures.SCTXParse, bl_txns *s
 					}
 				}
 
-				if scidExist(indexer.ValidatedSCs, bl_sctxs[i].Scid) {
+				if slices.Contains(indexer.ValidatedSCs, bl_sctxs[i].Scid) {
 					//logger.Debugf("SCID %v is validated, checking the SC TX entrypoints to see if they should be logged.", bl_sctxs[i].Scid)
 					// TODO: Modify this to be either all entrypoints, just Start, or a subset that is defined in pre-run params or not needed?
 					//if bl_sctxs[i].entrypoint == "Start" {
@@ -1508,7 +1511,7 @@ func (indexer *Indexer) indexInvokes(bl_sctxs []structures.SCTXParse, bl_txns *s
 								// v2.0.2-alpha.6 - Removing this as it is no longer needed to be skipped due to the scidexclusion list being supported
 								// If a hardcodedscid invoke + fastsync is enabled, do not log any new details. We will only retain within DB on-launch data.
 								/*
-									if scidExist(structures.Hardcoded_SCIDS, bl_sctxs[i].Scid) && indexer.FastSyncConfig.Enabled {
+									if slices.Contains(structures.Hardcoded_SCIDS, bl_sctxs[i].Scid) && indexer.FastSyncConfig.Enabled {
 										logger.Debugf("[indexInvokes] Skipping invoke detail store of '%v' since fastsync is '%v'.", bl_sctxs[i].Scid, indexer.FastSyncConfig.Enabled)
 										return
 									} else {
@@ -1588,7 +1591,7 @@ func (indexer *Indexer) indexInvokes(bl_sctxs []structures.SCTXParse, bl_txns *s
 								// v2.0.2-alpha.6 - Removing this as it is no longer needed to be skipped due to the scidexclusion list being supported
 								// If a hardcodedscid invoke + fastsync is enabled, do not log any new details. We will only retain within DB on-launch data.
 								/*
-									if scidExist(structures.Hardcoded_SCIDS, bl_sctxs[i].Scid) && indexer.FastSyncConfig.Enabled {
+									if slices.Contains(structures.Hardcoded_SCIDS, bl_sctxs[i].Scid) && indexer.FastSyncConfig.Enabled {
 										logger.Debugf("[indexInvokes] Skipping invoke detail store of '%v' since fastsync is '%v'.", bl_sctxs[i].Scid, indexer.FastSyncConfig.Enabled)
 										return
 									} else {
@@ -2860,17 +2863,6 @@ func (ind *Indexer) Close() {
 		ind.BBSBackend.Writing = false
 		//ind.BBSBackend.Writer = ""
 	}
-}
-
-// Check if value exists within a string array/slice
-func scidExist(s []string, str string) bool {
-	for _, v := range s {
-		if v == str {
-			return true
-		}
-	}
-
-	return false
 }
 
 // Check if value exists within an interface array/slice
