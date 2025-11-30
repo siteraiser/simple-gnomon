@@ -12,7 +12,7 @@ import (
 	"github.com/deroproject/graviton"
 	"github.com/sirupsen/logrus"
 
-	"github.com/civilware/Gnomon/structures"
+	"github.com/secretnamebasis/Gnomon/structures"
 )
 
 type Derodbstore struct {

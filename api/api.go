@@ -9,9 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	store "github.com/civilware/Gnomon/storage"
-	"github.com/civilware/Gnomon/structures"
 	"github.com/gorilla/mux"
+	store "github.com/secretnamebasis/Gnomon/storage"
+	"github.com/secretnamebasis/Gnomon/structures"
 	"github.com/sirupsen/logrus"
 )
 

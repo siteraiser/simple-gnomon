@@ -14,13 +14,13 @@ import (
 	"time"
 
 	"github.com/chzyer/readline"
-	"github.com/civilware/Gnomon/api"
-	"github.com/civilware/Gnomon/indexer"
-	"github.com/civilware/Gnomon/mbllookup"
-	"github.com/civilware/Gnomon/storage"
-	"github.com/civilware/Gnomon/structures"
 	"github.com/deroproject/derohe/cryptography/crypto"
 	"github.com/deroproject/derohe/globals"
+	"github.com/secretnamebasis/Gnomon/api"
+	"github.com/secretnamebasis/Gnomon/indexer"
+	"github.com/secretnamebasis/Gnomon/mbllookup"
+	"github.com/secretnamebasis/Gnomon/storage"
+	"github.com/secretnamebasis/Gnomon/structures"
 
 	"github.com/docopt/docopt-go"
 

@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/civilware/Gnomon/mbllookup"
-	"github.com/civilware/Gnomon/storage"
-	"github.com/civilware/Gnomon/structures"
+	"github.com/secretnamebasis/Gnomon/mbllookup"
+	"github.com/secretnamebasis/Gnomon/storage"
+	"github.com/secretnamebasis/Gnomon/structures"
 
 	"github.com/deroproject/derohe/block"
 	"github.com/deroproject/derohe/cryptography/bn256"

@@ -3,7 +3,7 @@ package indexer
 import (
 	"io"
 
-	"github.com/civilware/Gnomon/structures"
+	"github.com/secretnamebasis/Gnomon/structures"
 	"github.com/sirupsen/logrus"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )

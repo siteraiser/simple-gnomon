@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/civilware/Gnomon/rwc"
-	"github.com/civilware/Gnomon/structures"
+	"github.com/secretnamebasis/Gnomon/rwc"
+	"github.com/secretnamebasis/Gnomon/structures"
 
 	"github.com/deroproject/derohe/cryptography/crypto"
 	"github.com/deroproject/derohe/rpc"

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/civilware/Gnomon/structures"
+	"github.com/secretnamebasis/Gnomon/structures"
 )
 
 func SplitLineParts(line_parts []string, splitter string) (filt_line_parts [][]string) { //(filt_line_parts []string) {

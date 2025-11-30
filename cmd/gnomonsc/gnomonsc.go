@@ -20,9 +20,9 @@ import (
 	"github.com/docopt/docopt-go"
 	"github.com/ybbus/jsonrpc"
 
-	"github.com/civilware/Gnomon/indexer"
-	"github.com/civilware/Gnomon/storage"
-	"github.com/civilware/Gnomon/structures"
+	"github.com/secretnamebasis/Gnomon/indexer"
+	"github.com/secretnamebasis/Gnomon/storage"
+	"github.com/secretnamebasis/Gnomon/structures"
 )
 
 var walletRPCClient jsonrpc.RPCClient

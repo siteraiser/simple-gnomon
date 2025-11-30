@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/civilware/Gnomon/structures"
 	"github.com/deroproject/graviton"
+	"github.com/secretnamebasis/Gnomon/structures"
 	"github.com/sirupsen/logrus"
 )
 

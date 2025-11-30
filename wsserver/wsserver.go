@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/civilware/Gnomon/indexer"
-	"github.com/civilware/Gnomon/structures"
 	"github.com/creachadair/jrpc2"
+	"github.com/secretnamebasis/Gnomon/indexer"
+	"github.com/secretnamebasis/Gnomon/structures"
 	"github.com/sirupsen/logrus"
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
