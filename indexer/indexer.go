@@ -336,8 +336,12 @@ func (indexer *Indexer) StartDaemonMode(blockParallelNum int) {
 			// All could be future optimized .. for now it's slower but works.
 			logger.Printf("[StartDaemonMode-fastsync] Checking signature and validity of '%s'...", gnomon_scid)
 			variables, code, _, err := indexer.RPC.GetSCVariables(gnomon_scid, indexer.ChainHeight, nil, nil, nil, false)
-			if err == nil && len(variables) > 0 {
-				_ = code
+			if err != nil {
+
+				logger.Errorf("[StartDaemonMode] Fastsync failed to build GnomonSC index. Error - '%v'. Syncing from current chain height.", err)
+
+			} else if len(variables) > 0 {
+
 				keysstring, _, _ := indexer.GetSCIDValuesByKey(variables, gnomon_scid, "signature", indexer.ChainHeight)
 
 				// Check  if keysstring is nil or not to avoid any sort of panics
