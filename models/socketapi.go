@@ -30,21 +30,21 @@ func Set_ws_conn() {
 	fmt.Println("WebSocket connected")
 	appData := xswd.ApplicationData{}
 	signature := `-----BEGIN DERO SIGNED MESSAGE-----
-Address: dero1qyvqpdftj8r6005xs20rnflakmwa5pdxg9vcjzdcuywq2t8skqhvwqglt6x0g
-C: 93ad8099661f34a162274368c8eb3ed99ff2bdacdeab8f4800a75a69fa6c935
-S: 29bf7da6a5ef7c3d23f79acc37bf9c149321d693ada98837a4e761494f4adcff
+Address: dero1qyc96tgvz8fz623snpfwjgdhlqznamcsuh8rahrh2yvsf2gqqxdljqg9a9kka
+C: dff7a5c2bfea7fc232cf92fad5e0db205717ab81d246fb283c59c07b733123d
+S: 1f88f595909431546b518651796f1d47c4bf60e65167ac589ce8ef9a8d74684
 
-MTcyNzJhYjk0NjJkMjViMzBhMWMwMjRiNWNiZjdjYjI3YjMyYzI5M2RjNjRhZDJi
-YTM5MmYyOTk4ODIwZGVlZg==
+NGUzZWQxMDA5OWQ5ZWVjOTc2NzUyNDQwMjE2NGI5NzUwNmNjMGQ3NzJmMmU2NTdl
+MzE3MzYxNTI1NTQ3M2VlOQ==
 -----END DERO SIGNED MESSAGE-----`
 	appData.Signature = []byte(signature)
 	appData.Name = "simple-gnomon-lite"
-	appData.Description = "Creating application data must be simple and fun! :)"
+	appData.Description = "indexing the blockchain is fun!"
 	appData.Url = "http://localhost:8080"
 	appData.Permissions = map[string]xswd.Permission{
-		"SignData": xswd.AlwaysAllow, // because that's what this does
+		// "SignData": xswd.AlwaysAllow, // because that's what this does
 	}
-	appData.Id = "17272ab9462d25b30a1c024b5cbf7cb27b32c293dc64ad2ba392f2998820deef"
+	appData.Id = "4e3ed10099d9eec9767524402164b97506cc0d772f2e657e3173615255473ee9"
 	if err := Conn.WriteJSON(appData); err != nil {
 		panic(err)
 	}
