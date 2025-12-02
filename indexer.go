@@ -79,6 +79,10 @@ func NewIndexer(
 // Manually add/inject a SCID to be indexed. Checks validity and then stores within owner tree (no signer addr) and stores a set of current variables.
 func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) {
 
+	defer func() {
+		indexer.BBSBackend.Writing = false
+	}()
+
 	if scidstoadd.Scid == "" {
 		return errors.New("no scid")
 	}
@@ -151,7 +155,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
 
 	}
-	indexer.BBSBackend.Writing = false
+
 	return nil
 }
 
