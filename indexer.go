@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"slices"
 	"sync"
 	"time"
 
@@ -45,7 +44,7 @@ var l *logrus.Entry
 func InitLog(args map[string]interface{}, console io.Writer) {
 	loglevel_console := logrus.InfoLevel
 
-	if args["--debug"] != nil && args["--debug"].(bool) == true {
+	if args["--debug"] != nil && args["--debug"].(bool) {
 		loglevel_console = logrus.DebugLevel
 	}
 
@@ -88,30 +87,6 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		return errors.New("nothing to import")
 	}
 
-	// By returning valid variables of a given Scid (GetSC --> parse vars), we can conclude it is a valid SCID. Otherwise, skip adding to validated scids
-	if len(scidstoadd.ScVars) == 0 {
-		return errors.New("no vars")
-	}
-
-	// We know owner is a tree that'll be written to, no need to loop through the scexists func every time when we *know* this one exists and isn't unique by scid etc.
-	// Check if already validated
-	if slices.Contains(indexer.ValidatedSCs, scidstoadd.Scid) || indexer.Closing {
-		//l.Debugf("[AddSCIDToIndex] SCID '%v' already in validated list.", scid)
-		return
-	} else if slices.Contains(indexer.SFSCIDExclusion, scidstoadd.Scid) {
-		l.Debugf("[StartDaemonMode] Not appending scidstoadd SCID '%s' as it resides within SFSCIDExclusion - '%v'.", scidstoadd.Scid, indexer.SFSCIDExclusion)
-		return
-	}
-
-	indexer.Lock()
-	indexer.ValidatedSCs = append(indexer.ValidatedSCs, scidstoadd.Scid)
-	indexer.Unlock()
-	if scidstoadd.Fsi != nil {
-		l.Debugf("[AddSCIDToIndex] SCID matches search filter. Adding SCID %v / Signer %v", scidstoadd.Scid, scidstoadd.Fsi.Owner)
-	} else {
-		l.Debugf("[AddSCIDToIndex] SCID matches search filter. Adding SCID %v", scidstoadd.Scid)
-	}
-
 	writeWait, _ := time.ParseDuration("10ms")
 	for indexer.BBSBackend.Writing {
 		if indexer.Closing {
@@ -120,14 +95,41 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		//l.Debugf("[AddSCIDToIndex-StoreAltDBInput] GravitonDB is writing... sleeping for %v...", writeWait)
 		time.Sleep(writeWait)
 	}
+
 	indexer.BBSBackend.Writing = true
-	indexer.BBSBackend.StoreOwner(scidstoadd.Scid, scidstoadd.Fsi.Owner)
-	indexer.BBSBackend.StoreSCIDVariableDetails(scidstoadd.Scid, scidstoadd.ScVars, int64(scidstoadd.Fsi.Height))
-	indexer.BBSBackend.StoreSCIDInteractionHeight(scidstoadd.Scid, int64(scidstoadd.Fsi.Height))
+
+	// By returning valid variables of a given Scid (GetSC --> parse vars), we can conclude it is a valid SCID. Otherwise, skip adding to validated scids
+	if len(scidstoadd.ScVars) != 0 {
+
+		if _, err := indexer.BBSBackend.StoreSCIDVariableDetails(
+			scidstoadd.Scid,
+			scidstoadd.ScVars,
+			int64(scidstoadd.Fsi.Height),
+		); err != nil {
+			return err
+		}
+
+		if _, err := indexer.BBSBackend.StoreOwner(
+			scidstoadd.Scid,
+			scidstoadd.Fsi.Owner,
+		); err != nil {
+			return err
+		}
+
+	} else {
+
+		if _, err := indexer.BBSBackend.StoreSCIDInteractionHeight(
+			scidstoadd.Scid,
+			int64(scidstoadd.Fsi.Height),
+		); err != nil {
+			return err
+		}
+
+	}
 	indexer.BBSBackend.Writing = false
 	l.Debugf("[AddSCIDToIndex] Done - Committing RAM SCID sort to disk ..")
-	l.Debugf("[AddSCIDToIndex] New stored disk: %v", len(indexer.BBSBackend.GetAllOwnersAndSCIDs()))
-	return err
+	l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllOwnersAndSCIDs())))
+	return nil
 }
 
 // Gets SC variable details
