@@ -5,6 +5,10 @@ import (
 	"github.com/deroproject/derohe/transaction"
 )
 
+type Worker struct {
+	Queue chan SCIDToIndexStage
+	Idx   *Indexer
+}
 type SCTXParse struct {
 	Txid       string
 	Scid       string
