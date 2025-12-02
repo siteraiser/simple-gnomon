@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -836,13 +837,13 @@ func (bbs *BboltStore) StoreSCIDInteractionHeight(scid string, height int64) (ch
 			// Retrieve value and conovert to SCIDInteractionHeight, so that you can manipulate and update db
 			_ = json.Unmarshal(currSCIDInteractionHeight, &interactionHeight)
 
-			for _, v := range interactionHeight {
-				if v == height {
-					// Return nil if already exists in array.
-					// Clause for this is in event we pop backwards in time and already have this data stored.
-					// TODO: What if interaction happened on false-chain and pop to retain correct chain. Bad data may be stored here still, as it isn't removed. Need fix for this in future.
-					return
-				}
+			if slices.Contains(interactionHeight, height) {
+
+				// Return nil if already exists in array.
+
+				// Clause for this is in event we pop backwards in time and already have this data stored.
+				// TODO: What if interaction happened on false-chain and pop to retain correct chain. Bad data may be stored here still, as it isn't removed. Need fix for this in future.
+				return
 			}
 
 			interactionHeight = append(interactionHeight, height)
