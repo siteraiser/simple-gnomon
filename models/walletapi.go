@@ -43,6 +43,7 @@ func getClient() jsonrpc.RPCClient {
 	}
 	return jsonrpc.NewClientWithOpts("http://127.0.0.1:10103/json_rpc", opts)
 }
+
 func getNewClientWithOpts() (jsonrpc.RPCClient, context.Context, context.CancelFunc) {
 	opts := &jsonrpc.RPCClientOpts{
 		CustomHeaders: map[string]string{
@@ -248,10 +249,21 @@ func GetSCNameFromVars(keys map[string]interface{}) string {
 	var text string
 
 	for k, v := range keys {
-		if !strings.Contains(k, "name") {
+		key := strings.ToLower(k)
+		if key != "name" || //explicit check
+			// infer a name
+			!strings.Contains(key, "name") ||
+			!strings.HasSuffix(key, "name") ||
+			!strings.HasPrefix(key, "name") {
+
 			continue
 		}
-		b, e := hex.DecodeString(v.(string))
+
+		str, ok := v.(string)
+		if !ok {
+			continue
+		}
+		b, e := hex.DecodeString(str)
 		if e != nil {
 			continue // what else can we do ?
 		}
