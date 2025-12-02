@@ -92,7 +92,7 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 	return result
 }
 
-var rpcClient = jsonrpc.NewClient("http://127.0.0.1:10102/json_rpc")
+var RpcClient jsonrpc.RPCClient
 
 func handleResult[T any](method string, params any) (T, error) {
 	var result T
@@ -107,9 +107,9 @@ func handleResult[T any](method string, params any) (T, error) {
 
 	var err error
 	if params == nil {
-		err = rpcClient.CallFor(&result, method) // no params argument
+		err = RpcClient.CallFor(&result, method) // no params argument
 	} else {
-		err = rpcClient.CallFor(&result, method, params)
+		err = RpcClient.CallFor(&result, method, params)
 	}
 
 	if err != nil {
