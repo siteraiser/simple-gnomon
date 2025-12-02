@@ -79,15 +79,13 @@ func NewIndexer(
 
 // Manually add/inject a SCID to be indexed. Checks validity and then stores within owner tree (no signer addr) and stores a set of current variables.
 func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) {
+
 	if scidstoadd.Scid == "" {
 		return errors.New("no scid")
 	}
+
 	if scidstoadd.Fsi == nil {
 		return errors.New("nothing to import")
-	}
-
-	if scidstoadd.ScCode == "" {
-		return errors.New("no code")
 	}
 
 	// By returning valid variables of a given Scid (GetSC --> parse vars), we can conclude it is a valid SCID. Otherwise, skip adding to validated scids
