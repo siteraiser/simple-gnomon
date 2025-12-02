@@ -1,4 +1,4 @@
-package gnomon
+package main
 
 import (
 	"encoding/json"
