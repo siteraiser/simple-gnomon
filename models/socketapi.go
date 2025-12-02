@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -78,30 +77,34 @@ func postBytes(b []byte) []byte {
 	return msg
 }
 
-func signData(input string) []byte {
+func GetDaemonEndpoint() xswd.GetDaemon_Result {
 
 	// fmt.Println(estimate)
 	payload := map[string]any{
 		"jsonrpc": "2.0",
-		"id":      "SignData",
-		"method":  "SignData",
-		"params":  []byte(input),
+		"id":      "GetDaemon",
+		"method":  "GetDaemon",
 	}
 	jsonBytes, err := json.Marshal(payload)
 	if err != nil {
-		return nil
+		return xswd.GetDaemon_Result{}
 	}
 
 	var r xswd.RPCResponse
 	if err := json.Unmarshal(postBytes(jsonBytes), &r); err != nil {
-		return nil
+		return xswd.GetDaemon_Result{}
 	}
 
-	bytes, err := base64.StdEncoding.DecodeString(r.Result.(map[string]any)["signature"].(string))
+	raw, err := json.Marshal(r.Result)
 	if err != nil {
-		return nil
+		return xswd.GetDaemon_Result{}
 	}
 
-	return bytes
+	result := xswd.GetDaemon_Result{}
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return xswd.GetDaemon_Result{}
+	}
+
+	return result
 
 }
