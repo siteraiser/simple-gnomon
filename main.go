@@ -17,14 +17,14 @@ import (
 	"github.com/deroproject/derohe/globals"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/transaction"
-	walletapi "github.com/secretnamebasis/simple-gnomon/models"
+	"github.com/secretnamebasis/simple-gnomon/connections"
 )
 
 func main() {
-	walletapi.Set_ws_conn()
-	daemon := walletapi.GetDaemonEndpoint()
-	walletapi.RpcClient = jsonrpc.NewClient("http://" + daemon.Endpoint + "/json_rpc")
-	if walletapi.Get_TopoHeight() == 0 {
+	connections.Set_ws_conn()
+	daemon := connections.GetDaemonEndpoint()
+	connections.RpcClient = jsonrpc.NewClient("http://" + daemon.Endpoint + "/json_rpc")
+	if connections.Get_TopoHeight() == 0 {
 		panic(errors.New("please connect through rpc"))
 	}
 	start_gnomon_indexer()
@@ -38,7 +38,7 @@ func start_gnomon_indexer() {
 
 	time.Sleep(time.Second * 1) // we need a second okay...
 
-	lowest_height := walletapi.Get_TopoHeight()
+	lowest_height := connections.Get_TopoHeight()
 
 	// build separate databases for each index, for portability
 	fmt.Println("opening  dbs")
@@ -85,14 +85,14 @@ func start_gnomon_indexer() {
 					continue
 				}
 				fmt.Println("scid at height indexed:",
-					fmt.Sprint(staged.Fsi.Height), "/", fmt.Sprint(walletapi.Get_TopoHeight()),
+					fmt.Sprint(staged.Fsi.Height), "/", fmt.Sprint(connections.Get_TopoHeight()),
 				)
 			}
 		}()
 
 	}
 
-	fmt.Println("starting to index ", walletapi.Get_TopoHeight())
+	fmt.Println("starting to index ", connections.Get_TopoHeight())
 
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
 
@@ -100,7 +100,7 @@ do_it_again: // simple-daemon
 
 	// let's just make sure things are clean when we come in.
 
-	now := walletapi.Get_TopoHeight()
+	now := connections.Get_TopoHeight()
 	wg := sync.WaitGroup{}
 	limit := make(chan struct{}, runtime.GOMAXPROCS(0)-2)
 	// lowest_height = 1491500
@@ -114,7 +114,7 @@ do_it_again: // simple-daemon
 			limit chan struct{},
 			wg *sync.WaitGroup,
 		) {
-			fmt.Println("auditing block:", fmt.Sprint(each), "/", fmt.Sprint(walletapi.Get_TopoHeight()))
+			fmt.Println("auditing block:", fmt.Sprint(each), "/", fmt.Sprint(connections.Get_TopoHeight()))
 			err := indexHeight(workers, indicies, each)
 			if err != nil {
 				fmt.Printf("error: %s %s %d %d", err, "height:", each, now)
@@ -126,7 +126,7 @@ do_it_again: // simple-daemon
 	wg.Wait()
 	fmt.Println("indexed")
 
-	lowest_height = min(now, walletapi.Get_TopoHeight())
+	lowest_height = min(now, connections.Get_TopoHeight())
 
 	goto do_it_again
 
@@ -137,17 +137,17 @@ func indexHeight(
 	indicies map[string][]string,
 	each int64,
 ) error {
-	result := walletapi.GetBlockInfo(rpc.GetBlock_Params{
+	result := connections.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(each),
 	})
 
-	bl := walletapi.GetBlockDeserialized(result.Blob)
+	bl := connections.GetBlockDeserialized(result.Blob)
 
 	if len(bl.Tx_hashes) < 1 {
 		return nil
 	}
 
-	r := walletapi.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: []string{bl.Tx_hashes[0].String()}})
+	r := connections.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: []string{bl.Tx_hashes[0].String()}})
 
 	b, err := hex.DecodeString(r.Txs_as_hex[0])
 	if err != nil {
@@ -195,7 +195,7 @@ func indexHeight(
 
 	// fmt.Printf("%v\n", params)
 
-	sc := walletapi.GetSC(params)
+	sc := connections.GetSC(params)
 
 	// fmt.Printf("%v\n", sc)
 
@@ -206,7 +206,7 @@ func indexHeight(
 
 	// fmt.Printf("%v\n", staged)
 
-	fmt.Println("staged scid:", staged.Scid, ":", fmt.Sprint(staged.Fsi.Height), "/", fmt.Sprint(walletapi.Get_TopoHeight()))
+	fmt.Println("staged scid:", staged.Scid, ":", fmt.Sprint(staged.Fsi.Height), "/", fmt.Sprint(connections.Get_TopoHeight()))
 
 	// range the indexers and add to index 1 at a time to prevent out of memory error
 	for name := range workers {
@@ -241,7 +241,7 @@ func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64
 
 	kv := sc.VariableStringKeys
 
-	headers := walletapi.GetSCNameFromVars(kv) + ";" + walletapi.GetSCDescriptionFromVars(kv) + ";" + walletapi.GetSCIDImageURLFromVars(kv)
+	headers := connections.GetSCNameFromVars(kv) + ";" + connections.GetSCDescriptionFromVars(kv) + ";" + connections.GetSCIDImageURLFromVars(kv)
 	fast_sync_import := &FastSyncImport{Height: height, Owner: owner, Headers: headers}
 
 	// because empty string is a valid code entry for scids...
