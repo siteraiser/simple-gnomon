@@ -28,8 +28,17 @@ func main() {
 var workers = make(map[string]*Worker)
 
 func start_gnomon_indexer() {
-	var lowest_height int64
-	indexes := map[string][]string{
+	// we are going to use all the noise we can get
+	InitLog(map[string]any{}, os.Stdout)
+
+	time.Sleep(time.Second * 1) // we need a second okay...
+
+	lowest_height := walletapi.Get_TopoHeight()
+
+	// build separate databases for each index, for portability
+	fmt.Println("opening  dbs")
+
+	indicies := map[string][]string{
 		"":    {""},
 		"g45": {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
 		"nfa": {"ART-NFA-MS1"},
