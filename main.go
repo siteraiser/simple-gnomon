@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ybbus/jsonrpc"
+
 	"github.com/deroproject/derohe/cryptography/crypto"
 	"github.com/deroproject/derohe/globals"
 	"github.com/deroproject/derohe/rpc"
@@ -20,6 +22,8 @@ import (
 
 func main() {
 	walletapi.Set_ws_conn()
+	daemon := walletapi.GetDaemonEndpoint()
+	walletapi.RpcClient = jsonrpc.NewClient("http://" + daemon.Endpoint + "/json_rpc")
 	if walletapi.Get_TopoHeight() == 0 {
 		panic(errors.New("please connect through rpc"))
 	}
