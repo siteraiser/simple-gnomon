@@ -1,4 +1,4 @@
-package gnomon
+package main
 
 import (
 	"github.com/deroproject/derohe/rpc"
