@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -21,67 +20,14 @@ import (
 )
 
 var Logger logrus.Logger
-
-type WalletConn struct {
-	Api  string
-	User string
-	Pass string
-}
-
-type WebAPIConn struct {
-	Api    string
-	User   string
-	Wallet string
-	Api_id string
-}
-
-func getClient() jsonrpc.RPCClient {
-	opts := &jsonrpc.RPCClientOpts{
-		CustomHeaders: map[string]string{
-			"Authorization": "Basic " + base64.StdEncoding.EncodeToString([]byte("secret:pass")),
-		},
-	}
-	return jsonrpc.NewClientWithOpts("http://127.0.0.1:10103/json_rpc", opts)
-}
-func getNewClientWithOpts() (jsonrpc.RPCClient, context.Context, context.CancelFunc) {
-	opts := &jsonrpc.RPCClientOpts{
-		CustomHeaders: map[string]string{
-			"Authorization": "Basic " + base64.StdEncoding.EncodeToString([]byte("secret:pass")),
-		},
-	}
-	client := jsonrpc.NewClientWithOpts("http://127.0.0.1:10103/json_rpc", opts)
-	ctx, cancel := context.WithTimeout(context.Background(), timeout*time.Second)
-
-	return client, ctx, cancel
-}
-
-// a simple way to convert units
-const atomic_units = 100000
-
-// simple way to set file permissions
-const default_file_permissions = 0644
-
-// simple way to set dismiss
-const dismiss = `dismiss`
-
-// simple way to set confirm
-const confirm = `confirm`
+var daemon = "node.derofoundation.org:11012"
 
 // simple way to set timeouts
 const timeout = time.Second * 9    // the world is a really big place
 const deadline = time.Second * 300 // some content is just bigger
 
 // simple way to identify gnomon
-const gnomonSC = `a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4`
-
-// simple way to accept or reject things
-const reject = false
-const accept = true
-
-// simple way to determine the max ;
-// walletapi.Show_Transfers establishes a max height
-// https://github.com/deroproject/derohe/blob/main/walletapi/wallet.go#L252
-const max_height = "5000000000000"
+//const gnomonSC = `a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4`
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 	result, err := handleResult[t](method, params)
@@ -112,7 +58,7 @@ func handleResult[T any](method string, params any) (T, error) {
 	}
 	defer cancel()
 
-	rpcClient = jsonrpc.NewClient("http://node.derofoundation.org:11012/json_rpc")
+	rpcClient = jsonrpc.NewClient("http://" + daemon + "/json_rpc")
 
 	var err error
 	if params == nil {
@@ -130,17 +76,12 @@ func handleResult[T any](method string, params any) (T, error) {
 	return result, nil
 }
 func Get_TopoHeight() int64 {
-	rpcClient := getClient()
-
-	var height_result rpc.GetHeight_Result
-	err := rpcClient.CallFor(&height_result, "GetHeight")
-	if err != nil {
-		return 0
+	validator := func(r rpc.GetInfo_Result) bool {
+		return r.TopoHeight != 0
 	}
-	//fmt.Println("height_result\n", height_result)
-	return int64(height_result.Height) //look for topoheight specifically later on...
+	result := callRPC("DERO.GetInfo", nil, validator)
+	return result.TopoHeight
 }
-
 func GetTransaction(params rpc.GetTransaction_Params) rpc.GetTransaction_Result {
 	validator := func(r rpc.GetTransaction_Result) bool {
 		return r.Status != ""
