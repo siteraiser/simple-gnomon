@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/deroproject/derohe/rpc"
 	"github.com/gorilla/mux"
 	"github.com/secretnamebasis/simple-gnomon/db"
 	"github.com/secretnamebasis/simple-gnomon/globals"
@@ -285,8 +286,8 @@ func (apiServer *ApiServer) InvokeIndexBySCID(writer http.ResponseWriter, r *htt
 		}
 
 		// Case to ignore large variable returns
-		if len(addrscidinvokes) > structures.MAX_API_VAR_RETURN && apiServer.Config.ApiThrottle {
-			logger.Printf("[API-InvokeIndexBySCID] Tried to return more than %d sc indexes for %s... DENIED! Too much data...", structures.MAX_API_VAR_RETURN, scid)
+		if len(addrscidinvokes) > globals.MAX_API_VAR_RETURN && apiServer.Config.ApiThrottle {
+			logger.Printf("[API-InvokeIndexBySCID] Tried to return more than %d sc indexes for %s... DENIED! Too much data...", globals.MAX_API_VAR_RETURN, scid)
 			reply["addrscidinvokescount"] = 0
 			reply["addrscidinvokes"] = nil
 
@@ -313,8 +314,8 @@ func (apiServer *ApiServer) InvokeIndexBySCID(writer http.ResponseWriter, r *htt
 		}
 
 		// Case to ignore large variable returns
-		if len(addrinvokes) > structures.MAX_API_VAR_RETURN && apiServer.Config.ApiThrottle {
-			logger.Printf("[API-InvokeIndexBySCID] Tried to return more than %d sc indexes for %s... DENIED! Too much data...", structures.MAX_API_VAR_RETURN, scid)
+		if len(addrinvokes) > globals.MAX_API_VAR_RETURN && apiServer.Config.ApiThrottle {
+			logger.Printf("[API-InvokeIndexBySCID] Tried to return more than %d sc indexes for %s... DENIED! Too much data...", globals.MAX_API_VAR_RETURN, scid)
 			reply["addrinvokescount"] = 0
 			reply["addrinvokes"] = nil
 
@@ -334,8 +335,8 @@ func (apiServer *ApiServer) InvokeIndexBySCID(writer http.ResponseWriter, r *htt
 		scidinvokes = apiServer.BBSBackend.GetAllSCIDInvokeDetails(scid)
 
 		// Case to ignore large variable returns
-		if len(scidinvokes) > structures.MAX_API_VAR_RETURN && apiServer.Config.ApiThrottle {
-			logger.Printf("[API-InvokeIndexBySCID] Tried to return more than %d sc indexes for %s... DENIED! Too much data...", structures.MAX_API_VAR_RETURN, scid)
+		if len(scidinvokes) > globals.MAX_API_VAR_RETURN && apiServer.Config.ApiThrottle {
+			logger.Printf("[API-InvokeIndexBySCID] Tried to return more than %d sc indexes for %s... DENIED! Too much data...", globals.MAX_API_VAR_RETURN, scid)
 			reply["scidinvokescount"] = 0
 			reply["scidinvokes"] = nil
 
@@ -424,8 +425,8 @@ func (apiServer *ApiServer) InvokeSCVarsByHeight(writer http.ResponseWriter, r *
 		variables = apiServer.BBSBackend.GetSCIDVariableDetailsAtTopoheight(scid, interactionHeight)
 
 		// Case to ignore large variable returns
-		if len(variables) > structures.MAX_API_VAR_RETURN && apiServer.Config.ApiThrottle {
-			logger.Printf("[API-InvokeSCVarsByHeight] Tried to return more than %d sc vars for %s... DENIED! Too much data...", structures.MAX_API_VAR_RETURN, scid)
+		if len(variables) > globals.MAX_API_VAR_RETURN && apiServer.Config.ApiThrottle {
+			logger.Printf("[API-InvokeSCVarsByHeight] Tried to return more than %d sc vars for %s... DENIED! Too much data...", globals.MAX_API_VAR_RETURN, scid)
 			reply["variables"] = nil
 
 			err := json.NewEncoder(writer).Encode(reply)
@@ -444,7 +445,7 @@ func (apiServer *ApiServer) InvokeSCVarsByHeight(writer http.ResponseWriter, r *
 		var scidInteractionHeights []int64
 
 		// Case to ignore all variable instance returns for builtin registration tx - large amount of data.
-		if (scid == "0000000000000000000000000000000000000000000000000000000000000001" || scid == structures.MAINNET_GNOMON_SCID || scid == structures.TESTNET_GNOMON_SCID) && apiServer.Config.ApiThrottle {
+		if (scid == "0000000000000000000000000000000000000000000000000000000000000001" || scid == globals.MAINNET_GNOMON_SCID || scid == globals.TESTNET_GNOMON_SCID) && apiServer.Config.ApiThrottle {
 			logger.Printf("[API-InvokeSCVarsByHeight] Tried to return all the sc vars of everything at registration builtin... DENIED! Too much data...")
 			reply["variables"] = nil
 
@@ -459,8 +460,8 @@ func (apiServer *ApiServer) InvokeSCVarsByHeight(writer http.ResponseWriter, r *
 		variables = apiServer.BBSBackend.GetAllSCIDVariableDetails(scid)
 
 		// Case to ignore large variable returns
-		if len(variables) > structures.MAX_API_VAR_RETURN && apiServer.Config.ApiThrottle {
-			logger.Printf("[API-InvokeSCVarsByHeight] Tried to return more than %d sc vars for %s... DENIED! Too much data...", structures.MAX_API_VAR_RETURN, scid)
+		if len(variables) > globals.MAX_API_VAR_RETURN && apiServer.Config.ApiThrottle {
+			logger.Printf("[API-InvokeSCVarsByHeight] Tried to return more than %d sc vars for %s... DENIED! Too much data...", globals.MAX_API_VAR_RETURN, scid)
 			reply["variables"] = nil
 
 			err := json.NewEncoder(writer).Encode(reply)
@@ -769,7 +770,7 @@ func (apiServer *ApiServer) GetInfo(writer http.ResponseWriter, _ *http.Request)
 
 	reply := make(map[string]interface{})
 
-	var info *structures.GetInfo
+	var info *rpc.GetInfo_Result
 
 	info = apiServer.BBSBackend.GetGetInfoDetails()
 
