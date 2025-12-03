@@ -59,7 +59,7 @@ func InitLog(args map[string]interface{}, console io.Writer) {
 
 func NewIndexer(Bbs_backend *db.BboltStore, last_indexedheight int64, sfscidexclusion []string) *Indexer {
 
-	l = l.WithFields(logrus.Fields{})
+	l = globals.Logger.WithFields(logrus.Fields{})
 
 	return &Indexer{LastIndexedHeight: last_indexedheight, SFSCIDExclusion: sfscidexclusion, BBSBackend: Bbs_backend}
 }
