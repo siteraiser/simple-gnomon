@@ -1,4 +1,4 @@
-package main
+package globals
 
 import (
 	"github.com/blang/semver/v4"

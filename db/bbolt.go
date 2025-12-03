@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"encoding/json"
@@ -12,9 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/civilware/tela/logger"
+	"github.com/deroproject/derohe/rpc"
+	"github.com/secretnamebasis/simple-gnomon/globals"
+	structures "github.com/secretnamebasis/simple-gnomon/structs"
 	"github.com/sirupsen/logrus"
-
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -27,11 +28,13 @@ type BboltStore struct {
 	Buckets []string
 }
 
+var logger *logrus.Entry
+
 func NewBBoltDB(dbPath, dbName string) (*BboltStore, error) {
 	var err error
 	var Bbolt_backend *BboltStore = &BboltStore{}
 
-	l = Logger.WithFields(logrus.Fields{})
+	logger = globals.Logger.WithFields(logrus.Fields{})
 
 	if err := os.MkdirAll(dbPath, 0700); err != nil {
 		return nil, fmt.Errorf("directory creation err %s - dirpath %s", err, dbPath)
@@ -209,7 +212,7 @@ func (bbs *BboltStore) GetAllOwnersAndSCIDs() map[string]string {
 }
 
 // Stores all scinvoke details of a given scid
-func (bbs *BboltStore) StoreInvokeDetails(scid string, signer string, entrypoint string, topoheight int64, invokedetails *SCTXParse) (changes bool, err error) {
+func (bbs *BboltStore) StoreInvokeDetails(scid string, signer string, entrypoint string, topoheight int64, invokedetails *structures.SCTXParse) (changes bool, err error) {
 	confBytes, err := json.Marshal(invokedetails)
 	if err != nil {
 		return changes, fmt.Errorf("[StoreInvokeDetails] could not marshal invokedetails info: %v", err)
@@ -235,7 +238,7 @@ func (bbs *BboltStore) StoreInvokeDetails(scid string, signer string, entrypoint
 }
 
 // Returns all scinvoke calls from a given scid
-func (bbs *BboltStore) GetAllSCIDInvokeDetails(scid string) (invokedetails []*SCTXParse) {
+func (bbs *BboltStore) GetAllSCIDInvokeDetails(scid string) (invokedetails []*structures.SCTXParse) {
 	bName := scid
 
 	bbs.DB.View(func(tx *bolt.Tx) (err error) {
@@ -246,7 +249,7 @@ func (bbs *BboltStore) GetAllSCIDInvokeDetails(scid string) (invokedetails []*SC
 
 			for _, v := c.First(); err == nil; _, v = c.Next() {
 				if v != nil {
-					var currdetails *SCTXParse
+					var currdetails *structures.SCTXParse
 					_ = json.Unmarshal(v, &currdetails)
 					invokedetails = append(invokedetails, currdetails)
 				} else {
@@ -267,7 +270,7 @@ func (bbs *BboltStore) GetAllSCIDInvokeDetails(scid string) (invokedetails []*SC
 }
 
 // Retruns all scinvoke calls from a given scid that match a given entrypoint
-func (bbs *BboltStore) GetAllSCIDInvokeDetailsByEntrypoint(scid string, entrypoint string) (invokedetails []*SCTXParse) {
+func (bbs *BboltStore) GetAllSCIDInvokeDetailsByEntrypoint(scid string, entrypoint string) (invokedetails []*structures.SCTXParse) {
 	bName := scid
 
 	bbs.DB.View(func(tx *bolt.Tx) (err error) {
@@ -278,7 +281,7 @@ func (bbs *BboltStore) GetAllSCIDInvokeDetailsByEntrypoint(scid string, entrypoi
 
 			for _, v := c.First(); err == nil; _, v = c.Next() {
 				if v != nil {
-					var currdetails *SCTXParse
+					var currdetails *structures.SCTXParse
 					_ = json.Unmarshal(v, &currdetails)
 					if currdetails.Entrypoint == entrypoint {
 						invokedetails = append(invokedetails, currdetails)
@@ -301,7 +304,7 @@ func (bbs *BboltStore) GetAllSCIDInvokeDetailsByEntrypoint(scid string, entrypoi
 }
 
 // Returns all scinvoke calls from a given scid that match a given signer
-func (bbs *BboltStore) GetAllSCIDInvokeDetailsBySigner(scid string, signerPart string) (invokedetails []*SCTXParse) {
+func (bbs *BboltStore) GetAllSCIDInvokeDetailsBySigner(scid string, signerPart string) (invokedetails []*structures.SCTXParse) {
 	bName := scid
 
 	bbs.DB.View(func(tx *bolt.Tx) (err error) {
@@ -312,7 +315,7 @@ func (bbs *BboltStore) GetAllSCIDInvokeDetailsBySigner(scid string, signerPart s
 
 			for _, v := c.First(); err == nil; _, v = c.Next() {
 				if v != nil {
-					var currdetails *SCTXParse
+					var currdetails *structures.SCTXParse
 					_ = json.Unmarshal(v, &currdetails)
 					split := strings.Split(currdetails.Sender, signerPart)
 					if len(split) > 1 {
@@ -335,8 +338,56 @@ func (bbs *BboltStore) GetAllSCIDInvokeDetailsBySigner(scid string, signerPart s
 	return invokedetails
 }
 
+// Stores simple getinfo polling from the daemon
+func (bbs *BboltStore) StoreGetInfoDetails(getinfo *rpc.GetInfo_Result) (changes bool, err error) {
+	confBytes, err := json.Marshal(getinfo)
+	if err != nil {
+		return changes, fmt.Errorf("[StoreGetInfoDetails] could not marshal getinfo info: %v", err)
+	}
+
+	bName := "getinfo"
+
+	key := "getinfo"
+
+	err = bbs.DB.Update(func(tx *bolt.Tx) (err error) {
+		b, err := tx.CreateBucketIfNotExists([]byte(bName))
+		if err != nil {
+			return fmt.Errorf("bucket: %s", err)
+		}
+
+		err = b.Put([]byte(key), confBytes)
+		changes = true
+		return
+	})
+
+	return
+}
+
+// Returns simple getinfo polling from the daemon
+func (bbs *BboltStore) GetGetInfoDetails() (getinfo *rpc.GetInfo_Result) {
+	var v []byte
+	bName := "getinfo"
+
+	bbs.DB.View(func(tx *bolt.Tx) (err error) {
+		b := tx.Bucket([]byte(bName))
+		if b != nil {
+			key := "getinfo"
+			v = b.Get([]byte(key))
+		}
+
+		return
+	})
+
+	if v != nil {
+		_ = json.Unmarshal(v, &getinfo)
+		return
+	}
+
+	return
+}
+
 // Stores SC variables at a given topoheight (called on any new scdeploy or scinvoke actions)
-func (bbs *BboltStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVariable, topoheight int64) (changes bool, err error) {
+func (bbs *BboltStore) StoreSCIDVariableDetails(scid string, variables []*structures.SCIDVariable, topoheight int64) (changes bool, err error) {
 	confBytes, err := json.Marshal(variables)
 	if err != nil {
 		return changes, fmt.Errorf("[StoreSCIDVariableDetails] could not marshal getinfo info: %v", err)
@@ -361,8 +412,8 @@ func (bbs *BboltStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVa
 }
 
 // Gets SC variables at a given topoheight
-func (bbs *BboltStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight int64) (hVars []*SCIDVariable) {
-	results := make(map[int64][]*SCIDVariable)
+func (bbs *BboltStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight int64) (hVars []*structures.SCIDVariable) {
+	results := make(map[int64][]*structures.SCIDVariable)
 	var heights []int64
 
 	bName := scid + "vars"
@@ -377,7 +428,7 @@ func (bbs *BboltStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheigh
 				if k != nil && v != nil {
 					topoheight, _ := strconv.ParseInt(string(k), 10, 64)
 					heights = append(heights, topoheight)
-					var variables []*SCIDVariable
+					var variables []*structures.SCIDVariable
 					_ = json.Unmarshal(v, &variables)
 					results[topoheight] = variables
 				} else {
@@ -461,7 +512,7 @@ func (bbs *BboltStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheigh
 				//logger.Debugf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' is nil. Continuing.", fmt.Sprintf("%v", v), fmt.Sprintf("%v", k))
 				continue
 			}
-			co := &SCIDVariable{}
+			co := &structures.SCIDVariable{}
 
 			switch ckey := k.(type) {
 			case float64:
@@ -519,8 +570,8 @@ func (bbs *BboltStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheigh
 }
 
 // Gets SC variables at all topoheights
-func (bbs *BboltStore) GetAllSCIDVariableDetails(scid string) (hVars []*SCIDVariable) {
-	results := make(map[int64][]*SCIDVariable)
+func (bbs *BboltStore) GetAllSCIDVariableDetails(scid string) (hVars []*structures.SCIDVariable) {
+	results := make(map[int64][]*structures.SCIDVariable)
 	var heights []int64
 
 	bName := scid + "vars"
@@ -535,7 +586,7 @@ func (bbs *BboltStore) GetAllSCIDVariableDetails(scid string) (hVars []*SCIDVari
 				if k != nil && v != nil {
 					topoheight, _ := strconv.ParseInt(string(k), 10, 64)
 					heights = append(heights, topoheight)
-					var variables []*SCIDVariable
+					var variables []*structures.SCIDVariable
 					_ = json.Unmarshal(v, &variables)
 					results[topoheight] = variables
 				} else {
@@ -616,7 +667,7 @@ func (bbs *BboltStore) GetAllSCIDVariableDetails(scid string) (hVars []*SCIDVari
 				//logger.Debugf("[GetAllSCIDVariableDetails] Value '%v' or Key '%v' is nil. Continuing.", fmt.Sprintf("%v", v), fmt.Sprintf("%v", k))
 				continue
 			}
-			co := &SCIDVariable{}
+			co := &structures.SCIDVariable{}
 
 			switch ckey := k.(type) {
 			case float64:

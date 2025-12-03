@@ -11,52 +11,77 @@ import (
 	"sync"
 	"time"
 
+	"github.com/secretnamebasis/simple-gnomon/connections"
+	"github.com/secretnamebasis/simple-gnomon/db"
+	"github.com/secretnamebasis/simple-gnomon/globals"
+	"github.com/secretnamebasis/simple-gnomon/indexer"
+	structures "github.com/secretnamebasis/simple-gnomon/structs"
 	"github.com/ybbus/jsonrpc"
 
 	"github.com/deroproject/derohe/cryptography/crypto"
-	"github.com/deroproject/derohe/globals"
+	network "github.com/deroproject/derohe/globals"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/transaction"
-	"github.com/secretnamebasis/simple-gnomon/connections"
 )
 
 func main() {
+	// first call on the wallet ws for authorizations
 	connections.Set_ws_conn()
+
+	// next, establish the daemon endpoint for rpc calls, waaaaay faster than through the wallet
 	daemon := connections.GetDaemonEndpoint()
 	connections.RpcClient = jsonrpc.NewClient("http://" + daemon.Endpoint + "/json_rpc")
+
+	// if you are getting a zero... yeah, you are not connected
 	if connections.Get_TopoHeight() == 0 {
 		panic(errors.New("please connect through rpc"))
 	}
+
+	// now go start gnomon
 	start_gnomon_indexer()
 }
 
-var workers = make(map[string]*Worker)
+// establish some workers
+var workers = make(map[string]*indexer.Worker)
 
+// this is the processing thread
 func start_gnomon_indexer() {
+
 	// we are going to use all the noise we can get
-	InitLog(map[string]any{}, os.Stdout)
+	indexer.InitLog(map[string]any{}, os.Stdout)
 
 	time.Sleep(time.Second * 1) // we need a second okay...
 
+	// we are going to use this as an upper bound
 	lowest_height := connections.Get_TopoHeight()
 
 	// build separate databases for each index, for portability
-	fmt.Println("opening  dbs")
+	fmt.Println("opening dbs")
 
+	// for now, these are the collections we are looking for
 	indicies := map[string][]string{
-		"":    {""},
+		// this is the base db, it contains all scids and contract interactions
+		"": {""},
+
+		// TODO: we are not currently indexing contract interactions within search filters
 		"g45": {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
 		"nfa": {"ART-NFA-MS1"},
+
+		// other indicies could exist...
+		// "normal":{""}
+		// "registrations":{""}
+		// "invalid":{""}
+		// "miniblocks":{""}
 	}
 
 	for each := range indicies {
 
 		db_name := fmt.Sprintf("%s_%s.db", "GNOMON", each)
-		wd := globals.GetDataDirectory()
+		wd := network.GetDataDirectory()
 		db_path := filepath.Join(wd, "gnomondb")
 
 		var err error
-		b, err := NewBBoltDB(db_path, db_name)
+		b, err := db.NewBBoltDB(db_path, db_name)
 		if err != nil {
 			fmt.Println("[Main] Err creating boltdb:", err)
 			return
@@ -71,9 +96,9 @@ func start_gnomon_indexer() {
 		lowest_height = min(lowest_height, height)
 
 		// initialize each indexer
-		workers[each] = &Worker{
-			Queue: make(chan SCIDToIndexStage, 1000),
-			Idx:   NewIndexer(b, height, []string{MAINNET_GNOMON_SCID}),
+		workers[each] = &indexer.Worker{
+			Queue: make(chan structures.SCIDToIndexStage, 1000),
+			Idx:   indexer.NewIndexer(b, height, []string{globals.MAINNET_GNOMON_SCID}),
 		}
 
 		go func() {
@@ -108,7 +133,7 @@ do_it_again: // simple-daemon
 		limit <- struct{}{}
 		wg.Add(1)
 		go func(
-			workers map[string]*Worker,
+			workers map[string]*indexer.Worker,
 			indicies map[string][]string,
 			each int64,
 			limit chan struct{},
@@ -133,7 +158,7 @@ do_it_again: // simple-daemon
 }
 
 func indexHeight(
-	workers map[string]*Worker,
+	workers map[string]*indexer.Worker,
 	indicies map[string][]string,
 	each int64,
 ) error {
@@ -146,84 +171,84 @@ func indexHeight(
 	if len(bl.Tx_hashes) < 1 {
 		return nil
 	}
+	for _, tx_hash := range bl.Tx_hashes {
+		r := connections.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: []string{tx_hash.String()}})
 
-	r := connections.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: []string{bl.Tx_hashes[0].String()}})
-
-	b, err := hex.DecodeString(r.Txs_as_hex[0])
-	if err != nil {
-		return err
-	}
-	var tx transaction.Transaction
-	if err := tx.Deserialize(b); err != nil {
-		return err
-	}
-
-	if tx.TransactionType != transaction.SC_TX {
-		return nil
-	}
-
-	storeHeight(workers, each)
-	// fmt.Printf("%+v\n", bl)
-	// fmt.Printf("%+v\n", tx)
-
-	params := rpc.GetSC_Params{}
-
-	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
-		params = rpc.GetSC_Params{
-			SCID:       tx.GetHash().String(),
-			Code:       true,
-			Variables:  true,
-			TopoHeight: int64(bl.Height),
+		b, err := hex.DecodeString(r.Txs_as_hex[0])
+		if err != nil {
+			return err
 		}
-	}
+		var tx transaction.Transaction
+		if err := tx.Deserialize(b); err != nil {
+			return err
+		}
 
-	if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
-		scid, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
-		if !ok { // paranoia
+		if tx.TransactionType != transaction.SC_TX {
 			return nil
 		}
-		if scid.String() == "" { // yeah... weird
-			return nil
-		}
-		params = rpc.GetSC_Params{
-			SCID:       scid.String(),
-			Code:       false,
-			Variables:  false,
-			TopoHeight: int64(bl.Height),
-		}
-	}
 
-	// fmt.Printf("%v\n", params)
+		storeHeight(workers, each)
+		// fmt.Printf("%+v\n", bl)
+		// fmt.Printf("%+v\n", tx)
 
-	sc := connections.GetSC(params)
+		params := rpc.GetSC_Params{}
 
-	// fmt.Printf("%v\n", sc)
-
-	staged, err := stageSCIDForIndexers(sc, params.SCID, r.Txs[0].Signer, tx.Height)
-	if err != nil {
-		return err
-	}
-
-	// fmt.Printf("%v\n", staged)
-
-	fmt.Println("staged scid:", staged.Scid, ":", fmt.Sprint(staged.Fsi.Height), "/", fmt.Sprint(connections.Get_TopoHeight()))
-
-	// range the indexers and add to index 1 at a time to prevent out of memory error
-	for name := range workers {
-		for _, filter := range indicies[name] {
-			// if the code does not contain the filter, skip
-			if !strings.Contains(sc.Code, filter) {
-				continue
+		if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
+			params = rpc.GetSC_Params{
+				SCID:       tx.GetHash().String(),
+				Code:       true,
+				Variables:  true,
+				TopoHeight: int64(bl.Height),
 			}
-			workers[name].Queue <- staged
 		}
+
+		if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
+			scid, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
+			if !ok { // paranoia
+				return nil
+			}
+			if scid.String() == "" { // yeah... weird
+				return nil
+			}
+			params = rpc.GetSC_Params{
+				SCID:       scid.String(),
+				Code:       false,
+				Variables:  false,
+				TopoHeight: int64(bl.Height),
+			}
+		}
+
+		// fmt.Printf("%v\n", params)
+
+		sc := connections.GetSC(params)
+
+		// fmt.Printf("%v\n", sc)
+
+		staged, err := stageSCIDForIndexers(sc, params.SCID, r.Txs[0].Signer, tx.Height)
+		if err != nil {
+			return err
+		}
+
+		// fmt.Printf("%v\n", staged)
+
+		fmt.Println("staged scid:", staged.Scid, ":", fmt.Sprint(staged.Fsi.Height), "/", fmt.Sprint(connections.Get_TopoHeight()))
+
+		// range the indexers and add to index 1 at a time to prevent out of memory error
+		for name := range workers {
+			for _, filter := range indicies[name] {
+				// if the code does not contain the filter, skip
+				if !strings.Contains(sc.Code, filter) {
+					continue
+				}
+				workers[name].Queue <- staged
+			}
+		}
+
 	}
-
 	return storeHeight(workers, each)
-
 }
 
-func storeHeight(indexers map[string]*Worker, each int64) error {
+func storeHeight(indexers map[string]*indexer.Worker, each int64) error {
 	for _, worker := range indexers {
 		if ok, err := worker.Idx.BBSBackend.StoreLastIndexHeight(int64(each)); !ok && err != nil {
 			return err
@@ -232,17 +257,17 @@ func storeHeight(indexers map[string]*Worker, each int64) error {
 	return nil
 }
 
-func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64) (SCIDToIndexStage, error) {
+func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64) (structures.SCIDToIndexStage, error) {
 
-	vars, err := GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
+	vars, err := indexer.GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
 	if err != nil {
-		return SCIDToIndexStage{}, err
+		return structures.SCIDToIndexStage{}, err
 	}
 
 	kv := sc.VariableStringKeys
 
 	headers := connections.GetSCNameFromVars(kv) + ";" + connections.GetSCDescriptionFromVars(kv) + ";" + connections.GetSCIDImageURLFromVars(kv)
-	fast_sync_import := &FastSyncImport{Height: height, Owner: owner, Headers: headers}
+	fast_sync_import := &structures.FastSyncImport{Height: height, Owner: owner, Headers: headers}
 
 	// because empty string is a valid code entry for scids...
 	// if sc.Code == "" {
@@ -254,7 +279,7 @@ func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64
 	// 	return simple_gnomon.SCIDToIndexStage{}, errors.New("[staging] no vars")
 	// }
 
-	staged := SCIDToIndexStage{Scid: scid, Fsi: fast_sync_import, ScVars: vars, ScCode: sc.Code}
+	staged := structures.SCIDToIndexStage{Scid: scid, Fsi: fast_sync_import, ScVars: vars, ScCode: sc.Code}
 
 	return staged, nil
 }

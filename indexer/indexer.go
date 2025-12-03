@@ -1,4 +1,4 @@
-package main
+package indexer
 
 import (
 	"encoding/hex"
@@ -11,27 +11,27 @@ import (
 
 	"github.com/deroproject/derohe/cryptography/crypto"
 	"github.com/deroproject/derohe/rpc"
+	"github.com/secretnamebasis/simple-gnomon/db"
+	"github.com/secretnamebasis/simple-gnomon/globals"
+	structures "github.com/secretnamebasis/simple-gnomon/structs"
 	"github.com/sirupsen/logrus"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
-
-type SCIDToIndexStage struct {
-	Scid   string
-	Fsi    *FastSyncImport
-	ScVars []*SCIDVariable
-	ScCode string
-}
 
 type Indexer struct {
 	LastIndexedHeight int64
 	ChainHeight       int64
 	SearchFilter      []string
 	SFSCIDExclusion   []string
-	BBSBackend        *BboltStore
+	BBSBackend        *db.BboltStore
 	Closing           bool
 	ValidatedSCs      []string
 	Status            string
 	sync.RWMutex
+}
+type Worker struct {
+	Queue chan structures.SCIDToIndexStage
+	Idx   *Indexer
 }
 
 var Connected bool = false
@@ -46,36 +46,26 @@ func InitLog(args map[string]interface{}, console io.Writer) {
 		loglevel_console = logrus.DebugLevel
 	}
 
-	Logger = logrus.Logger{
-		Out:   console,
-		Level: loglevel_console,
-		Formatter: &prefixed.TextFormatter{
-			ForceColors:     true,
-			DisableColors:   false,
-			TimestampFormat: "01/02/2006 15:04:05",
-			FullTimestamp:   true,
-			ForceFormatting: true,
-		},
+	format := &prefixed.TextFormatter{
+		ForceColors:     true,
+		DisableColors:   false,
+		TimestampFormat: "01/02/2006 15:04:05",
+		FullTimestamp:   true,
+		ForceFormatting: true,
 	}
+
+	globals.Logger = logrus.Logger{Out: console, Level: loglevel_console, Formatter: format}
 }
 
-func NewIndexer(
-	Bbs_backend *BboltStore,
-	last_indexedheight int64,
-	sfscidexclusion []string,
-) *Indexer {
+func NewIndexer(Bbs_backend *db.BboltStore, last_indexedheight int64, sfscidexclusion []string) *Indexer {
 
 	l = l.WithFields(logrus.Fields{})
 
-	return &Indexer{
-		LastIndexedHeight: last_indexedheight,
-		SFSCIDExclusion:   sfscidexclusion,
-		BBSBackend:        Bbs_backend,
-	}
+	return &Indexer{LastIndexedHeight: last_indexedheight, SFSCIDExclusion: sfscidexclusion, BBSBackend: Bbs_backend}
 }
 
 // Manually add/inject a SCID to be indexed. Checks validity and then stores within owner tree (no signer addr) and stores a set of current variables.
-func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) {
+func (indexer *Indexer) AddSCIDToIndex(scidstoadd structures.SCIDToIndexStage) (err error) {
 
 	defer func() {
 		indexer.BBSBackend.Writing = false
@@ -155,13 +145,13 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 }
 
 // Gets SC variable details
-func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (variables []*SCIDVariable, err error) {
+func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (variables []*structures.SCIDVariable, err error) {
 	//balances = make(map[string]uint64)
 
 	isAlpha := regexp.MustCompile(`^[A-Za-z]+$`).MatchString
 
 	for k, v := range keysstring {
-		currVar := &SCIDVariable{}
+		currVar := &structures.SCIDVariable{}
 		currVar.Key = k
 		switch cval := v.(type) {
 		case float64:
@@ -222,7 +212,7 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 	}
 
 	for k, v := range keysuint64 {
-		currVar := &SCIDVariable{}
+		currVar := &structures.SCIDVariable{}
 		currVar.Key = k
 		switch cval := v.(type) {
 		case string:
