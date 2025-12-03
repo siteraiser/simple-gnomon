@@ -14,7 +14,7 @@ import (
 	"github.com/creachadair/jrpc2"
 	"github.com/secretnamebasis/simple-gnomon/globals"
 	"github.com/secretnamebasis/simple-gnomon/indexer"
-	"github.com/secretnamebasis/simple-gnomon/structures"
+	structures "github.com/secretnamebasis/simple-gnomon/structs"
 	"github.com/sirupsen/logrus"
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"

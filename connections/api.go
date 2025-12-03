@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/secretnamebasis/simple-gnomon/db"
 	"github.com/secretnamebasis/simple-gnomon/globals"
-	"github.com/secretnamebasis/simple-gnomon/structures"
+	structures "github.com/secretnamebasis/simple-gnomon/structs"
 	"github.com/sirupsen/logrus"
 )
 

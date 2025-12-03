@@ -37,6 +37,11 @@ type FastSyncImport struct {
 	Height  uint64
 	Headers string
 }
+type GnomonSCIDQuery struct {
+	Owner  string
+	Height uint64
+	SCID   string
+}
 type JSONRpcReq struct {
 	Id     *json.RawMessage `json:"id"`
 	Method string           `json:"method"`
