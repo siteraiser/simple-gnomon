@@ -132,7 +132,7 @@ do_it_again: // simple-daemon
 	wg := sync.WaitGroup{}
 	limit := make(chan struct{}, runtime.GOMAXPROCS(0)-2)
 	mu := sync.Mutex{}
-	lowest_height = 4_399_999
+	// lowest_height = 4_399_999
 	for each := lowest_height; each < now; each++ {
 
 		if each%4800 == 0 { // this is like every 5 minutes
