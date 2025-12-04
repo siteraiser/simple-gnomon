@@ -17,7 +17,6 @@ func main() {
 	start_gnomon_indexer()
 }
 
-var startat = int64(3000000)
 var bbolt = make(map[string]*BboltStore)
 var indexers = make(map[string]*Indexer)
 
@@ -72,12 +71,13 @@ func start_gnomon_indexer() {
 		}
 	*/
 	fmt.Println("indexers: ", sqlindexer)
-	height, _ := sqlite.GetLastIndexHeight()
+	height, err := sqlite.GetLastIndexHeight()
 	if err != nil {
-		height = 0
+		height = startat
+		fmt.Println("err: ", err)
 	}
 
-	lowest_height = 0
+	lowest_height = startat
 	lowest_height = min(lowest_height, height)
 	sqlindexer = NewSQLIndexer(sqlite, height, []string{MAINNET_GNOMON_SCID})
 	fmt.Println("SqlIndexer ", sqlindexer)
@@ -97,7 +97,7 @@ func start_gnomon_indexer() {
 
 	//Logger.Info()
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
-	for bheight := lowest_height; bheight <= api.Get_TopoHeight(); bheight++ { //program.wallet.Get_TopoHeight()
+	for bheight := height; bheight <= api.Get_TopoHeight(); bheight++ { //program.wallet.Get_TopoHeight()
 		fmt.Print("\rHeight>", bheight)
 		result := api.GetBlockInfo(rpc.GetBlock_Params{
 			Height: uint64(bheight),

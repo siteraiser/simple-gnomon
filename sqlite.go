@@ -107,10 +107,24 @@ func createTables(Db *sql.DB) {
 	var count int
 	Db.QueryRow("SELECT COUNT(*) FROM state").Scan(&count)
 	if count == 0 {
+		fmt.Println("setting defaults")
 		//set defaults
-		statement, err := Db.Prepare("INSERT INTO state (name,value) VALUES('lastindexedheight',0);")
+		statement, err := Db.Prepare("INSERT INTO state (name,value) VALUES('lastindexedheight'," + strconv.Itoa(int(startat)) + ");")
 		handleError(err)
 		statement.Exec()
+	}
+
+	/// check tables
+	rows, _ := Db.Query("SELECT scid, owner FROM scs", nil)
+	var (
+		scid  string
+		owner string
+	)
+
+	for rows.Next() {
+		rows.Scan(&scid, &owner)
+		fmt.Println("scids: ")
+		fmt.Println(owner, scid)
 	}
 }
 
@@ -281,7 +295,7 @@ func (ss *SqlStore) GetAllOwnersAndSCIDs() map[string]string {
 	)
 
 	for rows.Next() {
-		rows.Scan(&owner, &scid)
+		rows.Scan(&scid, &owner)
 		results[scid] = owner
 	}
 	return results
