@@ -135,7 +135,7 @@ do_it_again: // simple-daemon
 	lowest_height = 4_399_999
 	for each := lowest_height; each < now; each++ {
 
-		if each%100_000 == 0 { // this is like every 5 minutes
+		if each%4800 == 0 { // this is like every 5 minutes
 
 			// wait for the other objects to finish
 			for len(limit) != 0 {
