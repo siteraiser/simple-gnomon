@@ -29,6 +29,7 @@ import (
 )
 
 var pop_back = flag.Int64("pop_back", -1, "-pop_back=123")
+var established_backup bool
 
 func main() {
 	flag.Parse()
@@ -50,6 +51,7 @@ func main() {
 
 // establish some workers
 var workers = make(map[string]*indexer.Worker)
+var backups = make(map[string]*indexer.Indexer)
 
 // this is the processing thread
 func start_gnomon_indexer() {
@@ -61,6 +63,7 @@ func start_gnomon_indexer() {
 
 	// we are going to use this as an upper bound
 	lowest_height := connections.Get_TopoHeight()
+	achieved_current_height := int64(0)
 
 	// build separate databases for each index, for portability
 	fmt.Println("opening dbs")
@@ -84,11 +87,19 @@ func start_gnomon_indexer() {
 	for each := range indicies {
 
 		db_name := fmt.Sprintf("%s_%s.db", "GNOMON", each)
+		db_backup_name := db_name + ".bak"
+
 		wd := network.GetDataDirectory()
 		db_path := filepath.Join(wd, "gnomondb")
 
 		var err error
 		b, err := db.NewBBoltDB(db_path, db_name)
+		if err != nil {
+			fmt.Println("[Main] Err creating boltdb:", err)
+			return
+		}
+
+		bb, err := db.NewBBoltDB(db_path, db_backup_name)
 		if err != nil {
 			fmt.Println("[Main] Err creating boltdb:", err)
 			return
@@ -108,6 +119,14 @@ func start_gnomon_indexer() {
 			Queue: make(chan structures.SCIDToIndexStage, 1000),
 			Idx:   indexer.NewIndexer(b, height, []string{globals.MAINNET_GNOMON_SCID}),
 		}
+
+		backups[each] = indexer.NewIndexer(bb, height, []string{globals.MAINNET_GNOMON_SCID})
+		if err != nil {
+			fmt.Println("[Main] Err creating boltdb:", err)
+			return
+		}
+
+		// set up a listener for staged scids in the indexer queue
 		go func() {
 			for staged := range workers[each].Queue {
 				if err := workers[each].Idx.AddSCIDToIndex(staged); err != nil {
@@ -120,6 +139,15 @@ func start_gnomon_indexer() {
 					fmt.Sprint(staged.Fsi.Height), "/", fmt.Sprint(connections.Get_TopoHeight()),
 				)
 
+				if achieved_current_height > 0 {
+
+					if err := backups[each].AddSCIDToIndex(staged); err != nil {
+						// if err.Error() != "no code" { // this is a contract interaction, we are not recording these right now
+						fmt.Println("indexer error:", err, staged.Scid, staged.Fsi.Height)
+						// }
+						continue
+					}
+				}
 			}
 		}()
 
@@ -129,23 +157,15 @@ func start_gnomon_indexer() {
 
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
 
-	achieved_current_height := int64(0)
-
 do_it_again: // simple-daemon
 
-	var (
-		// we'll implement a simple concurrency pattern
-		wg    = sync.WaitGroup{}
-		limit = make(chan struct{}, runtime.GOMAXPROCS(0)-2)
-		mu    = sync.Mutex{}
+	// we'll implement a simple concurrency pattern
+	wg := sync.WaitGroup{}
+	limit := make(chan struct{}, runtime.GOMAXPROCS(0)-2)
+	mu := sync.Mutex{}
 
-		// a simple backup strategy
-		now                = connections.Get_TopoHeight()
-		one_day_of_seconds = int64(60 * 60 * 24)
-		block_time         = connections.GetDaemonInfo().Target
-		daily_sync         = one_day_of_seconds / int64(block_time)
-		first_sync         = int64(100_000)
-	)
+	// a simple backup strategy
+	now := connections.Get_TopoHeight()
 
 	// this will serve as the backup action
 	backup := func(each int64) {
@@ -159,6 +179,7 @@ do_it_again: // simple-daemon
 		}
 
 		back_up_databases(workers, indicies, each, &mu)
+		established_backup = true
 	}
 
 	// this is the indexing action that will be done concurrently
@@ -181,11 +202,16 @@ do_it_again: // simple-daemon
 	for height := lowest_height; height < now; height++ {
 
 		// go faster at first
-		if achieved_current_height == 0 && height%first_sync == 0 { // we haven't reached height yet
-			backup(height)
-		} else if achieved_current_height != 0 && height%daily_sync == 0 { // then slow down
+		if achieved_current_height > 0 && !established_backup && func() bool {
+			lowest := now
+			for _, each := range backups {
+				lowest = min(lowest, each.LastIndexedHeight)
+			}
+			return achieved_current_height-4800 > lowest
+		}() {
 			backup(height)
 		}
+
 		limit <- struct{}{}
 		wg.Add(1)
 		go indexing(workers, indicies, height, limit, &wg)
@@ -198,7 +224,6 @@ do_it_again: // simple-daemon
 	lowest_height = min(now, achieved_current_height)
 
 	if lowest_height == achieved_current_height {
-		fmt.Println("waiting for next block")
 		time.Sleep(time.Second * 3)
 	}
 
