@@ -81,8 +81,6 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd structures.SCIDToIndexStage) (
 
 	writeWait, _ := time.ParseDuration("11ms")
 
-	time.Sleep(writeWait)
-
 	for indexer.BBSBackend.Writing {
 		if indexer.Closing {
 			return
