@@ -21,6 +21,7 @@ import (
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/walletapi"
 	"github.com/gorilla/websocket"
+	"github.com/ybbus/jsonrpc"
 )
 
 type Client struct {
@@ -29,8 +30,9 @@ type Client struct {
 	sync.RWMutex
 }
 
-var endpoint = "node.derofoundation.org:11012"
+var endpoint = "64.226.81.37:10102"
 
+// 64.226.81.37:10102
 // var endpoint = "dero-node.net:11012"
 var Connected bool
 
@@ -103,40 +105,39 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 
 func handleResult[T any](method string, params any) (T, error) {
 	var result T
-	var ctx context.Context
+	//var ctx context.Context
 
 	var cancel context.CancelFunc
 
-	ctx, cancel = context.WithTimeout(context.Background(), timeout)
+	_, cancel = context.WithTimeout(context.Background(), timeout)
 	if method == "DERO.GetSC" {
-		ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(deadline))
+		_, cancel = context.WithDeadline(context.Background(), time.Now().Add(deadline))
 	}
 	defer cancel()
 	var err error
+
+	var rpcClient jsonrpc.RPCClient
+	rpcClient = jsonrpc.NewClient("http://" + endpoint + "/json_rpc")
+
+	if params == nil {
+		err = rpcClient.CallFor(&result, method) // no params argument
+	} else {
+		err = rpcClient.CallFor(&result, method, params)
+	}
+
 	/*
-		var rpcClient jsonrpc.RPCClient
-		rpcClient = jsonrpc.NewClient("http://" + endpoint + "/json_rpc")
-
-
+		var RpcClient = jrpc2.Client{}
+		walletapi.Daemon_Endpoint = endpoint
+		err = walletapi.Connect(walletapi.Daemon_Endpoint)
+		if err != nil {
+			log.Fatalln("connection failed", err)
+		}
 		if params == nil {
-			err = rpcClient.CallFor(&result, method) // no params argument
+			err = RpcClient.CallResult(ctx, method, nil, &result)
 		} else {
-			err = rpcClient.CallFor(&result, method, params)
+			err = RpcClient.CallResult(ctx, method, params, &result)
 		}
 	*/
-
-	var RpcClient = jrpc2.Client{}
-	walletapi.Daemon_Endpoint = endpoint
-	err = walletapi.Connect(walletapi.Daemon_Endpoint)
-	if err != nil {
-		log.Fatalln("connection failed", err)
-	}
-	if params == nil {
-		err = RpcClient.CallResult(ctx, method, nil, &result)
-	} else {
-		err = RpcClient.CallResult(ctx, method, params, &result)
-	}
-
 	if err != nil {
 		log.Fatal(err)
 		var zero T

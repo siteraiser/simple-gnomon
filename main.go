@@ -71,7 +71,7 @@ func start_gnomon_indexer() {
 			fmt.Println("indexers: ", indexers)
 		}
 	*/
-
+	fmt.Println("indexers: ", sqlindexer)
 	height, _ := sqlite.GetLastIndexHeight()
 	if err != nil {
 		height = 0
@@ -82,10 +82,10 @@ func start_gnomon_indexer() {
 	sqlindexer = NewSQLIndexer(sqlite, height, []string{MAINNET_GNOMON_SCID})
 	fmt.Println("SqlIndexer ", sqlindexer)
 
-	//	sqlindexer.SSSBackend.StoreLastIndexHeight()
+	sqlindexer.SSSBackend.StoreLastIndexHeight(height)
 
 	//Logger.Info("starting to index ", api.Get_TopoHeight()) // program.wallet.Get_TopoHeight()
-	fmt.Println("starting to index ", api.Get_TopoHeight())
+	//	fmt.Println("starting to index ", api.Get_TopoHeight())
 	storeHeight := func(bheight int64) {
 
 		if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
@@ -163,7 +163,7 @@ func start_gnomon_indexer() {
 		go func(*Indexer) {
 			// if the contract already exists, record the interaction
 			if err := sqlindexer.AddSCIDToIndex(staged); err != nil {
-				Logger.Error(err, " ", staged.Scid, " ", staged.Fsi.Height)
+				fmt.Println(err, " ", staged.Scid, " ", staged.Fsi.Height)
 				return
 			}
 		}(sqlindexer)

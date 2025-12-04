@@ -67,13 +67,13 @@ func createTables(Db *sql.DB) {
 	var startup = [5]string{}
 	startup[0] = "CREATE TABLE IF NOT EXISTS state (" +
 		"name  TEXT, " +
-		"value  INT)"
+		"value  INTEGER)"
 
 	startup[1] = "CREATE TABLE IF NOT EXISTS scs (" +
 		"scid TEXT PRIMARY KEY, " +
 		"owner TEXT NOT NULL, " +
-		"tags TEXT NOT NULL, " +
-		"height int NOT NULL)"
+		"tags TEXT, " +
+		"height INTEGER)"
 
 		//scid + "vars"
 	startup[2] = "CREATE TABLE IF NOT EXISTS vars (" +
@@ -97,7 +97,7 @@ func createTables(Db *sql.DB) {
 		"int_id INTEGER PRIMARY KEY, " +
 		"scid TEXT NOT NULL, " +
 		//	"signer TEXT NOT NULL, " +
-		"heights int NOT NULL)"
+		"heights TEXT NOT NULL)"
 
 		//		startup[len(startup)] = "CREATE TABLE IF NOT EXISTS relations (" +
 
@@ -154,10 +154,7 @@ func (ss *SqlStore) GetLastIndexHeight() (topoheight int64, err error) {
 	var lastindexedheight int
 	ss.DB.QueryRow("SELECT value FROM state WHERE name = 'lastindexedheight' ").Scan(&lastindexedheight)
 	if lastindexedheight > 0 {
-		topoheight, err = strconv.ParseInt(string(lastindexedheight), 10, 64)
-		if err != nil {
-			fmt.Errorf("[bbs-GetLastIndexHeight] ERR - Error parsing stored int for lastindexheight: %v", err)
-		}
+		topoheight = int64(lastindexedheight)
 	}
 	if topoheight == 0 {
 		fmt.Println("[bbs-GetLastIndexHeight] No stored last index height. Starting from 0 or latest if fastsync is enabled")
@@ -213,25 +210,43 @@ func (ss *SqlStore) GetTxCount(txType string) (txCount int64) {
 }
 */
 
-/*
 // Stores the owner (who deployed it) of a given scid
 func (ss *SqlStore) StoreOwner(scid string, owner string) (changes bool, err error) {
-	bName := "scowner"
 
-	err = ss.DB.Update(func(tx *bolt.Tx) (err error) {
-		b, err := tx.CreateBucketIfNotExists([]byte(bName))
-		if err != nil {
-			return fmt.Errorf("bucket: %s", err)
-		}
+	statement, err := ss.DB.Prepare("INSERT INTO scs (owner,scid) VALUES (?,?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	result, err := statement.Exec(
+		owner,
+		scid,
+	)
 
-		err = b.Put([]byte(scid), []byte(owner))
+	last_insert_id, _ := result.LastInsertId()
+	if err == nil && last_insert_id >= 0 {
 		changes = true
 		return
-	})
-
+	}
 	return
+	/*
+		bName := "scowner"
+
+		err = ss.DB.Update(func(tx *bolt.Tx) (err error) {
+			b, err := tx.CreateBucketIfNotExists([]byte(bName))
+			if err != nil {
+				return fmt.Errorf("bucket: %s", err)
+			}
+
+			err = b.Put([]byte(scid), []byte(owner))
+			changes = true
+			return
+		})
+
+		return
+	*/
 }
 
+/*
 // Returns the owner (who deployed it) of a given scid
 func (ss *SqlStore) GetOwner(scid string) string {
 	var v []byte
@@ -547,7 +562,7 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 						vs2k[uint64(ckey)] = cval
 					default:
 						if cval != nil {
-							fmt.Errorf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' does not match string, uint64 or float64.", cval)
+							fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' does not match string, uint64 or float64.", cval)
 						} else {
 							vs2k[uint64(ckey)] = cval
 						}
@@ -562,7 +577,7 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 						vs2k[ckey] = cval
 					default:
 						if cval != nil {
-							fmt.Errorf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' does not match string, uint64 or float64.", cval)
+							fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' does not match string, uint64 or float64.", cval)
 						} else {
 							vs2k[ckey] = cval
 						}
@@ -577,14 +592,14 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 						vs2k[ckey] = cval
 					default:
 						if cval != nil {
-							fmt.Errorf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' does not match string, uint64 or float64.", cval)
+							fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' does not match string, uint64 or float64.", cval)
 						} else {
 							vs2k[ckey] = cval
 						}
 					}
 				default:
 					if ckey != nil {
-						fmt.Errorf("[GetSCIDVariableDetailsAtTopoheight] Key '%v' does not match string, uint64 or float64.", ckey)
+						fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Key '%v' does not match string, uint64 or float64.", ckey)
 					}
 				}
 			}
@@ -611,7 +626,7 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 					co.Key = uint64(ckey)
 					co.Value = cval
 				default:
-					fmt.Errorf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", uint64(ckey)))
+					fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", uint64(ckey)))
 					continue
 				}
 			case uint64:
@@ -626,7 +641,7 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 					co.Key = ckey
 					co.Value = cval
 				default:
-					fmt.Errorf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", ckey))
+					fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", ckey))
 					continue
 				}
 			case string:
@@ -641,7 +656,7 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 					co.Key = ckey
 					co.Value = cval
 				default:
-					fmt.Errorf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", ckey))
+					fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", ckey))
 					continue
 				}
 			}
@@ -972,11 +987,11 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 	}
 	newInteractionHeight, err = json.Marshal(interactionHeight)
 	if err != nil {
-		fmt.Errorf("[SQLITE] StoreSCIDInteractionHeight could not marshal interactionHeight info: %v", err)
+		fmt.Printf("[SQLITE] StoreSCIDInteractionHeight could not marshal interactionHeight info: %v", err)
 	}
 
 	statement, err := ss.DB.Prepare(
-		"UPDATE interactions" +
+		"UPDATE interactions " +
 			"SET heights=? WHERE scid=?;")
 	if err != nil {
 		log.Fatal(err)

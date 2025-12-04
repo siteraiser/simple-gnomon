@@ -107,7 +107,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 
 	time.Sleep(writeWait)
 
-	for indexer.BBSBackend.Writing {
+	for indexer.SSSBackend.Writing {
 		if indexer.Closing {
 			return
 		}
@@ -115,12 +115,12 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		time.Sleep(writeWait)
 	}
 
-	indexer.BBSBackend.Writing = true
+	indexer.SSSBackend.Writing = true
 
 	// By returning valid variables of a given Scid (GetSC --> parse vars), we can conclude it is a valid SCID. Otherwise, skip adding to validated scids
 	if len(scidstoadd.ScVars) != 0 {
 		time.Sleep(writeWait)
-		changed, err := indexer.BBSBackend.StoreSCIDVariableDetails(
+		changed, err := indexer.SSSBackend.StoreSCIDVariableDetails(
 			scidstoadd.Scid,
 			scidstoadd.ScVars,
 			int64(scidstoadd.Fsi.Height),
@@ -133,7 +133,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		}
 		time.Sleep(writeWait)
 
-		changed, err = indexer.BBSBackend.StoreOwner(
+		changed, err = indexer.SSSBackend.StoreOwner(
 			scidstoadd.Scid,
 			scidstoadd.Fsi.Owner,
 		)
@@ -144,11 +144,11 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 			return errors.New("did not store scid/owner")
 		}
 
-		fmt.Print("bb  [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllOwnersAndSCIDs())))
+		fmt.Print("bb  [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.SSSBackend.GetAllOwnersAndSCIDs())))
 		//	fmt.Print("sql [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.SSSBackend.GetAllOwnersAndSCIDs())))
 	} else {
 
-		changed, err := indexer.BBSBackend.StoreSCIDInteractionHeight(
+		changed, err := indexer.SSSBackend.StoreSCIDInteractionHeight(
 			scidstoadd.Scid,
 			int64(scidstoadd.Fsi.Height),
 		)
@@ -159,7 +159,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		if !changed {
 			return errors.New("did not store scid/interaction")
 		}
-		fmt.Print("bb  [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
+		fmt.Print("bb  [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.SSSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
 		//	fmt.Print("sql [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.SSSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
 	}
 
