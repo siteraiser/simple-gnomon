@@ -70,24 +70,21 @@ func start_gnomon_indexer() {
 			fmt.Println("indexers: ", indexers)
 		}
 	*/
-	fmt.Println("indexers: ", sqlindexer)
+
 	height, err := sqlite.GetLastIndexHeight()
 	if err != nil {
 		height = startat
 		fmt.Println("err: ", err)
 	}
+	lowest_height = height
 
-	lowest_height = startat
-	lowest_height = min(lowest_height, height)
 	sqlindexer = NewSQLIndexer(sqlite, height, []string{MAINNET_GNOMON_SCID})
 	fmt.Println("SqlIndexer ", sqlindexer)
-
-	sqlindexer.SSSBackend.StoreLastIndexHeight(height)
 
 	//Logger.Info("starting to index ", api.Get_TopoHeight()) // program.wallet.Get_TopoHeight()
 	//	fmt.Println("starting to index ", api.Get_TopoHeight())
 	storeHeight := func(bheight int64) {
-
+		//--maybe replace by using add owner and add a height to there...
 		if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
 			fmt.Println("Error Saving LastIndexHeight: ", err)
 			return
@@ -97,7 +94,7 @@ func start_gnomon_indexer() {
 
 	//Logger.Info()
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
-	for bheight := height; bheight <= api.Get_TopoHeight(); bheight++ { //program.wallet.Get_TopoHeight()
+	for bheight := lowest_height; bheight <= api.Get_TopoHeight(); bheight++ { //program.wallet.Get_TopoHeight()
 		fmt.Print("\rHeight>", bheight)
 		result := api.GetBlockInfo(rpc.GetBlock_Params{
 			Height: uint64(bheight),
@@ -119,7 +116,7 @@ func start_gnomon_indexer() {
 		if err := tx.Deserialize(b); err != nil {
 			panic(err)
 		}
-
+		//	fmt.Println("TX: ", tx)
 		if tx.TransactionType != transaction.SC_TX || !tx.SCDATA.Has(rpc.SCCODE, rpc.DataString) {
 			storeHeight(bheight)
 			continue
@@ -139,16 +136,8 @@ func start_gnomon_indexer() {
 		//fmt.Println("key", kv.)
 		headers := api.GetSCNameFromVars(kv) + ";" + api.GetSCDescriptionFromVars(kv) + ";" + api.GetSCIDImageURLFromVars(kv)
 		fmt.Println("headers", headers)
-		staged := SCIDToIndexStage{
-			Scid:   tx.GetHash().String(),
-			Fsi:    &FastSyncImport{Height: uint64(bheight), Owner: r.Txs[0].Signer, Headers: headers},
-			ScVars: vars,
-			ScCode: sc.Code,
-			Tags:   "",
-		}
 
 		// range the indexers and add to index 1 at a time to prevent out of memory error
-
 		for _, name := range indexes {
 			fmt.Println("name: ", name)
 			// if the code does not contain the filter, skip
@@ -158,6 +147,13 @@ func start_gnomon_indexer() {
 					continue
 				}
 			}
+		}
+		staged := SCIDToIndexStage{
+			Scid:   tx.GetHash().String(),
+			Fsi:    &FastSyncImport{Height: uint64(bheight), Owner: r.Txs[0].Signer, Headers: headers},
+			ScVars: vars,
+			ScCode: sc.Code,
+			Tags:   "",
 		}
 		// now add the scid to the index
 		go func(*Indexer) {

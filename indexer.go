@@ -94,7 +94,7 @@ func NewSQLIndexer(
 
 // Manually add/inject a SCID to be indexed. Checks validity and then stores within owner tree (no signer addr) and stores a set of current variables.
 func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) {
-
+	fmt.Println("Adding to Index: ", scidstoadd)
 	if scidstoadd.Scid == "" {
 		return errors.New("no scid")
 	}
@@ -111,6 +111,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		if indexer.Closing {
 			return
 		}
+		fmt.Printf("[AddSCIDToIndex-StoreAltDBInput] DB is writing... sleeping for %v...", writeWait)
 		//l.Debugf("[AddSCIDToIndex-StoreAltDBInput] GravitonDB is writing... sleeping for %v...", writeWait)
 		time.Sleep(writeWait)
 	}
@@ -126,6 +127,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 			int64(scidstoadd.Fsi.Height),
 		)
 		if err != nil {
+			fmt.Println("err StoreSCIDVariableDetails: ", err)
 			return err
 		}
 		if !changed {
@@ -138,6 +140,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 			scidstoadd.Fsi.Owner,
 		)
 		if err != nil {
+			fmt.Println("err StoreOwner: ", err)
 			return err
 		}
 		if !changed {

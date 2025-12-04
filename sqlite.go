@@ -36,6 +36,9 @@ func NewSqlDB(dbPath, dbName string) (*SqlStore, error) {
 		return Sql_backend, fmt.Errorf("[NewSqlDB] Could not create sql db store: %v", err)
 	}
 	createTables(Sql_backend.DB)
+	//check tables
+	viewTables(Sql_backend.DB)
+
 	Sql_backend.DBPath = dbPath
 	//Db = Sql_backend.DB
 	return Sql_backend, err
@@ -76,7 +79,7 @@ func createTables(Db *sql.DB) {
 		"height INTEGER)"
 
 		//scid + "vars"
-	startup[2] = "CREATE TABLE IF NOT EXISTS vars (" +
+	startup[2] = "CREATE TABLE IF NOT EXISTS variables (" +
 		"v_id INTEGER PRIMARY KEY, " +
 		"height INTEGER NOT NULL, " +
 		"scid TEXT NOT NULL, " +
@@ -114,18 +117,6 @@ func createTables(Db *sql.DB) {
 		statement.Exec()
 	}
 
-	/// check tables
-	rows, _ := Db.Query("SELECT scid, owner FROM scs", nil)
-	var (
-		scid  string
-		owner string
-	)
-
-	for rows.Next() {
-		rows.Scan(&scid, &owner)
-		fmt.Println("scids: ")
-		fmt.Println(owner, scid)
-	}
 }
 
 // executeQuery prepares and executes a SQL query.
@@ -140,6 +131,70 @@ func handleError(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// --- extras...
+func viewTables(Db *sql.DB) {
+	/// check tables
+
+	fmt.Println("Showing State: ")
+	rows, err := Db.Query("SELECT name, value FROM state WHERE name = 'lastindexedheight'", nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+	var (
+		name  string
+		value string
+	)
+
+	for rows.Next() {
+		rows.Scan(&name, &value)
+		fmt.Println(name, value)
+	}
+
+	fmt.Println("Showing SCs / Owners: ")
+	rows, err = Db.Query("SELECT scid, owner FROM scs", nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+	var (
+		scid  string
+		owner string
+	)
+
+	for rows.Next() {
+		rows.Scan(&scid, &owner)
+		fmt.Println("owner - scid", owner+"--"+scid)
+	}
+
+	//INSERT INTO vars (height, scid, vars) VALUES (?,?,?)
+	fmt.Println("Showing Vars: ")
+	rows, err = Db.Query("SELECT height, scid, vars FROM variables", nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+	var (
+		vars   string
+		height string
+	)
+	for rows.Next() {
+		rows.Scan(&scid, &owner, &vars)
+		fmt.Println("owner - scid - vars ", height+"--"+scid+"--"+vars)
+	}
+
+	fmt.Println("Showing Interactions: ")
+	rows, err = Db.Query("SELECT heights, scid FROM interactions", nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+	var (
+		heights string
+	)
+	for rows.Next() {
+		rows.Scan(&heights, &scid)
+		fmt.Println("heights - scid ", height+"--"+scid)
+	}
+
 }
 
 //-----------------
@@ -226,7 +281,7 @@ func (ss *SqlStore) GetTxCount(txType string) (txCount int64) {
 
 // Stores the owner (who deployed it) of a given scid
 func (ss *SqlStore) StoreOwner(scid string, owner string) (changes bool, err error) {
-
+	fmt.Println("INSERT INTO scs (owner,scid) VALUES (?,?)")
 	statement, err := ss.DB.Prepare("INSERT INTO scs (owner,scid) VALUES (?,?)")
 	if err != nil {
 		log.Fatal(err)
@@ -287,6 +342,7 @@ func (ss *SqlStore) GetOwner(scid string) string {
 */
 // Returns all of the deployed SCIDs with their corresponding owners (who deployed it)
 func (ss *SqlStore) GetAllOwnersAndSCIDs() map[string]string {
+	fmt.Println("SELECT scid, owner FROM scs")
 	results := make(map[string]string)
 	rows, _ := ss.DB.Query("SELECT scid, owner FROM scs", nil)
 	var (
@@ -459,8 +515,8 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVaria
 	if err != nil {
 		return changes, fmt.Errorf("[StoreSCIDVariableDetails] could not marshal getinfo info: %v", err)
 	}
-
-	statement, err := ss.DB.Prepare("INSERT INTO vars (height, scid, vars) VALUES (?,?,?)")
+	fmt.Println("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
+	statement, err := ss.DB.Prepare("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -515,8 +571,8 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 		"vars TEXT NOT NULL)"
 
 	*/
-
-	rows, _ := ss.DB.Query("SELECT height,vars FROM vars", nil)
+	fmt.Println("SELECT height,vars FROM variables")
+	rows, _ := ss.DB.Query("SELECT height,vars FROM variables", nil)
 	var (
 		vars   string
 		height string
@@ -979,7 +1035,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 	var currSCIDInteractionHeight []byte
 	var interactionHeight []int64
 	var newInteractionHeight []byte
-
+	fmt.Println("SELECT heights FROM interactions WHERE scid=?")
 	err = ss.DB.QueryRow("SELECT heights FROM interactions WHERE scid=?", scid).Scan(&currSCIDInteractionHeight)
 
 	if err == nil {
@@ -1003,7 +1059,8 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 	if err != nil {
 		fmt.Printf("[SQLITE] StoreSCIDInteractionHeight could not marshal interactionHeight info: %v", err)
 	}
-
+	fmt.Println("UPDATE interactions " +
+		"SET heights=? WHERE scid=?;")
 	statement, err := ss.DB.Prepare(
 		"UPDATE interactions " +
 			"SET heights=? WHERE scid=?;")
@@ -1070,7 +1127,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 
 // Gets SC interaction height and detail by a given SCID
 func (ss *SqlStore) GetSCIDInteractionHeight(scid string) (scidinteractions []int64) {
-
+	fmt.Println("SELECT heights FROM interactions WHERE scid=?")
 	heights := ""
 	ss.DB.QueryRow("SELECT heights FROM interactions WHERE scid=?", scid).Scan(&heights)
 	if heights != "" {
