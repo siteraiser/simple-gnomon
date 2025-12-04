@@ -30,10 +30,22 @@ import (
 
 var endpoint = flag.String("endpoint", "", "-endpoint=<DAEMON_IP:PORT>")
 var pop_back = flag.Int64("pop_back", -1, "-pop_back=123")
+var help = flag.Bool("help", false, "-help")
 var established_backup bool
 
 func main() {
 	flag.Parse()
+	if help != nil && *help {
+		fmt.Println(`Usage: simple-gnomon [options]
+A simple indexer for the DERO blockchain. 
+
+Options:
+  -endpoint <DAEMON_IP:PORT>   Address of the daemon to connect to.
+  -pop_back <N>                Height to pop to the back to.
+  -help                        Show this help message.`)
+		return
+	}
+
 	if endpoint != nil && *endpoint == "" {
 
 		// first call on the wallet ws for authorizations
