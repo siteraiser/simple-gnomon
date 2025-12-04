@@ -100,6 +100,7 @@ func start_gnomon_indexer() {
 			height = 0
 		}
 
+		// this will always be behind current topo height
 		lowest_height = min(lowest_height, height)
 
 		// initialize each indexer
@@ -128,58 +129,84 @@ func start_gnomon_indexer() {
 
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
 
+	achieved_current_height := int64(0)
+
 do_it_again: // simple-daemon
 
-	// let's just make sure things are clean when we come in.
+	var (
+		// we'll implement a simple concurrency pattern
+		wg    = sync.WaitGroup{}
+		limit = make(chan struct{}, runtime.GOMAXPROCS(0)-2)
+		mu    = sync.Mutex{}
 
-	now := connections.Get_TopoHeight()
-	wg := sync.WaitGroup{}
-	limit := make(chan struct{}, runtime.GOMAXPROCS(0)-2)
-	mu := sync.Mutex{}
-	// lowest_height = 4_399_999
-	for each := lowest_height; each < now; each++ {
+		// a simple backup strategy
+		now                = connections.Get_TopoHeight()
+		one_day_of_seconds = int64(60 * 60 * 24)
+		block_time         = connections.GetDaemonInfo().Target
+		daily_sync         = one_day_of_seconds / int64(block_time)
+		first_sync         = int64(100_000)
+	)
 
-		if each%4800 == 0 { // this is like every 5 minutes
+	// this will serve as the backup action
+	backup := func(each int64) {
 
-			// wait for the other objects to finish
-			for len(limit) != 0 {
-				fmt.Println("allowing heights to clear before backing up db")
-				time.Sleep(time.Second)
+		// wait for the other objects to finish
+		for len(limit) != 0 {
+			fmt.Println("allowing heights to clear before backing up db", each)
+			time.Sleep(time.Second)
 
-				continue
-			}
-			back_up_databases(workers, indicies, &mu)
+			continue
 		}
 
-		limit <- struct{}{}
+		back_up_databases(workers, indicies, each, &mu)
+	}
 
+	// this is the indexing action that will be done concurrently
+	indexing := func(workers map[string]*indexer.Worker, indicies map[string][]string, height int64, limit chan struct{}, wg *sync.WaitGroup) {
+		fmt.Println("auditing block:", fmt.Sprint(height), "/", fmt.Sprint(connections.Get_TopoHeight()))
+		err := indexHeight(workers, indicies, height)
+		if err != nil {
+			fmt.Printf("error: %s %s %d %d", err, "height:", height, now)
+		}
+		wg.Done()
+		<-limit
+	}
+
+	// in case db needs to re-parse from a desired height
+	if pop_back != nil && *pop_back < now && *pop_back > -1 && achieved_current_height == 0 {
+		lowest_height = *pop_back
+	}
+
+	// main processing loop
+	for height := lowest_height; height < now; height++ {
+
+		// go faster at first
+		if achieved_current_height == 0 && height%first_sync == 0 { // we haven't reached height yet
+			backup(height)
+		} else if achieved_current_height != 0 && height%daily_sync == 0 { // then slow down
+			backup(height)
+		}
+		limit <- struct{}{}
 		wg.Add(1)
-		go func(
-			workers map[string]*indexer.Worker,
-			indicies map[string][]string,
-			each int64,
-			limit chan struct{},
-			wg *sync.WaitGroup,
-		) {
-			fmt.Println("auditing block:", fmt.Sprint(each), "/", fmt.Sprint(connections.Get_TopoHeight()))
-			err := indexHeight(workers, indicies, each)
-			if err != nil {
-				fmt.Printf("error: %s %s %d %d", err, "height:", each, now)
-			}
-			wg.Done()
-			<-limit
-		}(workers, indicies, each, limit, &wg)
+		go indexing(workers, indicies, height, limit, &wg)
 	}
 	wg.Wait()
-	fmt.Println("indexed")
 
-	lowest_height = min(now, connections.Get_TopoHeight())
+	// height achieved
+	achieved_current_height = connections.Get_TopoHeight()
+
+	lowest_height = min(now, achieved_current_height)
+
+	if lowest_height == achieved_current_height {
+		fmt.Println("waiting for next block")
+		time.Sleep(time.Second * 3)
+	}
 
 	goto do_it_again
 
 }
 
-func back_up_databases(workers map[string]*indexer.Worker, indicies map[string][]string, mu *sync.Mutex) {
+func back_up_databases(workers map[string]*indexer.Worker, indicies map[string][]string, height int64, mu *sync.Mutex) {
 	mu.Lock()
 	defer mu.Unlock()
 	fmt.Println("backing up databases")
@@ -270,6 +297,9 @@ func back_up_databases(workers map[string]*indexer.Worker, indicies map[string][
 		}
 
 		fmt.Println("Backup complete", index)
+
+		storeHeight(workers, height)
+
 	}
 
 	fmt.Println("All databases are backed")
