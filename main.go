@@ -28,17 +28,23 @@ import (
 	"github.com/deroproject/derohe/transaction"
 )
 
+var endpoint = flag.String("endpoint", "", "-endpoint=<DAEMON_IP:PORT>")
 var pop_back = flag.Int64("pop_back", -1, "-pop_back=123")
 var established_backup bool
 
 func main() {
 	flag.Parse()
-	// first call on the wallet ws for authorizations
-	connections.Set_ws_conn()
+	if endpoint != nil && *endpoint == "" {
 
-	// next, establish the daemon endpoint for rpc calls, waaaaay faster than through the wallet
-	daemon := connections.GetDaemonEndpoint()
-	connections.RpcClient = jsonrpc.NewClient("http://" + daemon.Endpoint + "/json_rpc")
+		// first call on the wallet ws for authorizations
+		connections.Set_ws_conn()
+
+		// next, establish the daemon endpoint for rpc calls, waaaaay faster than through the wallet
+		daemon := connections.GetDaemonEndpoint()
+		*endpoint = daemon.Endpoint
+	}
+
+	connections.RpcClient = jsonrpc.NewClient("http://" + *endpoint + "/json_rpc")
 
 	// if you are getting a zero... yeah, you are not connected
 	if connections.Get_TopoHeight() == 0 {
