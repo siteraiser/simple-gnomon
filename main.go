@@ -100,6 +100,7 @@ func start_gnomon_indexer() {
 		fmt.Print("scid found at height:", fmt.Sprint(bheight), " - ", fmt.Sprint(api.Get_TopoHeight()), "\n")
 		params := rpc.GetSC_Params{}
 		if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
+
 			params = rpc.GetSC_Params{
 				SCID:       tx.GetHash().String(),
 				Code:       true,
@@ -107,14 +108,17 @@ func start_gnomon_indexer() {
 				TopoHeight: bheight,
 			}
 		}
+
 		if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
 			scid, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
+
 			if !ok { // paranoia
 				continue
 			}
 			if scid.String() == "" { // yeah... weird
 				continue
 			}
+
 			params = rpc.GetSC_Params{
 				SCID:       scid.String(),
 				Code:       false,
@@ -123,14 +127,15 @@ func start_gnomon_indexer() {
 			}
 		}
 		sc := api.GetSC(params) //Variables: true,
+
 		vars, err := GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
 		if err != nil {
 			continue
 		}
 
-		//	kv := sc.VariableStringKeys
+		kv := sc.VariableStringKeys
 		//fmt.Println("key", kv)
-		//	headers := api.GetSCNameFromVars(kv) + ";" + api.GetSCDescriptionFromVars(kv) + ";" + api.GetSCIDImageURLFromVars(kv)
+		headers := api.GetSCNameFromVars(kv) + ";" + api.GetSCDescriptionFromVars(kv) + ";" + api.GetSCIDImageURLFromVars(kv)
 		//	fmt.Println("headers", headers)
 		tags := ""
 		class := ""
@@ -154,7 +159,7 @@ func start_gnomon_indexer() {
 		}
 		staged := SCIDToIndexStage{
 			Scid:   tx.GetHash().String(),
-			Fsi:    &FastSyncImport{Height: uint64(bheight), Owner: r.Txs[0].Signer}, //, Headers: headers
+			Fsi:    &FastSyncImport{Height: uint64(bheight), Owner: r.Txs[0].Signer, Headers: headers}, //
 			ScVars: vars,
 			ScCode: sc.Code,
 			Class:  class, //Class and tags are not in original gnomon

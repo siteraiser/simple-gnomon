@@ -85,8 +85,9 @@ func createTables(Db *sql.DB) {
 		"scid TEXT PRIMARY KEY, " +
 		"owner TEXT NOT NULL, " +
 		"height INTEGER, " +
+		"headers TEXT, " +
 		"class TEXT, " +
-		"tags TEXT	)"
+		"tags TEXT) "
 
 		//scid + "vars"
 	startup[2] = "CREATE TABLE IF NOT EXISTS variables (" +
@@ -163,20 +164,21 @@ func viewTables(Db *sql.DB) {
 	}
 
 	fmt.Println("Showing SCs / Owners: ")
-	rows, err = Db.Query("SELECT scid, owner, class, tags FROM scs", nil)
+	rows, err = Db.Query("SELECT scid, owner, headers, class, tags FROM scs", nil)
 	if err != nil {
 		fmt.Println(err)
 	}
 	var (
-		scid  string
-		owner string
-		class string
-		tags  string
+		scid    string
+		owner   string
+		headers string
+		class   string
+		tags    string
 	)
 
 	for rows.Next() {
-		rows.Scan(&scid, &owner, &class, &tags)
-		fmt.Println("owner - scid - class - tags", owner+"--"+scid+"--"+class+"--"+tags)
+		rows.Scan(&scid, &owner, &headers, &class, &tags)
+		fmt.Println("owner - scid - headers - class - tags", owner+"--"+scid+"--"+headers+"--"+class+"--"+tags)
 	}
 
 	//INSERT INTO vars (height, scid, vars) VALUES (?,?,?)
@@ -292,15 +294,16 @@ func (ss *SqlStore) GetTxCount(txType string) (txCount int64) {
 */
 
 // Stores the owner (who deployed it) of a given scid
-func (ss *SqlStore) StoreOwner(scid string, owner string, class string, tags string) (changes bool, err error) {
-	fmt.Println("INSERT INTO scs (owner,scid,class,tags) VALUES (?,?,?,?)")
-	statement, err := ss.DB.Prepare("INSERT INTO scs (owner,scid,class,tags) VALUES (?,?,?,?)")
+func (ss *SqlStore) StoreOwner(scid string, owner string, headers string, class string, tags string) (changes bool, err error) {
+	fmt.Println("INSERT INTO scs (owner,scid,headers,class,tags) VALUES (?,?,?,?,?)")
+	statement, err := ss.DB.Prepare("INSERT INTO scs (owner,scid,headers,class,tags) VALUES (?,?,?,?,?)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	result, err := statement.Exec(
 		owner,
 		scid,
+		headers,
 		class,
 		tags,
 	)
