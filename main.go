@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/deroproject/derohe/cryptography/crypto"
 	"github.com/deroproject/derohe/globals"
@@ -69,6 +68,7 @@ func start_gnomon_indexer() {
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
 
 	for bheight := lowest_height; bheight <= TargetHeight; bheight++ { //program.wallet.Get_TopoHeight()
+
 		fmt.Print("\rHeight>", bheight)
 		result := api.GetBlockInfo(rpc.GetBlock_Params{
 			Height: uint64(bheight),
@@ -169,9 +169,12 @@ func start_gnomon_indexer() {
 			}
 		}(sqlindexer)
 		storeHeight(bheight)
+
+		if TargetHeight == bheight {
+			TargetHeight = api.Get_TopoHeight()
+		}
+
 	}
 	fmt.Println("indexed")
-	t, _ := time.ParseDuration("1s")
-	time.Sleep(t)
-	TargetHeight = api.Get_TopoHeight()
+
 }
