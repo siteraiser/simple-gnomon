@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/deroproject/derohe/cryptography/crypto"
 	"github.com/deroproject/derohe/globals"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/transaction"
@@ -95,11 +96,33 @@ func start_gnomon_indexer() {
 			continue
 		}
 
-		//	Logger.Info("scid found", fmt.Sprint(each), fmt.Sprint(api.Get_TopoHeight())) //program.
 		fmt.Print("scid found at height:", fmt.Sprint(bheight), " - ", fmt.Sprint(api.Get_TopoHeight()), "\n")
-		sc := api.GetSC(rpc.GetSC_Params{SCID: tx.GetHash().String(), Code: true, Variables: true, TopoHeight: bheight})
-		fmt.Println("sc.VariableStringKeys---------------- ", sc.VariableStringKeys)
-		fmt.Println("sc.VariableUint64Keys---------------- ", sc.VariableUint64Keys)
+		params := rpc.GetSC_Params{}
+		if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
+			params = rpc.GetSC_Params{
+				SCID:       tx.GetHash().String(),
+				Code:       true,
+				Variables:  true,
+				TopoHeight: bheight,
+			}
+		}
+		if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
+			scid, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
+			if !ok { // paranoia
+				continue
+			}
+			if scid.String() == "" { // yeah... weird
+				continue
+			}
+			params = rpc.GetSC_Params{
+				SCID:       scid.String(),
+				Code:       false,
+				Variables:  false,
+				TopoHeight: int64(bl.Height),
+			}
+		}
+		sc := api.GetSC(params) //Variables: true,
+
 		vars, err := GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
 		if err != nil {
 			fmt.Println(err)
@@ -107,7 +130,7 @@ func start_gnomon_indexer() {
 		}
 		fmt.Println("vars---------------- ", vars)
 		kv := api.GetSCValues(tx.GetHash().String()).VariableStringKeys
-		//fmt.Println("key", kv.)
+		//fmt.Println("key", kv)
 		headers := api.GetSCNameFromVars(kv) + ";" + api.GetSCDescriptionFromVars(kv) + ";" + api.GetSCIDImageURLFromVars(kv)
 		fmt.Println("headers", headers)
 		tags := ""

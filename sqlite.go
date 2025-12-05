@@ -41,7 +41,7 @@ func NewSqlDB(dbPath, dbName string) (*SqlStore, error) {
 
 	go func() {
 		for {
-			amt, _ := time.ParseDuration("5s")
+			amt, _ := time.ParseDuration("15s")
 			time.Sleep(amt)
 			viewTables(Sql_backend.DB)
 		}
@@ -190,7 +190,7 @@ func viewTables(Db *sql.DB) {
 	)
 	for rows.Next() {
 		rows.Scan(&height, &scid, &vars)
-		fmt.Println("owner - scid - vars ", height+"--"+scid+"--"+vars)
+		fmt.Println("height - scid - vars ", height+"--"+scid+"--"+vars)
 	}
 
 	fmt.Println("Showing Interactions: ")
