@@ -39,7 +39,6 @@ func start_gnomon_indexer() {
 
 	var lowest_height int64
 	indexes := map[string][]string{
-		"":      {""},
 		"g45":   {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
 		"nfa":   {"ART-NFA-MS1"},
 		"swaps": {"StartSwap"},
@@ -118,7 +117,7 @@ func start_gnomon_indexer() {
 				SCID:       scid.String(),
 				Code:       false,
 				Variables:  false,
-				TopoHeight: int64(bl.Height),
+				TopoHeight: bheight,
 			}
 		}
 		sc := api.GetSC(params) //Variables: true,
