@@ -20,7 +20,7 @@ func main() {
 
 var bbolt = make(map[string]*BboltStore)
 var indexers = make(map[string]*Indexer)
-
+var TargetHeight = api.Get_TopoHeight()
 var sqlite = &SqlStore{}
 var sqlindexer = &Indexer{}
 
@@ -67,7 +67,7 @@ func start_gnomon_indexer() {
 
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
 
-	for bheight := lowest_height; bheight <= api.Get_TopoHeight(); bheight++ { //program.wallet.Get_TopoHeight()
+	for bheight := lowest_height; bheight <= TargetHeight; bheight++ { //program.wallet.Get_TopoHeight()
 		fmt.Print("\rHeight>", bheight)
 		result := api.GetBlockInfo(rpc.GetBlock_Params{
 			Height: uint64(bheight),
@@ -170,4 +170,5 @@ func start_gnomon_indexer() {
 		storeHeight(bheight)
 	}
 	fmt.Println("indexed")
+	TargetHeight = api.Get_TopoHeight()
 }
