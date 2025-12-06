@@ -34,7 +34,6 @@ var help = flag.Bool("help", false, "-help")
 var established_backup bool
 
 func main() {
-	fmt.Println("START", time.Now().String())
 	flag.Parse()
 	if help != nil && *help {
 		fmt.Println(`Usage: simple-gnomon [options]
@@ -239,7 +238,6 @@ do_it_again: // simple-daemon
 	}
 	wg.Wait()
 
-	fmt.Println("DONE", time.Now().String())
 	// height achieved
 	achieved_current_height = connections.Get_TopoHeight()
 
