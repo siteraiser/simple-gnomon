@@ -90,7 +90,7 @@ func start_gnomon_indexer() {
 		dir := filepath.Dir(sqlite.DBPath)
 		ext := filepath.Ext(filename)
 
-		sqlite, err = NewSqlDB(dir, filename+ext)
+		sqlite, err = NewDiskDB(dir, filename+ext)
 	}
 
 	fmt.Println("Saving phase over...............................................................")

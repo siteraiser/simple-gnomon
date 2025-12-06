@@ -84,7 +84,20 @@ func (ss *SqlStore) BackupToDisk() error {
 	return nil
 
 }
+func NewDiskDB(dbPath, dbName string) (*SqlStore, error) {
+	var err error
+	var Sql_backend *SqlStore = &SqlStore{}
 
+	if err := os.MkdirAll(dbPath, 0700); err != nil {
+		return nil, fmt.Errorf("directory creation err %s - dirpath %s", err, dbPath)
+	}
+	fullPath := filepath.Join(dbPath, dbName)
+	Sql_backend.DB, err = sql.Open("sqlite3", fullPath)
+
+	Sql_backend.DBPath = fullPath
+
+	return Sql_backend, err
+}
 func NewSqlDB(dbPath, dbName string) (*SqlStore, error) {
 	var err error
 	var Sql_backend *SqlStore = &SqlStore{}
