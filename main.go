@@ -415,10 +415,9 @@ func indexHeight(
 			return err
 		}
 
-		// fmt.Printf("%v\n", staged)
-
 		fmt.Println("staged scid:", staged.Scid, ":", fmt.Sprint(staged.Fsi.Height), "/", fmt.Sprint(connections.Get_TopoHeight()))
-
+		tags := ""
+		class := ""
 		// range the indexers and add to index 1 at a time to prevent out of memory error
 		for name := range workers {
 			for _, filter := range indicies[name] {
@@ -426,8 +425,21 @@ func indexHeight(
 				if !strings.Contains(sc.Code, filter) {
 					continue
 				}
-				workers[name].Queue <- staged
+
+				// to acheieve parity with sqlite db
+				class = name
+				tags = tags + "," + filter
 			}
+
+			if tags != "" && tags[0:1] == "" {
+				tags = tags[1:]
+			}
+
+			staged.Class = class
+			staged.Tags = tags
+
+			// fmt.Printf("%v\n", staged)
+			workers[name].Queue <- staged
 		}
 
 	}
@@ -453,7 +465,11 @@ func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64
 	kv := sc.VariableStringKeys
 
 	headers := connections.GetSCNameFromVars(kv) + ";" + connections.GetSCDescriptionFromVars(kv) + ";" + connections.GetSCIDImageURLFromVars(kv)
-	fast_sync_import := &structures.FastSyncImport{Height: height, Owner: owner, Headers: headers}
+	fast_sync_import := &structures.FastSyncImport{
+		Height:  height,
+		Owner:   owner,
+		Headers: headers,
+	}
 
 	// because empty string is a valid code entry for scids...
 	// if sc.Code == "" {
@@ -465,7 +481,12 @@ func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64
 	// 	return simple_gnomon.SCIDToIndexStage{}, errors.New("[staging] no vars")
 	// }
 
-	staged := structures.SCIDToIndexStage{Scid: scid, Fsi: fast_sync_import, ScVars: vars, ScCode: sc.Code}
+	staged := structures.SCIDToIndexStage{
+		Scid:   scid,
+		Fsi:    fast_sync_import,
+		ScVars: vars,
+		ScCode: sc.Code,
+	}
 
 	return staged, nil
 }

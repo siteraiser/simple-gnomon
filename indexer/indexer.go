@@ -67,9 +67,7 @@ func NewIndexer(Bbs_backend *db.BboltStore, last_indexedheight int64, sfscidexcl
 // Manually add/inject a SCID to be indexed. Checks validity and then stores within owner tree (no signer addr) and stores a set of current variables.
 func (indexer *Indexer) AddSCIDToIndex(scidstoadd structures.SCIDToIndexStage) (err error) {
 
-	defer func() {
-		indexer.BBSBackend.Writing = false
-	}()
+	defer func() { indexer.BBSBackend.Writing = false }()
 
 	if scidstoadd.Scid == "" {
 		return errors.New("no scid")
@@ -79,7 +77,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd structures.SCIDToIndexStage) (
 		return errors.New("nothing to import")
 	}
 
-	writeWait, _ := time.ParseDuration("11ms")
+	writeWait, _ := time.ParseDuration("10ms")
 
 	for indexer.BBSBackend.Writing {
 		if indexer.Closing {
@@ -94,11 +92,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd structures.SCIDToIndexStage) (
 	// By returning valid variables of a given Scid (GetSC --> parse vars), we can conclude it is a valid SCID. Otherwise, skip adding to validated scids
 	if len(scidstoadd.ScVars) != 0 {
 		l.Info("[AddSCIDToIndex] Storing Vars: ", fmt.Sprint(scidstoadd))
-		changed, err := indexer.BBSBackend.StoreSCIDVariableDetails(
-			scidstoadd.Scid,
-			scidstoadd.ScVars,
-			int64(scidstoadd.Fsi.Height),
-		)
+		changed, err := indexer.BBSBackend.StoreSCIDVariableDetails(scidstoadd.Scid, scidstoadd.ScVars, int64(scidstoadd.Fsi.Height))
 		if err != nil {
 			return err
 		}
@@ -108,10 +102,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd structures.SCIDToIndexStage) (
 		l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllSCIDVariableDetails(scidstoadd.Scid))))
 
 		l.Info("[AddSCIDToIndex] Storing Owner: ", fmt.Sprint(scidstoadd))
-		changed, err = indexer.BBSBackend.StoreOwner(
-			scidstoadd.Scid,
-			scidstoadd.Fsi.Owner,
-		)
+		changed, err = indexer.BBSBackend.StoreOwner(scidstoadd.Scid, scidstoadd.Fsi.Owner, scidstoadd.Fsi.Headers, scidstoadd.Class, scidstoadd.Tags)
 		if err != nil {
 			return err
 		}

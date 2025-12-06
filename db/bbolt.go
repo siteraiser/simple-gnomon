@@ -144,17 +144,29 @@ func (bbs *BboltStore) GetTxCount(txType string) (txCount int64) {
 }
 
 // Stores the owner (who deployed it) of a given scid
-func (bbs *BboltStore) StoreOwner(scid string, owner string) (changes bool, err error) {
-	bName := "scowner"
-
+func (bbs *BboltStore) StoreOwner(scid string, owner, headers, class, tags string) (changes bool, err error) {
+	bNames := []string{"scowner", "scheaders", "scclass", "sctags"}
 	err = bbs.DB.Update(func(tx *bolt.Tx) (err error) {
-		b, err := tx.CreateBucketIfNotExists([]byte(bName))
-		if err != nil {
-			return fmt.Errorf("bucket: %s", err)
+		for _, each := range bNames {
+			b, err := tx.CreateBucketIfNotExists([]byte(each))
+			if err != nil {
+				return fmt.Errorf("bucket: %s", err)
+			}
+			switch each {
+			case bNames[0]:
+				err = b.Put([]byte(scid), []byte(owner))
+			case bNames[1]:
+				err = b.Put([]byte(scid), []byte(headers))
+			case bNames[2]:
+				err = b.Put([]byte(scid), []byte(class))
+			case bNames[3]:
+				err = b.Put([]byte(scid), []byte(tags))
+			}
+			if err != nil {
+				return err
+			}
+			changes = true
 		}
-
-		err = b.Put([]byte(scid), []byte(owner))
-		changes = true
 		return
 	})
 
