@@ -111,6 +111,28 @@ func (wss *WSServer) wsHandleClient(ctx context.Context, c *websocket.Conn, requ
 	}
 
 	switch req.Method {
+	case "GetAllOwnersAndSCIDs":
+		var params *structures.GnomonAllOwnersAndSCIDsQuery
+
+		err = json.Unmarshal(*req.Params, &params)
+		if err != nil {
+			logger.Errorf("[wsHandleClient] Unable to parse params")
+			return err
+		}
+		for each := range wss.workers {
+			fmt.Println(each)
+		}
+		result := wss.workers[params.IDX].Idx.BBSBackend.GetAllOwnersAndSCIDs()
+
+		message := &structures.JSONRpcResp{Id: req.Id, Version: "2.0", Error: nil, Result: result}
+		logger.Printf("[wsHandleClient] test Writer")
+		err = wsjson.Write(ctx, c, message)
+		if err != nil {
+			logger.Errorf("[wsHandleClient] err writing message: err: %v", err)
+
+			logger.Errorf("[wsHandleClient] Server disconnect request")
+			return fmt.Errorf("[wsHandleClient] Server disconnect request")
+		}
 	case "test":
 		var params *structures.GnomonSCIDQuery
 
