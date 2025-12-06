@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,9 +11,9 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
-	"time"
 
 	"github.com/civilware/tela/logger"
+	"github.com/mattn/go-sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -26,6 +27,64 @@ type SqlStore struct {
 	//Buckets []string
 }
 
+func (ss *SqlStore) BackupToDisk() error {
+
+	// Open destination database
+	dest, err := sql.Open("sqlite3", ss.DBPath)
+	if err != nil {
+		return fmt.Errorf("failed to open destination DB: %w", err)
+	}
+	defer dest.Close()
+
+	// Use the SQLite backup API
+	// This requires the mattn/go-sqlite3 driver
+	ctx, _ := context.WithTimeout(context.Background(), 10)
+	connSrc, _ := ss.DB.Conn(ctx)
+
+	if err != nil {
+		return fmt.Errorf("failed to get source connection: %w", err)
+	}
+
+	connDest, err := dest.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get destination connection: %w", err)
+	}
+
+	defer connDest.Close()
+
+	// Perform backup using driver-specific interface
+	if err := connDest.Raw(func(destConn interface{}) error {
+		return connSrc.Raw(func(srcConn interface{}) error {
+			// Type assert to *sqlite3.SQLiteConn
+			srcSQLite, ok1 := srcConn.(*sqlite3.SQLiteConn)
+			destSQLite, ok2 := destConn.(*sqlite3.SQLiteConn)
+			if !ok1 || !ok2 {
+				return fmt.Errorf("unexpected connection type")
+			}
+			// Backup from "main" to "main"
+			bk, err := destSQLite.Backup("main", srcSQLite, "main")
+			if err != nil {
+				return fmt.Errorf("backup init failed: %w", err)
+			}
+			defer bk.Finish()
+
+			done, err := bk.Step(-1) // -1 = copy all pages
+			if err != nil {
+				return fmt.Errorf("backup step failed: %w", err)
+			}
+			if !done {
+				return fmt.Errorf("backup incomplete")
+			}
+			return nil
+		})
+	}); err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 func NewSqlDB(dbPath, dbName string) (*SqlStore, error) {
 	var err error
 	var Sql_backend *SqlStore = &SqlStore{}
@@ -33,53 +92,36 @@ func NewSqlDB(dbPath, dbName string) (*SqlStore, error) {
 	if err := os.MkdirAll(dbPath, 0700); err != nil {
 		return nil, fmt.Errorf("directory creation err %s - dirpath %s", err, dbPath)
 	}
-	db_path := filepath.Join(dbPath, dbName)
-	Sql_backend.DB, err = sql.Open("sqlite3", db_path)
+	fullPath := filepath.Join(dbPath, dbName)
+	hard, err := sql.Open("sqlite3", fullPath)
+	createTables(hard)
+	//fmt.Print("viewTables1...")
+	//	ViewTables(hard)
+	hard.Close()
+
+	Sql_backend.DB, err = sql.Open("sqlite3", "file:diskdb?mode=memory&cache=shared")
+
+	// Load from disk into memory
+	_, err = Sql_backend.DB.Exec(fmt.Sprintf("ATTACH DATABASE '%s' AS diskdb", fullPath))
 	if err != nil {
-		return Sql_backend, fmt.Errorf("[NewSqlDB] Could not create sql db store: %v", err)
+		log.Fatalf("attach disk DB: %v", err)
 	}
-	createTables(Sql_backend.DB)
-	//check tables
+	_, err = Sql_backend.DB.Exec(
+		"CREATE TABLE IF NOT EXISTS main.state AS SELECT * FROM diskdb.state;" +
+			"CREATE TABLE IF NOT EXISTS main.scs AS SELECT * FROM diskdb.scs;" +
+			"CREATE TABLE IF NOT EXISTS main.variables AS SELECT * FROM diskdb.variables;" +
+			"CREATE TABLE IF NOT EXISTS main.invokes AS SELECT * FROM diskdb.invokes;" +
+			"CREATE TABLE IF NOT EXISTS main.interactions AS SELECT * FROM diskdb.interactions;")
+	if err != nil {
+		log.Printf("No existing table to copy: %v", err)
+	}
+	_, _ = Sql_backend.DB.Exec("DETACH DATABASE diskdb")
 
-	go func() {
-		for {
-			amt, _ := time.ParseDuration("1s")
-			if Sql_backend.Cancel {
-				time.Sleep(amt)
-				fmt.Print("Resuming...")
-				Sql_backend.Cancel = false
-			}
-			time.Sleep(amt)
-			viewTables(Sql_backend.DB)
-		}
+	Sql_backend.DBPath = fullPath
 
-	}()
-	Sql_backend.DBPath = dbPath
-	//Db = Sql_backend.DB
 	return Sql_backend, err
 }
 
-/*
-	func InitDB() *sql.DB {
-		// Initialize the database connection
-		var err error
-
-		Db, err = sql.Open("sqlite3", "./database/gnomon.db")
-
-		if err != nil {
-			panic(err)
-		}
-
-		// Test the database connection
-		if err := Db.Ping(); err != nil {
-			panic(err)
-		}
-
-		createTables()
-		//insertSamplePage()
-		return Db
-	}
-*/
 func createTables(Db *sql.DB) {
 
 	var startup = [5]string{}
@@ -153,80 +195,83 @@ func handleError(err error) {
 }
 
 // --- extras...
-func viewTables(Db *sql.DB) {
+func (ss *SqlStore) ViewTables() {
+	fmt.Println("\nOpen: ", sqlite.DBPath)
+	hard, err := sql.Open("sqlite3", sqlite.DBPath)
+	defer hard.Close()
 	/// check tables
-	/*
-		fmt.Println("\nShowing State: ")
-		rows, err := Db.Query("SELECT name, value FROM state WHERE name = 'lastindexedheight'", nil)
-		if err != nil {
-			fmt.Println(err)
-		}
-		var (
-			name  string
-			value string
-		)
+	/*	*/
+	fmt.Println("\nShowing State: ")
+	rows, err := hard.Query("SELECT name, value FROM state WHERE name = 'lastindexedheight'", nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+	var (
+		name  string
+		value string
+	)
 
-		for rows.Next() {
-			rows.Scan(&name, &value)
-			fmt.Println(name, value)
+	for rows.Next() {
+		rows.Scan(&name, &value)
+		if name == "lastindexedheight" && value == "0" {
+			panic("Fucking trash")
 		}
+		fmt.Println(name, value)
+	}
 
-		fmt.Println("Showing SCs / Owners: ")
-		rows, err = Db.Query("SELECT scid, owner, scname,class, tags FROM scs", nil)
-		if err != nil {
-			fmt.Println(err)
-		}
-		var (
-			scid   string
-			owner  string
-			scname string
-			class  string
-			tags   string
-		)
+	fmt.Println("Showing SCs / Owners: ")
+	rows, err = hard.Query("SELECT scid, owner, scname,class, tags FROM scs", nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+	var (
+		scid   string
+		owner  string
+		scname string
+		class  string
+		tags   string
+	)
 
-		for rows.Next() {
-			rows.Scan(&scid, &owner, &scname, &class, &tags)
-			fmt.Println("owner - scid - scname - class - tags", owner+"--"+scid+"--"+scname+"--"+class+"--"+tags)
-		}
+	for rows.Next() {
+		rows.Scan(&scid, &owner, &scname, &class, &tags)
+		fmt.Println("owner - scid - scname - class - tags", owner+"--"+scid+"--"+scname+"--"+class+"--"+tags)
+	}
 
-		//INSERT INTO vars (height, scid, vars) VALUES (?,?,?)
-		fmt.Println("Showing Vars: ")
-		rows, err = Db.Query("SELECT height, scid FROM variables", nil)
-		if err != nil {
-			fmt.Println(err)
-		}
-		var (
-			height string
-		)
-		for rows.Next() {
-			rows.Scan(&height, &scid)
-			fmt.Println("height - scid - vars (not shown) ", height+"--"+scid)
-		}
+	//INSERT INTO vars (height, scid, vars) VALUES (?,?,?)
+	fmt.Println("Showing Vars: ")
+	rows, err = hard.Query("SELECT height, scid FROM variables", nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+	var (
+		height string
+	)
+	for rows.Next() {
+		rows.Scan(&height, &scid)
+		fmt.Println("height - scid - vars (not shown) ", height+"--"+scid)
+	}
 
-		fmt.Println("Showing Interactions: ")
+	fmt.Println("Showing Interactions: ")
 
-		rows, err = Db.Query("SELECT count(int_id) as count FROM interactions", nil) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
-		if err != nil {
-			fmt.Println(err)
-		}
-		var (
-			count string
-		)
-		for rows.Next() {
-			rows.Scan(&count)
-
-		}
+	rows, err = hard.Query("SELECT count(*) FROM interactions", nil) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
+	if err != nil {
+		fmt.Println(err)
+	}
+	var (
+		count string
+	)
+	for rows.Next() {
+		rows.Scan(&count)
 		fmt.Println("count ", count)
-	*/
+	}
+
 }
 
 //-----------------
 
 // Stores bbolt's last indexed height - this is for stateful stores on close and reference on open
 func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool, err error) {
-	if ss.Cancel {
-		return
-	}
+
 	statement, err := ss.DB.Prepare("UPDATE state SET value = ? WHERE name = ?;")
 	if err != nil {
 		panic(err)
@@ -241,8 +286,6 @@ func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool
 			changes = true
 			return
 		}
-	} else {
-		ss.Cancel = true
 	}
 
 	return
@@ -256,7 +299,7 @@ func (ss *SqlStore) GetLastIndexHeight() (topoheight int64, err error) {
 		topoheight = int64(lastindexedheight)
 	}
 	if topoheight == 0 {
-		fmt.Println("[bbs-GetLastIndexHeight] No stored last index height. Starting from 0 or latest if fastsync is enabled")
+		fmt.Println("[sqlite-GetLastIndexHeight] No stored last index height. Starting from 0 or latest if fastsync is enabled")
 	}
 
 	return
@@ -1099,9 +1142,7 @@ func (ss *SqlStore) GetSCIDValuesByKey(scid string, key interface{}, height int6
 
 // Stores SC interaction height and detail - height invoked upon and type (scinstall/scinvoke). This is separate tree & k/v since we can query it for other things at less data retrieval
 func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (changes bool, err error) {
-	if ss.Cancel {
-		return
-	}
+
 	var currSCIDInteractionHeight []byte
 	var interactionHeight []int64
 	var newInteractionHeight []byte
@@ -1149,8 +1190,6 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 				changes = true
 			}
 
-		} else {
-			ss.Cancel = true
 		}
 
 	} else {
@@ -1170,8 +1209,6 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 				changes = true
 
 			}
-		} else {
-			ss.Cancel = true
 		}
 
 	}

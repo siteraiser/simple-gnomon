@@ -17,27 +17,25 @@ import (
 )
 
 func main() {
-
-	start_gnomon_indexer()
-}
-
-var speed = 20
-var TargetHeight = api.Get_TopoHeight()
-var sqlite = &SqlStore{}
-var sqlindexer = &Indexer{}
-
-func start_gnomon_indexer() {
-
+	var err error
 	db_name := fmt.Sprintf("sql%s.db", "GNOMON")
 	wd := globals.GetDataDirectory()
 	db_path := filepath.Join(wd, "gnomondb")
-
-	var err error
 	sqlite, err = NewSqlDB(db_path, db_name)
 	if err != nil {
 		fmt.Println("[Main] Err creating sqlite:", err)
 		return
 	}
+	start_gnomon_indexer()
+}
+
+var speed = 25
+var TargetHeight = int64(0)
+var HighestKnownHeight = api.Get_TopoHeight()
+var sqlite = &SqlStore{}
+var sqlindexer = &Indexer{}
+
+func start_gnomon_indexer() {
 
 	var lowest_height int64
 
@@ -55,28 +53,33 @@ func start_gnomon_indexer() {
 	//	fmt.Println("starting to index ", api.Get_TopoHeight())
 
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
+
+	if TargetHeight < HighestKnownHeight-25000 {
+		TargetHeight = lowest_height + 25000
+	} else {
+		TargetHeight = HighestKnownHeight
+	}
 	//var wg sync.WaitGroup
 	var wg sync.WaitGroup
 	for bheight := lowest_height; bheight <= TargetHeight; bheight++ { //program.wallet.Get_TopoHeight()
-		if sqlindexer.SSSBackend.Cancel {
-			speed = speed + 5
-			fmt.Println("Speed", speed)
-
-			break
-		}
-
 		t, _ := time.ParseDuration(strconv.Itoa(speed) + "ms")
 		time.Sleep(t)
 		wg.Add(1) //
 		go ProcessBlock(&wg, bheight)
+
 	}
 	//	wg.Wait() // Wait for all requests to finish
 	fmt.Println("indexed")
 	wg.Wait()
 	t, _ := time.ParseDuration("1s")
 	time.Sleep(t)
-	TargetHeight = api.Get_TopoHeight()
-	sqlindexer.SSSBackend.Cancel = false
+
+	fmt.Println("Saving Batch.............................................................")
+	sqlite.BackupToDisk()
+	fmt.Println("Saving phase over...............................................................")
+	sqlite.ViewTables()
+
+	HighestKnownHeight = api.Get_TopoHeight()
 	start_gnomon_indexer()
 
 }
@@ -87,6 +90,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		"g45":   {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
 		"nfa":   {"ART-NFA-MS1"},
 		"swaps": {"StartSwap"},
+		"tela":  {"docVersion", "telaVersion"},
 	}
 
 	storeHeight := func(bheight int64) {
