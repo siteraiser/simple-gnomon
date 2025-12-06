@@ -3,8 +3,8 @@ module github.com/secretnamebasis/simple-gnomon
 go 1.24.0
 
 require (
-	fyne.io/fyne/v2 v2.7.1
 	github.com/blang/semver/v4 v4.0.0
+	github.com/coder/websocket v1.8.12
 	github.com/creachadair/jrpc2 v0.35.4
 	github.com/deroproject/derohe v0.0.0-20250813215012-9b6a8b82c839
 	github.com/gorilla/mux v1.8.1
@@ -12,7 +12,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2
 	go.etcd.io/bbolt v1.3.7
-	nhooyr.io/websocket v1.8.17
 )
 
 require (
@@ -21,11 +20,10 @@ require (
 	github.com/cenkalti/hub v1.0.1 // indirect
 	github.com/cenkalti/rpc2 v0.0.0-20210604223624-c1acbc6ec984 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
-	github.com/coder/websocket v1.8.12 // indirect
 	github.com/dchest/siphash v1.2.3 // indirect
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/fredbi/uri v1.1.1 // indirect
+	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.6 // indirect
@@ -33,11 +31,13 @@ require (
 	github.com/lesismal/llib v1.1.10 // indirect
 	github.com/lesismal/nbio v1.3.9 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
+	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/segmentio/fasthash v1.0.3 // indirect
 	github.com/templexxx/xorsimd v0.4.3 // indirect
 	github.com/xtaci/kcp-go/v5 v5.6.2 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
+	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 )
 
 require (

@@ -112,11 +112,10 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd structures.SCIDToIndexStage) (
 
 		l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllOwnersAndSCIDs())))
 	} else {
+
 		l.Info("[AddSCIDToIndex] Storing Interaction: ", fmt.Sprint(scidstoadd.Scid), " ", fmt.Sprint(scidstoadd.Fsi.Height))
-		changed, err := indexer.BBSBackend.StoreSCIDInteractionHeight(
-			scidstoadd.Scid,
-			int64(scidstoadd.Fsi.Height),
-		)
+
+		changed, err := indexer.BBSBackend.StoreSCIDInteractionHeight(scidstoadd.Scid, int64(scidstoadd.Fsi.Height))
 		if err != nil {
 			return err
 		}

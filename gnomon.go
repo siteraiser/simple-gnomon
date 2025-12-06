@@ -1,0 +1,374 @@
+package main
+
+import (
+	"encoding/hex"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/deroproject/derohe/block"
+	"github.com/deroproject/derohe/cryptography/crypto"
+	network "github.com/deroproject/derohe/globals"
+	"github.com/deroproject/derohe/rpc"
+	"github.com/deroproject/derohe/transaction"
+	"github.com/secretnamebasis/simple-gnomon/connections"
+	"github.com/secretnamebasis/simple-gnomon/db"
+	"github.com/secretnamebasis/simple-gnomon/globals"
+	"github.com/secretnamebasis/simple-gnomon/indexer"
+	structures "github.com/secretnamebasis/simple-gnomon/structs"
+)
+
+// establish some workers
+var workers = make(map[string]*indexer.Worker)
+var backups = make(map[string]*indexer.Indexer)
+
+// this is the processing thread
+func start_gnomon_indexer() {
+
+	// we are going to use all the noise we can get
+	indexer.InitLog(map[string]any{}, os.Stdout)
+
+	// we are going to use this as an upper bound
+	lowest_height = connections.Get_TopoHeight()
+
+	// build separate databases for each index, for portability
+	fmt.Println("opening dbs")
+
+	// for now, these are the collections we are looking for
+	indices := map[string][]string{
+		// this is the base db, it contains all scids and contract interactions
+		"all": {""},
+
+		// TODO: we are not currently indexing contract interactions within search filters
+		"g45":  {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
+		"nfa":  {"ART-NFA-MS1"},
+		"tela": {"docVersion", "telaVersion"},
+
+		// other indices could exist...
+		// "normal":{""}
+		// "registrations":{""}
+		// "invalid":{""}
+		// "miniblocks":{""}
+	}
+
+	for index := range indices {
+		if err := set_up_backend(index); err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+
+	fmt.Println("setting up queue processors")
+
+	// set up a listener for staged scids in the indexer queue
+	for name := range workers {
+		go asynchronously_process_queues(workers[name], backups[name])
+	}
+
+	// now that the backend is set up, start WS
+
+	fmt.Println("setting up websocket")
+	go connections.ListenWS(workers)
+
+	fmt.Println("starting to index ", connections.Get_TopoHeight())
+
+	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
+
+	// we'll implement a simple concurrency pattern
+	wg := sync.WaitGroup{}
+	limit := make(chan struct{}, 3) // hot, warm, cold
+
+do_it_again: // simple-daemon
+
+	// a simple backup strategy
+	now := connections.Get_TopoHeight()
+
+	// in case db needs to re-parse from a desired height
+	if starting_height != nil && *starting_height < now && *starting_height > -1 && achieved_current_height == 0 {
+		lowest_height = *starting_height
+	}
+
+	// main processing loop
+	for height := lowest_height; height < now; height++ {
+
+		if achieved_current_height > 0 &&
+			!established_backup &&
+			find_lowest(backups, now) { // if the current height is greater than a day of blocks...
+
+			backup(height, limit)
+		}
+
+		limit <- struct{}{}
+		wg.Add(1)
+		go indexing(workers, indices, height, limit, &wg)
+
+	}
+	wg.Wait()
+
+	// height achieved
+	achieved_current_height = connections.Get_TopoHeight()
+
+	lowest_height = min(now, achieved_current_height)
+
+	goto do_it_again
+
+}
+
+func set_up_backend(name string) error {
+
+	db_name := fmt.Sprintf("%s_%s.db", "GNOMON", name)
+	db_backup_name := db_name + ".bak"
+
+	wd := network.GetDataDirectory()
+	db_path := filepath.Join(wd, "gnomondb")
+
+	var err error
+	b, err := db.NewBBoltDB(db_path, db_name)
+	if err != nil {
+		return err
+	}
+
+	bb, err := db.NewBBoltDB(db_path, db_backup_name)
+	if err != nil {
+		return err
+	}
+	time.Sleep(time.Second * 1) // we need a second okay...
+
+	height, err := b.GetLastIndexHeight()
+	if err != nil {
+		height = 0
+	}
+
+	// this will always be behind current topo height
+	lowest_height = min(lowest_height, height)
+
+	// initialize each indexer
+	workers[name] = &indexer.Worker{
+		Queue: make(chan structures.SCIDToIndexStage, 1000),
+		Idx:   indexer.NewIndexer(b, height, []string{globals.MAINNET_GNOMON_SCID}),
+	}
+
+	backups[name] = indexer.NewIndexer(bb, height, []string{globals.MAINNET_GNOMON_SCID})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func asynchronously_process_queues(worker *indexer.Worker, backup *indexer.Indexer) {
+	for staged := range worker.Queue {
+		if err := worker.Idx.AddSCIDToIndex(staged); err != nil {
+			// if err.Error() != "no code" { // this is a contract interaction, we are not recording these right now
+			fmt.Println("indexer error:", err, staged.Scid, staged.Fsi.Height)
+			// }
+			continue
+		}
+		fmt.Println("scid at height indexed:",
+			fmt.Sprint(staged.Fsi.Height), "/", fmt.Sprint(connections.Get_TopoHeight()),
+		)
+
+		if achieved_current_height > 0 { // once the indexer has reached the top...
+			// do incremental backups
+			if err := backup.AddSCIDToIndex(staged); err != nil {
+				// if err.Error() != "no code" { // this is a contract interaction, we are not recording these right now
+				fmt.Println("indexer error:", err, staged.Scid, staged.Fsi.Height)
+				// }
+				continue
+			}
+		}
+	}
+}
+
+func find_lowest(backups map[string]*indexer.Indexer, now int64) bool {
+	lowest := now
+	for _, each := range backups {
+		lowest = min(lowest, each.LastIndexedHeight)
+	}
+	return (achieved_current_height - day_of_blocks) > lowest
+}
+
+// this is the indexing action that will be done concurrently
+func indexing(workers map[string]*indexer.Worker, indices map[string][]string, height int64, limit chan struct{}, wg *sync.WaitGroup) {
+
+	// close up when done and remove item from limit
+	defer func() { wg.Done(); <-limit }()
+
+	// fmt.Println("auditing block:", fmt.Sprint(height), "/", fmt.Sprint(connections.Get_TopoHeight()))
+
+	err := indexHeight(workers, indices, height)
+	if err != nil {
+		fmt.Printf("error: %s %s %d", err, "height:", height)
+	}
+}
+
+// this will serve as the backup action
+func backup(each int64, limit chan struct{}) {
+	mu := sync.Mutex{}
+
+	// wait for the other objects to finish
+	for len(limit) != 0 {
+		fmt.Println("allowing heights to clear before backing up db", each)
+		time.Sleep(time.Second)
+
+		continue
+	}
+
+	// full backup
+	for _, worker := range workers {
+		mu.Lock()
+		worker.Idx.BBSBackend.BackUpDatabases(each)
+		mu.Unlock()
+	}
+
+	storeHeight(workers, each)
+
+	established_backup = true
+}
+
+func indexHeight(workers map[string]*indexer.Worker, indices map[string][]string, each int64) error {
+	result := connections.GetBlockInfo(rpc.GetBlock_Params{
+		Height: uint64(each),
+	})
+
+	bl := connections.GetBlockDeserialized(result.Blob)
+
+	if len(bl.Tx_hashes) < 1 {
+		return nil
+	}
+
+	for _, tx_hash := range bl.Tx_hashes {
+		if err := processing(workers, indices, bl, tx_hash); err != nil {
+			return err
+		}
+	}
+
+	return storeHeight(workers, each)
+}
+
+func processing(workers map[string]*indexer.Worker, indices map[string][]string, bl block.Block, tx_hash crypto.Hash) error {
+
+	r := connections.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: []string{tx_hash.String()}})
+
+	b, err := hex.DecodeString(r.Txs_as_hex[0])
+	if err != nil {
+		return err
+	}
+	var tx transaction.Transaction
+	if err := tx.Deserialize(b); err != nil {
+		return err
+	}
+
+	if tx.TransactionType != transaction.SC_TX {
+		return nil
+	}
+
+	// fmt.Printf("%+v\n", bl)
+	// fmt.Printf("%+v\n", tx)
+
+	params := rpc.GetSC_Params{}
+
+	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
+		params = rpc.GetSC_Params{
+			SCID:       tx.GetHash().String(),
+			Code:       true,
+			Variables:  true,
+			TopoHeight: int64(bl.Height),
+		}
+	}
+
+	if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
+		scid, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
+		if !ok { // paranoia
+			return nil
+		}
+		if scid.String() == "" { // yeah... weird
+			return nil
+		}
+		params = rpc.GetSC_Params{
+			SCID:       scid.String(),
+			Code:       false,
+			Variables:  false,
+			TopoHeight: int64(bl.Height),
+		}
+	}
+
+	// fmt.Printf("%v\n", params)
+
+	sc := connections.GetSC(params)
+
+	// fmt.Printf("%v\n", sc)
+
+	staged, err := stageSCIDForIndexers(sc, params.SCID, r.Txs[0].Signer, tx.Height)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("staged scid:", staged.Scid, ":", fmt.Sprint(staged.Fsi.Height), "/", fmt.Sprint(connections.Get_TopoHeight()))
+	tags := ""
+	class := ""
+	// range the indexers and add to index 1 at a time to prevent out of memory error
+	for name := range workers {
+		for _, filter := range indices[name] {
+			// if the code does not contain the filter, skip
+			if !strings.Contains(sc.Code, filter) {
+				continue
+			}
+
+			// to acheieve parity with sqlite db
+			class = name
+			tags = tags + "," + filter
+
+			if tags != "" && tags[0:1] == "" {
+				tags = tags[1:]
+			}
+
+			staged.Class = class
+			staged.Tags = tags
+
+			// fmt.Printf("%v\n", staged)
+			workers[name].Queue <- staged
+		}
+
+	}
+	return nil
+}
+
+func storeHeight(indexers map[string]*indexer.Worker, height int64) error {
+	for _, worker := range indexers {
+		if ok, err := worker.Idx.BBSBackend.StoreLastIndexHeight(height); !ok && err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64) (structures.SCIDToIndexStage, error) {
+
+	vars, err := indexer.GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
+	if err != nil {
+		return structures.SCIDToIndexStage{}, err
+	}
+
+	kv := sc.VariableStringKeys
+
+	headers := connections.GetSCNameFromVars(kv) + ";" + connections.GetSCDescriptionFromVars(kv) + ";" + connections.GetSCIDImageURLFromVars(kv)
+
+	fast_sync_import := &structures.FastSyncImport{Height: height, Owner: owner, Headers: headers}
+
+	// because empty string is a valid code entry for scids...
+	// if sc.Code == "" {
+	// 	return simple_gnomon.SCIDToIndexStage{}, errors.New("[staging] no code")
+	// }
+
+	// because empty vars could be a interaction...
+	// if len(vars) == 0 { // there would always be more than 0 pair; stringKeys:{ "C":{ <SC CODE> } }
+	// 	return simple_gnomon.SCIDToIndexStage{}, errors.New("[staging] no vars")
+	// }
+
+	staged := structures.SCIDToIndexStage{Scid: scid, Fsi: fast_sync_import, ScVars: vars, ScCode: sc.Code}
+
+	return staged, nil
+}
