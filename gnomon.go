@@ -166,9 +166,7 @@ func asynchronously_process_queues(worker *indexer.Worker, backup *indexer.Index
 			// }
 			continue
 		}
-		fmt.Println("scid at height indexed:",
-			fmt.Sprint(staged.Fsi.Height), "/", fmt.Sprint(connections.Get_TopoHeight()),
-		)
+		fmt.Printf("scid at height indexed: %d / %d\n", staged.Fsi.Height, connections.Get_TopoHeight())
 
 		if achieved_current_height > 0 { // once the indexer has reached the top...
 			// do incremental backups
@@ -196,11 +194,11 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 	// close up when done and remove item from limit
 	defer func() { wg.Done(); <-limit }()
 
-	// fmt.Println("auditing block:", fmt.Sprint(height), "/", fmt.Sprint(connections.Get_TopoHeight()))
+	fmt.Printf("auditing block: %d / %d\r", height, connections.Get_TopoHeight())
 
 	err := indexHeight(workers, indices, height)
 	if err != nil {
-		fmt.Printf("error: %s %s %d", err, "height:", height)
+		fmt.Printf("error: %s %s %d\n", err, "height:", height)
 	}
 }
 
@@ -232,7 +230,6 @@ func indexHeight(workers map[string]*indexer.Worker, indices map[string][]string
 	result := connections.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(each),
 	})
-
 	bl := connections.GetBlockDeserialized(result.Blob)
 
 	if len(bl.Tx_hashes) < 1 {
