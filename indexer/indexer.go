@@ -91,7 +91,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd structures.SCIDToIndexStage) (
 
 	// By returning valid variables of a given Scid (GetSC --> parse vars), we can conclude it is a valid SCID. Otherwise, skip adding to validated scids
 	if len(scidstoadd.ScVars) != 0 {
-		l.Info("[AddSCIDToIndex] Storing Vars: ", fmt.Sprint(scidstoadd))
+		// l.Info("[AddSCIDToIndex] Storing Vars: ", fmt.Sprint(scidstoadd))
 		changed, err := indexer.BBSBackend.StoreSCIDVariableDetails(scidstoadd.Scid, scidstoadd.ScVars, int64(scidstoadd.Fsi.Height))
 		if err != nil {
 			return err
@@ -99,9 +99,9 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd structures.SCIDToIndexStage) (
 		if !changed {
 			return errors.New("did not store scid/vars")
 		}
-		l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllSCIDVariableDetails(scidstoadd.Scid))))
+		// l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllSCIDVariableDetails(scidstoadd.Scid))))
 
-		l.Info("[AddSCIDToIndex] Storing Owner: ", fmt.Sprint(scidstoadd))
+		// l.Info("[AddSCIDToIndex] Storing Owner: ", fmt.Sprint(scidstoadd))
 		changed, err = indexer.BBSBackend.StoreOwner(scidstoadd.Scid, scidstoadd.Fsi.Owner, scidstoadd.Fsi.Headers, scidstoadd.Class, scidstoadd.Tags)
 		if err != nil {
 			return err
@@ -110,10 +110,10 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd structures.SCIDToIndexStage) (
 			return errors.New("did not store scid/owner")
 		}
 
-		l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllOwnersAndSCIDs())))
+		// l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllOwnersAndSCIDs())))
 	} else {
 
-		l.Info("[AddSCIDToIndex] Storing Interaction: ", fmt.Sprint(scidstoadd.Scid), " ", fmt.Sprint(scidstoadd.Fsi.Height))
+		// l.Info("[AddSCIDToIndex] Storing Interaction: ", fmt.Sprint(scidstoadd.Scid), " ", fmt.Sprint(scidstoadd.Fsi.Height))
 
 		changed, err := indexer.BBSBackend.StoreSCIDInteractionHeight(scidstoadd.Scid, int64(scidstoadd.Fsi.Height))
 		if err != nil {
@@ -122,11 +122,11 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd structures.SCIDToIndexStage) (
 
 		// multiple interactions are possible
 		if !changed {
-			l.Info("[AddSCIDToIndex] Interaction Height already recorded: ", fmt.Sprint(len(indexer.BBSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
+			// l.Info("[AddSCIDToIndex] Interaction Height already recorded: ", fmt.Sprint(len(indexer.BBSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
 			return nil
 		}
 
-		l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
+		// l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
 	}
 
 	return nil
