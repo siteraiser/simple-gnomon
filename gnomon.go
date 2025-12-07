@@ -86,6 +86,9 @@ do_it_again: // simple-daemon
 	// a simple backup strategy
 	now := connections.Get_TopoHeight()
 
+	if ending_height != nil && *ending_height > -1 {
+		now = *ending_height
+	}
 	// in case db needs to re-parse from a desired height
 	if starting_height != nil && *starting_height < now && *starting_height > -1 && achieved_current_height == 0 {
 		lowest_height = *starting_height

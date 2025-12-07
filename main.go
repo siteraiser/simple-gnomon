@@ -11,6 +11,7 @@ import (
 
 var endpoint = flag.String("endpoint", "", "-endpoint=<DAEMON_IP:PORT>")
 var starting_height = flag.Int64("starting_height", -1, "-starting_height=123")
+var ending_height = flag.Int64("ending_height", -1, "-ending_height=123")
 var help = flag.Bool("help", false, "-help")
 var established_backup bool
 var achieved_current_height int64
