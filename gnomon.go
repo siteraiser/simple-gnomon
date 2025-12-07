@@ -358,7 +358,7 @@ func storeHeight(indexers map[string]*indexer.Worker, height int64) error {
 	return nil
 }
 
-func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64) (structures.SCIDToIndexStage, error) {
+func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64) structures.SCIDToIndexStage {
 
 	fast_sync_import := &structures.FastSyncImport{Height: height, Owner: owner}
 
@@ -383,5 +383,5 @@ func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64
 
 	staged := structures.SCIDToIndexStage{Scid: scid, Fsi: fast_sync_import, ScVars: vars, ScCode: sc.Code}
 
-	return staged, nil
+	return staged
 }
