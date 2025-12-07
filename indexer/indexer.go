@@ -143,13 +143,13 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 	isAlpha := regexp.MustCompile(`^[A-Za-z]+$`).MatchString
 
 	for k, v := range keysstring {
-		currVar := &structures.SCIDVariable{}
-		currVar.Key = k
+		contractVar := &structures.SCIDVariable{}
+		contractVar.Key = k
 		switch cval := v.(type) {
 		case float64:
-			currVar.Value = uint64(cval)
+			contractVar.Value = uint64(cval)
 		case uint64:
-			currVar.Value = cval
+			contractVar.Value = cval
 		case string:
 			// hex decode since all strings are hex encoded
 			dstr, _ := hex.DecodeString(cval)
@@ -158,7 +158,7 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 			if err := p.DecodeCompressed(dstr); err == nil {
 
 				addr := rpc.NewAddressFromKeys(p)
-				currVar.Value = addr.String()
+				contractVar.Value = addr.String()
 			} else {
 				// Check specific patterns which reflect STORE() operations of TXID(), SCID(), etc.
 				str := string(dstr)
@@ -168,15 +168,15 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 
 					if len(h.String()) == 64 && !isAlpha(str) {
 						if !crypto.HashHexToHash(str).IsZero() {
-							currVar.Value = str
+							contractVar.Value = str
 						} else {
-							currVar.Value = h.String()
+							contractVar.Value = h.String()
 						}
 					} else {
-						currVar.Value = str
+						contractVar.Value = str
 					}
 				} else {
-					currVar.Value = str
+					contractVar.Value = str
 				}
 			}
 		default:
@@ -189,23 +189,23 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 
 				if len(h.String()) == 64 && !isAlpha(str) {
 					if !crypto.HashHexToHash(str).IsZero() {
-						currVar.Value = str
+						contractVar.Value = str
 					} else {
-						currVar.Value = h.String()
+						contractVar.Value = h.String()
 					}
 				} else {
-					currVar.Value = str
+					contractVar.Value = str
 				}
 			} else {
-				currVar.Value = str
+				contractVar.Value = str
 			}
 		}
-		variables = append(variables, currVar)
+		variables = append(variables, contractVar)
 	}
 
 	for k, v := range keysuint64 {
-		currVar := &structures.SCIDVariable{}
-		currVar.Key = k
+		contractVar := &structures.SCIDVariable{}
+		contractVar.Key = k
 		switch cval := v.(type) {
 		case string:
 			// hex decode since all strings are hex encoded
@@ -214,7 +214,7 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 			if err := p.DecodeCompressed(decd); err == nil {
 
 				addr := rpc.NewAddressFromKeys(p)
-				currVar.Value = addr.String()
+				contractVar.Value = addr.String()
 			} else {
 				// Check specific patterns which reflect STORE() operations of TXID(), SCID(), etc.
 				str := string(decd)
@@ -224,21 +224,21 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 
 					if len(h.String()) == 64 && !isAlpha(str) {
 						if !crypto.HashHexToHash(str).IsZero() {
-							currVar.Value = str
+							contractVar.Value = str
 						} else {
-							currVar.Value = h.String()
+							contractVar.Value = h.String()
 						}
 					} else {
-						currVar.Value = str
+						contractVar.Value = str
 					}
 				} else {
-					currVar.Value = str
+					contractVar.Value = str
 				}
 			}
 		case uint64:
-			currVar.Value = cval
+			contractVar.Value = cval
 		case float64:
-			currVar.Value = uint64(cval)
+			contractVar.Value = uint64(cval)
 		default:
 			// non-string/uint64 (shouldn't be here actually since it's either uint64 or string conversion)
 			str := fmt.Sprintf("%v", cval)
@@ -249,18 +249,18 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 
 				if len(h.String()) == 64 && !isAlpha(str) {
 					if !crypto.HashHexToHash(str).IsZero() {
-						currVar.Value = str
+						contractVar.Value = str
 					} else {
-						currVar.Value = h.String()
+						contractVar.Value = h.String()
 					}
 				} else {
-					currVar.Value = str
+					contractVar.Value = str
 				}
 			} else {
-				currVar.Value = str
+				contractVar.Value = str
 			}
 		}
-		variables = append(variables, currVar)
+		variables = append(variables, contractVar)
 	}
 
 	return variables
