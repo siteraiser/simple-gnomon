@@ -160,12 +160,33 @@ func set_up_backend(name string) error {
 
 func asynchronously_process_queues(worker *indexer.Worker, backup *indexer.Indexer) {
 	for staged := range worker.Queue {
+
+		fmt.Printf(
+			("staged scid: " +
+				"%s:%s " +
+				"%d / %d " +
+				"%s %s " +
+				"class:%s tags:%s\n"),
+			staged.Scid, staged.Fsi.Owner,
+			staged.Fsi.Height, connections.Get_TopoHeight(),
+			staged.Fsi.Headers,
+			func(staged structures.SCIDToIndexStage) string {
+				varstring := ""
+				for _, each := range staged.ScVars {
+					varstring += fmt.Sprint(each.Key) + ":" + fmt.Sprint(each.Value) + " "
+				}
+				return varstring
+			}(staged),
+			staged.Class, staged.Tags,
+		)
+
 		if err := worker.Idx.AddSCIDToIndex(staged); err != nil {
 			// if err.Error() != "no code" { // this is a contract interaction, we are not recording these right now
 			fmt.Println("indexer error:", err, staged.Scid, staged.Fsi.Height)
 			// }
 			continue
 		}
+
 		fmt.Printf("scid at height indexed: %d / %d\n", staged.Fsi.Height, connections.Get_TopoHeight())
 
 		if achieved_current_height > 0 { // once the indexer has reached the top...
