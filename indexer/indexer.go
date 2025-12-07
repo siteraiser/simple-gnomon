@@ -137,7 +137,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd structures.SCIDToIndexStage) (
 }
 
 // Gets SC variable details
-func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (variables []*structures.SCIDVariable, err error) {
+func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (variables []*structures.SCIDVariable) {
 	//balances = make(map[string]uint64)
 
 	isAlpha := regexp.MustCompile(`^[A-Za-z]+$`).MatchString
@@ -263,7 +263,7 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 		variables = append(variables, currVar)
 	}
 
-	return variables, nil
+	return variables
 }
 
 func GetSCNameFromVars(keys map[string]interface{}) string {
