@@ -302,7 +302,7 @@ func processing(workers map[string]*indexer.Worker, indices map[string][]string,
 		fmt.Printf(
 			("staged scid: " +
 				"%s:%s " +
-				"%d/%d " +
+				"%d / %d " +
 				"%s %s " +
 				"%s %s\n"),
 			staged.Scid, staged.Fsi.Owner,
@@ -311,7 +311,7 @@ func processing(workers map[string]*indexer.Worker, indices map[string][]string,
 			func(staged structures.SCIDToIndexStage) string {
 				varstring := ""
 				for _, each := range staged.ScVars {
-					varstring += fmt.Sprint(each.Key) + ":" + fmt.Sprint(each.Value)
+					varstring += fmt.Sprint(each.Key) + fmt.Sprint(each.Value) + " "
 				}
 				return varstring
 			}(staged),
