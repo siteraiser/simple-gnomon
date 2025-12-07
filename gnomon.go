@@ -360,26 +360,26 @@ func storeHeight(indexers map[string]*indexer.Worker, height int64) error {
 
 func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64) (structures.SCIDToIndexStage, error) {
 
-	vars, err := indexer.GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
-	if err != nil {
-		return structures.SCIDToIndexStage{}, err
-	}
+	fast_sync_import := &structures.FastSyncImport{Height: height, Owner: owner}
 
 	kv := sc.VariableStringKeys
 
-	headers := connections.GetSCNameFromVars(kv) + ";" + connections.GetSCDescriptionFromVars(kv) + ";" + connections.GetSCIDImageURLFromVars(kv)
+	nfa_signature := "Function Start(listType String, duration Uint64, startPrice Uint64, charityDonateAddr String, charityDonatePerc Uint64) Uint64"
 
-	fast_sync_import := &structures.FastSyncImport{Height: height, Owner: owner, Headers: headers}
+	if strings.Contains(sc.Code, nfa_signature) {
+		fast_sync_import.Headers = indexer.GetSCNameFromVars(kv) + ";" + indexer.GetSCDescriptionFromVars(kv) + ";" + indexer.GetSCIDImageURLFromVars(kv)
+	}
 
-	// because empty string is a valid code entry for scids...
-	// if sc.Code == "" {
-	// 	return simple_gnomon.SCIDToIndexStage{}, errors.New("[staging] no code")
-	// }
+	if fast_sync_import.Headers == "" && len(kv) != 0 { // there could be a possability that it is a g45
+		fast_sync_import.Headers = indexer.GetSCHeaderFromMetaData(kv)
+	}
 
-	// because empty vars could be a interaction...
-	// if len(vars) == 0 { // there would always be more than 0 pair; stringKeys:{ "C":{ <SC CODE> } }
-	// 	return simple_gnomon.SCIDToIndexStage{}, errors.New("[staging] no vars")
-	// }
+	if fast_sync_import.Headers == "" {
+		name, description, image := "null", "null", "null"
+		fast_sync_import.Headers = name + ";" + description + ";" + image
+	}
+
+	vars := indexer.GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
 
 	staged := structures.SCIDToIndexStage{Scid: scid, Fsi: fast_sync_import, ScVars: vars, ScCode: sc.Code}
 
