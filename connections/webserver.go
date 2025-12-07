@@ -59,7 +59,7 @@ func ListenWS(workers map[string]*indexer.Worker) {
 	// Setup handler for /ws directory which web miners will connect through
 	WSS.mux.HandleFunc("/ws", WSS.wshandler)
 
-	logger.Printf("[ListenWS] Starting WSServer on %v", bindAddr)
+	fmt.Printf("Starting WSServer on %v\n", bindAddr)
 
 	err = WSS.srv.ListenAndServe()
 	if err != nil {
