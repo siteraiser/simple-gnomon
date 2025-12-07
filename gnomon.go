@@ -236,25 +236,27 @@ func indexHeight(workers map[string]*indexer.Worker, indices map[string][]string
 		return nil
 	}
 
-	if err := processing(workers, indices, bl); err != nil {
-		return err
-	}
+	processing(workers, indices, bl)
 
 	return storeHeight(workers, each)
 }
 
-func processing(workers map[string]*indexer.Worker, indices map[string][]string, bl block.Block) error {
+func processing(workers map[string]*indexer.Worker, indices map[string][]string, bl block.Block) {
 	// fmt.Printf("%+v\n", bl)
-
+	// pick up only desired txs from the block,
 	txs := []string{}
-	for _, each := range bl.Tx_hashes {
-		txs = append(txs, each.String())
+	for _, hash := range bl.Tx_hashes {
+		// skip registrations; maybe process those another day
+		succesful_registration := hash[0] == 0 && hash[1] == 0 && hash[2] == 0
+		if succesful_registration {
+			continue
+		}
+		txs = append(txs, hash.String())
 	}
 
-	// get all the txs of the transaction
-	r := connections.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: txs})
+	transaction_result := connections.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: txs})
 
-	for i, each := range r.Txs_as_hex {
+	for i, tx := range transaction_result.Txs_as_hex {
 
 		related_info := transaction_result.Txs[i]
 
