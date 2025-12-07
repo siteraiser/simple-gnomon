@@ -277,16 +277,44 @@ func indexHeight(workers map[string]*indexer.Worker, indices map[string][]string
 
 func processing(workers map[string]*indexer.Worker, indices map[string][]string, bl block.Block) {
 	// fmt.Printf("%+v\n", bl)
-	// pick up only desired txs from the block,
-	txs := []string{}
 
+	var ( // pick up only desired txs from the block,
+		txs = []string{}
+
+		// simple concurrency pattern
+		wg    = sync.WaitGroup{}
+		mu    = sync.Mutex{}
+		limit = make(chan struct{}, 10)
+	)
+
+	// we are going to process these transactions as fast as simplicity will allow for
 	for _, hash := range bl.Tx_hashes {
-		// skip registrations; maybe process those another day
-		succesful_registration := hash[0] == 0 && hash[1] == 0 && hash[2] == 0
-		if succesful_registration {
-			continue
-		}
-		txs = append(txs, hash.String())
+
+		wg.Add(1)
+
+		go func(limit chan struct{}, wg *sync.WaitGroup, mu *sync.Mutex) {
+			// close up when done
+			defer func() { wg.Done(); <-limit }()
+
+			// skip registrations; maybe process those another day
+			succesful_registration := hash[0] == 0 && hash[1] == 0 && hash[2] == 0
+			if succesful_registration {
+				return
+			}
+
+			// lock the slice for safety
+			mu.Lock()
+			txs = append(txs, hash.String())
+			mu.Unlock()
+
+		}(limit, &wg, &mu)
+
+	}
+
+	wg.Wait()
+
+	if len(txs) == 0 {
+		return
 	}
 
 	transaction_result := connections.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: txs})
