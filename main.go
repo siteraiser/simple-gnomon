@@ -32,7 +32,7 @@ func main() {
 var speed = 40
 var maxmet = false
 var Processing = int64(0)
-var Max_preferred_requests = int64(32)
+var Max_preferred_requests = int64(64)
 
 var TargetHeight = int64(0)
 var HighestKnownHeight = api.Get_TopoHeight()
@@ -98,8 +98,8 @@ func start_gnomon_indexer() {
 			fmt.Println("[Main] Err creating sqlite:", err)
 			return
 		}
-		maxmet = true //not really being used
-		speed = speed + 2
+		//	maxmet = true //not really being used
+		speed = speed + 5
 		api.Status_ok = true
 		start_gnomon_indexer() //without saving
 		return
@@ -184,7 +184,10 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	//
 	if Processing%100 == 0 { //good time to adjust
 		if Processing-int64(bheight) > Max_preferred_requests {
-			speed = speed + 1
+			if speed > 5 {
+				speed = speed + 1
+			}
+
 		} else if Processing-int64(bheight) < Max_preferred_requests {
 			speed = speed - 1
 		}
