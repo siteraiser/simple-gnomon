@@ -354,19 +354,25 @@ func process(workers map[string]*indexer.Worker, indices map[string][]string, he
 	params := rpc.GetSC_Params{}
 
 	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
-		params = rpc.GetSC_Params{SCID: tx.GetHash().String(), Code: true, Variables: true, TopoHeight: int64(height)}
+		scid := tx.GetHash().String()
+		params = rpc.GetSC_Params{SCID: scid, Code: true, Variables: true, TopoHeight: int64(height)}
 	}
 
 	// contract interactions
 	if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
-		scid, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
+		value, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
 		if !ok { // paranoia
 			return
 		}
-		if scid.String() == "" { // yeah... weird
+		if value.String() == "" { // yeah... weird
 			return
 		}
-		params = rpc.GetSC_Params{SCID: scid.String(), Code: false, Variables: false, TopoHeight: int64(height)}
+		scid := value.String()
+		params = rpc.GetSC_Params{SCID: scid, Code: false, Variables: false, TopoHeight: int64(height)}
+	}
+
+	if params.SCID == "" {
+		return
 	}
 
 	// fmt.Printf("%v\n", params)
