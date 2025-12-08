@@ -53,7 +53,7 @@ func NewBBoltDB(dbPath, dbName string) (*BboltStore, error) {
 	return Bbolt_backend, err
 }
 
-func (bbs *BboltStore) BackUpDatabases(height int64) {
+func (bbs *BboltStore) BackUpDatabases() {
 
 	fmt.Println("backing up databases")
 	// lock this up so we don't break it
