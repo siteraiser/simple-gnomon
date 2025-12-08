@@ -217,7 +217,7 @@ func find_lowest(backups map[string]*indexer.Indexer, now int64) bool {
 func indexing(workers map[string]*indexer.Worker, indices map[string][]string, height int64, limit chan struct{}, wg *sync.WaitGroup) {
 
 	// close up when done and remove item from limit
-	defer func() { wg.Done(); <-limit }()
+	defer func() { <-limit; wg.Done() }()
 
 	// fmt.Printf("auditing block: %d / %d\r", height, connections.Get_TopoHeight())
 
@@ -291,11 +291,12 @@ func processing(workers map[string]*indexer.Worker, indices map[string][]string,
 	// we are going to process these transactions as fast as simplicity will allow for
 	for _, hash := range bl.Tx_hashes {
 
+		limit <- struct{}{}
 		wg.Add(1)
 
 		go func(limit chan struct{}, wg *sync.WaitGroup, mu *sync.Mutex) {
 			// close up when done
-			defer func() { wg.Done(); <-limit }()
+			defer func() { <-limit; wg.Done() }()
 
 			// skip registrations; maybe process those another day
 			succesful_registration := hash[0] == 0 && hash[1] == 0 && hash[2] == 0
