@@ -219,7 +219,7 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 	// close up when done and remove item from limit
 	defer func() { <-limit; wg.Done() }()
 
-	// fmt.Printf("auditing block: %d / %d\r", height, connections.Get_TopoHeight())
+	fmt.Printf("auditing block: %d / %d\r", height, connections.Get_TopoHeight())
 
 	err := indexHeight(workers, indices, height)
 	if err != nil {
