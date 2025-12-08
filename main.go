@@ -30,9 +30,10 @@ func main() {
 }
 
 var speed = 40
-var maxmet = false
+
+// var maxmet = false
 var Processing = int64(0)
-var Max_preferred_requests = int64(64)
+var Max_preferred_requests = int64(128)
 
 var TargetHeight = int64(0)
 var HighestKnownHeight = api.Get_TopoHeight()
@@ -148,6 +149,17 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 		}
 	}
+	//Speed tuning
+	if Processing%100 == 0 {
+		if Processing-int64(bheight) > Max_preferred_requests {
+			if speed > 5 {
+				speed = speed + 1
+			}
+
+		} else if Processing-int64(bheight) < Max_preferred_requests {
+			speed = speed - 1
+		}
+	}
 	fmt.Print("\rBlock:", strconv.Itoa(int(bheight))+" Speed:"+strconv.Itoa(speed))
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
@@ -182,16 +194,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	//fmt.Println("\nTX Height: ", tx.Height)
 	//fmt.Println("\nReq: ", Processing-int64(bheight))
 	//
-	if Processing%100 == 0 { //good time to adjust
-		if Processing-int64(bheight) > Max_preferred_requests {
-			if speed > 5 {
-				speed = speed + 1
-			}
-
-		} else if Processing-int64(bheight) < Max_preferred_requests {
-			speed = speed - 1
-		}
-	}
 
 	if tx.TransactionType != transaction.SC_TX {
 		storeHeight(bheight)
