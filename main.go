@@ -1,6 +1,6 @@
 package main
 
-import "github.com/secretnamebasis/simple-wallet/cmd"
+import "github.com/secretnamebasis/simple-gnomon/cmd"
 
 func main() {
 
