@@ -62,14 +62,14 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 func handleResult[T any](method string, params any) (T, error) {
 	var result T
 	//var ctx context.Context
+	/*
+		var cancel context.CancelFunc
 
-	var cancel context.CancelFunc
-
-	_, cancel = context.WithTimeout(context.Background(), timeout)
-	if method == "DERO.GetSC" {
-		_, cancel = context.WithDeadline(context.Background(), time.Now().Add(deadline))
-	}
-	defer cancel()
+		_, cancel = context.WithTimeout(context.Background(), timeout)
+		if method == "DERO.GetSC" {
+			_, cancel = context.WithDeadline(context.Background(), time.Now().Add(deadline))
+		}
+		defer cancel()*/
 	var err error
 
 	var rpcClient jsonrpc.RPCClient
@@ -98,9 +98,14 @@ func handleResult[T any](method string, params any) (T, error) {
 	*/
 
 	if err != nil {
-		log.Fatal(err)
-		var zero T
-		return zero, err
+		if strings.Contains(err.Error(), "-32098") { //Tx statement roothash mismatch ref blid... skip it
+			fmt.Println(err)
+
+			var zero T
+			return zero, err
+		} else {
+			log.Fatal(err)
+		}
 	}
 
 	return result, nil

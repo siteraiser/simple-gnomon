@@ -118,6 +118,12 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		}
 	}
 	fmt.Print("\rHeight>", bheight)
+	/*
+		//skip broken blocks
+		if bheight >= int64(....) &&...{
+			return
+		}
+	*/
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
 	})
@@ -127,9 +133,13 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	if len(bl.Tx_hashes) < 1 {
 		return
 	}
+
 	// not a mined transaction
 	r := api.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: []string{bl.Tx_hashes[0].String()}})
-
+	//likely an error
+	if len(r.Txs_as_hex) == 0 {
+		return
+	}
 	b, err := hex.DecodeString(r.Txs_as_hex[0])
 	if err != nil {
 		panic(err)
