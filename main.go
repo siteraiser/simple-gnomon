@@ -51,7 +51,12 @@ func main() {
 			// }()
 			cmd.Start_gnomon_indexer()
 		}()
-		time.Sleep(time.Second * 5)
+
+		for !cmd.RUNNING {
+			fmt.Println("gnomon is starting, please hold")
+			time.Sleep(time.Second)
+		}
+
 		go func() {
 			var err error
 			url := "ws://127.0.0.1:9190/ws"
