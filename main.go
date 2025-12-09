@@ -69,10 +69,12 @@ func quickAdjust(quickadjust *int, start time.Time) {
 		if Average >= 89000 {
 			Max_allowed = int64(180)
 			if Average > 150000 {
-				Max_allowed = int64(256)
+				Max_allowed = int64(250)
 			}
 			if Max_preferred_requests < Max_allowed-10 {
 				Max_preferred_requests += 10
+			} else if Max_preferred_requests > Max_allowed {
+				Max_preferred_requests = Max_allowed
 			}
 		} else {
 
