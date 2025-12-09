@@ -60,15 +60,15 @@ func adjustSpeed(lowest_height int64, start time.Time) {
 		Max_allowed = 200
 	}
 }
-func quickStart(quickstart int, start time.Time) {
-	if quickstart == 1000 {
+func quickStart(quickstart *int, start time.Time) {
+	if *quickstart == 1000 {
 		Average = float64(1000 / time.Since(start).Hours())
 		if Average >= 90000 {
 			Max_allowed = int64(192)
 			Max_preferred_requests += 10
 		}
 	} else {
-		quickstart++
+		*quickstart++
 	}
 }
 
@@ -107,7 +107,7 @@ func start_gnomon_indexer() {
 		}
 
 		if Average == 0 && quickstart <= 1000 {
-			quickStart(quickstart, start)
+			quickStart(&quickstart, start)
 		}
 		t, _ := time.ParseDuration(strconv.Itoa(speed) + "ms")
 		time.Sleep(t)
