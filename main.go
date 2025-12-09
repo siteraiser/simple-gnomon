@@ -68,7 +68,7 @@ func quickStart(quickstart *int, start time.Time) {
 			Max_preferred_requests += 10
 		}
 	} else {
-		*quickstart++
+		*quickstart = *quickstart + 1
 	}
 }
 
