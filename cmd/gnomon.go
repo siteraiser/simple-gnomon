@@ -190,7 +190,10 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 	}
 	measuring := time.Now()
 	result := connections.GetBlockInfo(rpc.GetBlock_Params{Height: uint64(height)})
-	fmt.Println(height, time.Since(measuring))
+	if progress != nil && *progress {
+		fmt.Println(height, time.Since(measuring))
+	}
+
 	if time.Since(measuring) > time.Duration(time.Second) {
 		speed = time.Duration(measuring.Unix()) / 100
 		time.Sleep(time.Duration(measuring.Unix()))
@@ -260,7 +263,9 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 
 	measuring = time.Now()
 	transaction_result := connections.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: txs})
-	fmt.Println(height, time.Since(measuring))
+	if progress != nil && *progress {
+		fmt.Println(height, time.Since(measuring))
+	}
 
 	for i, tx := range transaction_result.Txs_as_hex {
 
@@ -320,7 +325,9 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 
 		measuring = time.Now()
 		sc := connections.GetSC(params)
-		fmt.Println(height, time.Since(measuring))
+		if progress != nil && *progress {
+			fmt.Println(height, time.Since(measuring))
+		}
 
 		// fmt.Printf("%v\n", sc)
 
@@ -518,8 +525,6 @@ func asynchronously_process_queues(worker *indexer.Worker, backup *indexer.Index
 			// }
 			continue
 		}
-
-		fmt.Printf("scid at height indexed: %d / %d\n", staged.Fsi.Height, connections.Get_TopoHeight())
 
 		if achieved_current_height > 0 { // once the indexer has reached the top...
 			// do incremental backups
