@@ -13,7 +13,6 @@ import (
 
 	"github.com/ybbus/jsonrpc"
 
-	"github.com/deroproject/derohe/block"
 	"github.com/deroproject/derohe/cryptography/crypto"
 	network "github.com/deroproject/derohe/globals"
 	"github.com/deroproject/derohe/rpc"
@@ -40,6 +39,7 @@ var established_backup bool
 var achieved_current_height int64
 var lowest_height int64
 var day_of_blocks int64
+var speed = time.Duration(time.Millisecond * 20)
 
 var RUNNING bool
 
@@ -144,30 +144,30 @@ Options:
 		if starting_height != nil && *starting_height < now && *starting_height > -1 && achieved_current_height == 0 {
 			lowest_height = *starting_height
 		}
-		// ticker := time.NewTicker(time.Millisecond * 20)
 		// main processing loop
+		wg := sync.WaitGroup{}
 		for height := lowest_height; height < now; height++ {
-
+			wg.Add(1)
 			if achieved_current_height > 0 &&
 				!established_backup &&
-				find_lowest_height(backups, now) { // if the current height is greater than a day of blocks...
+				find_lowest_height(backups, now) {
+				// if the current height is greater than a day of blocks...
 
 				backup(height)
 			}
 
 			// limit <- struct{}{}
 			// wg.Add(1)
-			// <-ticker.C
-			n := time.Now()
-			indexing(workers, indices, height)
-			fmt.Println(height, time.Since(n))
+			time.Sleep(speed)
+
+			go indexing(workers, indices, height, &wg)
 			// continue
 
 			// if time.Since(n) > time.Duration(time.Millisecond*20) {
 			// 	panic("slow block:" + strconv.Itoa(int(height)))
 			// }
 		}
-
+		wg.Wait()
 		if achieved_current_height == 0 {
 			fmt.Println("current height acheived, proceeding to passively index")
 		}
@@ -177,9 +177,275 @@ Options:
 		lowest_height = min(now, achieved_current_height)
 
 	}
-
 }
 
+// this is the indexing action that will be done concurrently
+func indexing(workers map[string]*indexer.Worker, indices map[string][]string, height int64, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer storeHeight(workers, height)
+	// close up when done and remove item from limit
+	if progress != nil && *progress {
+
+		fmt.Printf("auditing block: %d / %d\n", height, connections.Get_TopoHeight())
+	}
+	measuring := time.Now()
+	result := connections.GetBlockInfo(rpc.GetBlock_Params{Height: uint64(height)})
+	fmt.Println(height, time.Since(measuring))
+	if time.Since(measuring) > time.Duration(time.Second) {
+		speed = time.Duration(measuring.Unix()) / 100
+		time.Sleep(time.Duration(measuring.Unix()))
+	}
+
+	// if there is nothing, move on
+	count := result.Block_Header.TXCount
+	if count == 0 {
+		return
+	}
+
+	if count > 400 {
+		fmt.Printf("large transacion count detected: %d height:%d\n", count, height)
+	}
+
+	bl := indexer.GetBlockDeserialized(result.Blob)
+
+	// like... just in case
+	if len(bl.Tx_hashes) < 1 {
+		return
+	}
+
+	var ( // pick up only desired txs from the block,
+		txs = []string{}
+
+		// simple concurrency pattern
+		ng    = sync.WaitGroup{}
+		mu    = sync.Mutex{}
+		limit = make(chan struct{}, 10)
+	)
+
+	// we are going to process these transactions as fast as simplicity will allow for
+	for _, hash := range bl.Tx_hashes {
+
+		limit <- struct{}{}
+		ng.Add(1)
+
+		go func(limit chan struct{}, ng *sync.WaitGroup, mu *sync.Mutex) {
+			// close up when done
+			defer func() { <-limit; ng.Done() }()
+
+			// skip registrations; maybe process those another day
+			succesful_registration := hash[0] == 0 && hash[1] == 0 && hash[2] == 0
+			if succesful_registration {
+				return
+			}
+
+			// lock the slice for safety
+			mu.Lock()
+			txs = append(txs, hash.String())
+			mu.Unlock()
+
+		}(limit, &ng, &mu)
+
+	}
+
+	ng.Wait()
+
+	if len(txs) == 0 {
+		return
+	}
+
+	if time.Since(measuring) > time.Duration(time.Second) {
+		speed = time.Duration(measuring.Unix()) / 100
+		time.Sleep(time.Duration(measuring.Unix()))
+	}
+
+	measuring = time.Now()
+	transaction_result := connections.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: txs})
+	fmt.Println(height, time.Since(measuring))
+
+	for i, tx := range transaction_result.Txs_as_hex {
+
+		related_info := transaction_result.Txs[i]
+
+		signer := related_info.Signer
+
+		b, err := hex.DecodeString(tx)
+		if err != nil {
+			return
+		}
+
+		var tx transaction.Transaction
+		if err := tx.Deserialize(b); err != nil {
+			return
+		}
+
+		// fmt.Printf("%+v\n", tx)
+
+		if tx.TransactionType != transaction.SC_TX {
+			return
+		}
+
+		if len(tx.SCDATA) == 0 {
+			return
+		}
+		params := rpc.GetSC_Params{}
+
+		if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
+			scid := tx.GetHash().String()
+			params = rpc.GetSC_Params{SCID: scid, Code: true, Variables: true, TopoHeight: int64(height)}
+		}
+
+		// contract interactions
+		if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
+			value, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
+			if !ok { // paranoia
+				return
+			}
+			if value.String() == "" { // yeah... weird
+				return
+			}
+			scid := value.String()
+			params = rpc.GetSC_Params{SCID: scid, Code: false, Variables: false, TopoHeight: int64(height)}
+		}
+
+		if params.SCID == "" {
+			return
+		}
+
+		// fmt.Printf("%v\n", params)
+
+		if time.Since(measuring) > time.Duration(time.Second) {
+			speed = time.Duration(measuring.Unix()) / 100
+			time.Sleep(time.Duration(measuring.Unix()))
+		}
+
+		measuring = time.Now()
+		sc := connections.GetSC(params)
+		fmt.Println(height, time.Since(measuring))
+
+		// fmt.Printf("%v\n", sc)
+
+		if signer == "" { // when ringsize is greater than 2...
+			signer = "null"
+		}
+
+		staged := stageSCIDForIndexers(sc, params.SCID, signer, bl.Height)
+
+		// unfortunately, there isn't a way to do this without checking twice
+		class := ""
+		// roll through the indices to obtain the class
+		for name := range indices {
+
+			// obtain the filters
+			filters := indices[name]
+
+			for _, filter := range filters { // range through the filters
+
+				// if the code does not contain the filter, skip
+				if !strings.Contains(sc.Code, filter) {
+					continue
+				}
+
+				// if there is a match, add the name of the index to it's list of tags
+				class = filter
+				break
+			}
+
+			if class != "" {
+				break
+			}
+		}
+
+		// as class is currently the filter...
+		// make sure to implement more classes as necessary
+		switch class {
+		case "": // catchall
+			staged.Class = "null"
+		case indices["tela"][0]:
+			staged.Class = "TELA-DOC-1"
+		case indices["tela"][1]:
+			staged.Class = "TELA-INDEX-1"
+		default:
+			staged.Class = class
+		}
+
+		tags := []string{}
+
+		// roll through the indices again to obtain tags
+		for name := range indices {
+
+			// obtain the filters
+			filters := indices[name]
+
+			for _, filter := range filters { // range through the filters
+
+				// if the code does not contina the filter, skip it
+				if !strings.Contains(sc.Code, filter) {
+					continue
+				}
+
+				// if there is a match, add the name of the index to it's list of tags
+				tags = append(tags, name)
+
+			}
+		}
+
+		// lexicographical order
+		slices.Sort(tags)
+
+		// store as a single string
+		staged.Tags = strings.Join(tags, ",")
+
+		// for each tag, queue up for writing
+		for _, tag := range tags {
+			workers[tag].Queue <- staged
+		}
+	}
+}
+
+func storeHeight(indexers map[string]*indexer.Worker, height int64) error {
+	for _, worker := range indexers {
+		if ok, err := worker.Idx.BBSBackend.StoreLastIndexHeight(height); !ok && err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64) structures.SCIDToIndexStage {
+
+	fast_sync_import := &structures.FastSyncImport{Height: height, Owner: owner}
+
+	kv := sc.VariableStringKeys
+
+	nfa_signature := "Function Start(listType String, duration Uint64, startPrice Uint64, charityDonateAddr String, charityDonatePerc Uint64) Uint64"
+
+	if strings.Contains(sc.Code, nfa_signature) {
+
+		fast_sync_import.Headers = indexer.GetSCNameFromVars(kv) + ";"
+
+		fast_sync_import.Headers += indexer.GetSCDescriptionFromVars(kv) + ";"
+
+		fast_sync_import.Headers += indexer.GetSCIDImageURLFromVars(kv)
+
+	}
+
+	if fast_sync_import.Headers == "" && len(kv) != 0 { // there could be a possability that it is a g45
+		fast_sync_import.Headers = indexer.GetSCHeaderFromMetaData(kv)
+	}
+
+	if fast_sync_import.Headers == "" {
+		name, description, image := "null", "null", "null"
+		fast_sync_import.Headers = name + ";" + description + ";" + image
+	}
+
+	vars := indexer.GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
+
+	staged := structures.SCIDToIndexStage{Scid: scid, Fsi: fast_sync_import, ScVars: vars, ScCode: sc.Code}
+
+	return staged
+}
+
+// BACKEND & BACKUPS
 func set_up_backend(name string) error {
 
 	db_name := fmt.Sprintf("%s_%s.db", "GNOMON", name)
@@ -276,23 +542,6 @@ func find_lowest_height(backups map[string]*indexer.Indexer, now int64) bool {
 	return (achieved_current_height - day_of_blocks) > lowest
 }
 
-// this is the indexing action that will be done concurrently
-func indexing(workers map[string]*indexer.Worker, indices map[string][]string, height int64) {
-
-	// close up when done and remove item from limit
-	// defer func() { <-limit; wg.Done() }()
-	if progress != nil && *progress {
-
-		fmt.Printf("auditing block: %d / %d\n", height, connections.Get_TopoHeight())
-	}
-	// go func() {
-	err := indexHeight(workers, indices, height)
-	if err != nil {
-		fmt.Printf("error: %s %s %d\n", err, "height:", height)
-	}
-	// }()
-}
-
 // this will serve as the backup action
 func backup(each int64) {
 	mu := sync.Mutex{}
@@ -315,261 +564,4 @@ func backup(each int64) {
 	storeHeight(workers, each)
 
 	established_backup = true
-}
-
-func indexHeight(workers map[string]*indexer.Worker, indices map[string][]string, height int64) error {
-	result := connections.GetBlockInfo(rpc.GetBlock_Params{Height: uint64(height)})
-
-	// if there is nothing, move on
-	count := result.Block_Header.TXCount
-	if count == 0 {
-		return storeHeight(workers, height)
-	}
-
-	if count > 400 {
-		fmt.Printf("large transacion count detected: %d height:%d\n", count, height)
-	}
-
-	bl := indexer.GetBlockDeserialized(result.Blob)
-
-	// like... just in case
-	if len(bl.Tx_hashes) < 1 {
-		return storeHeight(workers, int64(bl.Height))
-	}
-
-	processing(workers, indices, bl)
-
-	return storeHeight(workers, int64(bl.Height))
-}
-
-func processing(workers map[string]*indexer.Worker, indices map[string][]string, bl block.Block) {
-	// fmt.Printf("%+v\n", bl)
-
-	var ( // pick up only desired txs from the block,
-		txs = []string{}
-
-		// simple concurrency pattern
-		wg    = sync.WaitGroup{}
-		mu    = sync.Mutex{}
-		limit = make(chan struct{}, 10)
-	)
-
-	// we are going to process these transactions as fast as simplicity will allow for
-	for _, hash := range bl.Tx_hashes {
-
-		limit <- struct{}{}
-		wg.Add(1)
-
-		go func(limit chan struct{}, wg *sync.WaitGroup, mu *sync.Mutex) {
-			// close up when done
-			defer func() { <-limit; wg.Done() }()
-
-			// skip registrations; maybe process those another day
-			succesful_registration := hash[0] == 0 && hash[1] == 0 && hash[2] == 0
-			if succesful_registration {
-				return
-			}
-
-			// lock the slice for safety
-			mu.Lock()
-			txs = append(txs, hash.String())
-			mu.Unlock()
-
-		}(limit, &wg, &mu)
-
-	}
-
-	wg.Wait()
-
-	if len(txs) == 0 {
-		return
-	}
-	go func() {
-
-		transaction_result := connections.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: txs})
-
-		for i, tx := range transaction_result.Txs_as_hex {
-
-			related_info := transaction_result.Txs[i]
-
-			signer := related_info.Signer
-
-			process(workers, indices, bl.Height, tx, signer)
-		}
-	}()
-
-}
-
-func process(workers map[string]*indexer.Worker, indices map[string][]string, height uint64, hash, signer string) {
-
-	b, err := hex.DecodeString(hash)
-	if err != nil {
-		return
-	}
-
-	var tx transaction.Transaction
-	if err := tx.Deserialize(b); err != nil {
-		return
-	}
-
-	// fmt.Printf("%+v\n", tx)
-
-	if tx.TransactionType != transaction.SC_TX {
-		return
-	}
-
-	if len(tx.SCDATA) == 0 {
-		return
-	}
-	params := rpc.GetSC_Params{}
-
-	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
-		scid := tx.GetHash().String()
-		params = rpc.GetSC_Params{SCID: scid, Code: true, Variables: true, TopoHeight: int64(height)}
-	}
-
-	// contract interactions
-	if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
-		value, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
-		if !ok { // paranoia
-			return
-		}
-		if value.String() == "" { // yeah... weird
-			return
-		}
-		scid := value.String()
-		params = rpc.GetSC_Params{SCID: scid, Code: false, Variables: false, TopoHeight: int64(height)}
-	}
-
-	if params.SCID == "" {
-		return
-	}
-
-	// fmt.Printf("%v\n", params)
-	go func() {
-
-		sc := connections.GetSC(params)
-
-		// fmt.Printf("%v\n", sc)
-
-		if signer == "" { // when ringsize is greater than 2...
-			signer = "null"
-		}
-
-		staged := stageSCIDForIndexers(sc, params.SCID, signer, height)
-
-		// unfortunately, there isn't a way to do this without checking twice
-		class := ""
-		// roll through the indices to obtain the class
-		for name := range indices {
-
-			// obtain the filters
-			filters := indices[name]
-
-			for _, filter := range filters { // range through the filters
-
-				// if the code does not contain the filter, skip
-				if !strings.Contains(sc.Code, filter) {
-					continue
-				}
-
-				// if there is a match, add the name of the index to it's list of tags
-				class = filter
-				break
-			}
-
-			if class != "" {
-				break
-			}
-		}
-
-		// as class is currently the filter...
-		// make sure to implement more classes as necessary
-		switch class {
-		case "": // catchall
-			staged.Class = "null"
-		case indices["tela"][0]:
-			staged.Class = "TELA-DOC-1"
-		case indices["tela"][1]:
-			staged.Class = "TELA-INDEX-1"
-		default:
-			staged.Class = class
-		}
-
-		tags := []string{}
-
-		// roll through the indices again to obtain tags
-		for name := range indices {
-
-			// obtain the filters
-			filters := indices[name]
-
-			for _, filter := range filters { // range through the filters
-
-				// if the code does not contina the filter, skip it
-				if !strings.Contains(sc.Code, filter) {
-					continue
-				}
-
-				// if there is a match, add the name of the index to it's list of tags
-				tags = append(tags, name)
-
-			}
-		}
-
-		// lexicographical order
-		slices.Sort(tags)
-
-		// store as a single string
-		staged.Tags = strings.Join(tags, ",")
-
-		// for each tag, queue up for writing
-		for _, tag := range tags {
-			workers[tag].Queue <- staged
-		}
-	}()
-
-}
-
-func storeHeight(indexers map[string]*indexer.Worker, height int64) error {
-	for _, worker := range indexers {
-		if ok, err := worker.Idx.BBSBackend.StoreLastIndexHeight(height); !ok && err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func stageSCIDForIndexers(sc rpc.GetSC_Result, scid, owner string, height uint64) structures.SCIDToIndexStage {
-
-	fast_sync_import := &structures.FastSyncImport{Height: height, Owner: owner}
-
-	kv := sc.VariableStringKeys
-
-	nfa_signature := "Function Start(listType String, duration Uint64, startPrice Uint64, charityDonateAddr String, charityDonatePerc Uint64) Uint64"
-
-	if strings.Contains(sc.Code, nfa_signature) {
-
-		fast_sync_import.Headers = indexer.GetSCNameFromVars(kv) + ";"
-
-		fast_sync_import.Headers += indexer.GetSCDescriptionFromVars(kv) + ";"
-
-		fast_sync_import.Headers += indexer.GetSCIDImageURLFromVars(kv)
-
-	}
-
-	if fast_sync_import.Headers == "" && len(kv) != 0 { // there could be a possability that it is a g45
-		fast_sync_import.Headers = indexer.GetSCHeaderFromMetaData(kv)
-	}
-
-	if fast_sync_import.Headers == "" {
-		name, description, image := "null", "null", "null"
-		fast_sync_import.Headers = name + ";" + description + ";" + image
-	}
-
-	vars := indexer.GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
-
-	staged := structures.SCIDToIndexStage{Scid: scid, Fsi: fast_sync_import, ScVars: vars, ScCode: sc.Code}
-
-	return staged
 }
