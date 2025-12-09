@@ -31,7 +31,9 @@ func main() {
 	readout := widget.NewLabel("")
 	indexed_height := widget.NewLabel("")
 	current_height := widget.NewLabel("")
-	blocks_per_hour := widget.NewLabel("")
+	average_blocks_per_hour := widget.NewLabel("")
+	estimated_time_to_completion := widget.NewLabel("")
+	progress_bar := widget.NewProgressBar()
 	connection.SetPlaceHolder("127.0.0.1:10102")
 	button := widget.NewButtonWithIcon("Start Gnomon Indexer", theme.MediaPlayIcon(), func() {
 		// now go start gnomon
@@ -42,6 +44,9 @@ func main() {
 
 			// "-progress",
 		)
+		if cmd.RUNNING {
+			return
+		}
 		go func() {
 			// defer func() {
 			// 	if r := recover(); r != nil {
@@ -57,6 +62,8 @@ func main() {
 			time.Sleep(time.Second)
 		}
 
+		start := time.Now()
+
 		go func() {
 			var err error
 			url := "ws://127.0.0.1:9190/ws"
@@ -68,7 +75,11 @@ func main() {
 				panic(err)
 			}
 			last := float64(0)
-
+			height1, err := getLastIndexHeight(getParams{IDX: "all"})
+			if err != nil {
+				panic(err)
+			}
+			first := height1.Result
 			for range time.NewTicker(time.Second).C {
 				result, err := getAllSCIDSAndOwners(getParams{IDX: "all"})
 				if err != nil {
@@ -98,13 +109,24 @@ func main() {
 				}
 				tick := height1.Result - last
 				last = height1.Result
-				fmt.Println(tick)
 				tick *= 60 * 60
+				duration := time.Since(start).Hours()
+				average := last - first
+				if duration == 0 {
+					duration = 1 // avoid division by zero
+				}
+				average /= duration
+				if average == 0 {
+					average = 1
+				}
+				estimated := now / int64(average)
 				fyne.DoAndWait(func() {
 					readout.SetText(text)
 					current_height.SetText("current height:" + strconv.Itoa(int(now)))
 					indexed_height.SetText("indexed height:" + strconv.Itoa(int(height1.Result)))
-					blocks_per_hour.SetText("blocks per hour:" + strconv.Itoa(int(tick)))
+					average_blocks_per_hour.SetText("average blocks per hour:" + strconv.Itoa(int(average)))
+					estimated_time_to_completion.SetText("estimated hours until completion:" + strconv.Itoa(int(estimated)))
+					progress_bar.SetValue(last / float64(now))
 				})
 			}
 
@@ -116,7 +138,9 @@ func main() {
 		readout,
 		current_height,
 		indexed_height,
-		blocks_per_hour,
+		average_blocks_per_hour,
+		estimated_time_to_completion,
+		progress_bar,
 		connection,
 	)
 	w.SetContent(content)
