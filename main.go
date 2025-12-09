@@ -58,19 +58,29 @@ func adjustSpeed(lowest_height int64, start time.Time) {
 		Max_allowed = 180
 		if Average > 100000 {
 			Max_allowed = 200
+		} else if Average > 200000 {
+			Max_allowed = 256
 		}
 	}
 }
-func quickStart(quickstart *int, start time.Time) {
-	if *quickstart == 1000 {
-		Average = float64(1000 / time.Since(start).Hours())
+func quickAdjust(quickadjust *int, start time.Time) {
+	if *quickadjust%1000 == 0 && *quickadjust != 0 {
+		Average = (Average + float64(*quickadjust)/time.Since(start).Hours()) / 2
 		if Average >= 89000 {
 			Max_allowed = int64(180)
-			Max_preferred_requests += 10
+			if Average > 150000 {
+				Max_allowed = int64(256)
+			}
+			if Max_preferred_requests < Max_allowed-10 {
+				Max_preferred_requests += 10
+			}
+		} else {
+
+			Max_allowed = int64(120)
+			Max_preferred_requests = Max_allowed
 		}
-	} else {
-		*quickstart = *quickstart + 1
 	}
+	*quickadjust++
 }
 
 func start_gnomon_indexer() {
@@ -92,7 +102,7 @@ func start_gnomon_indexer() {
 
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
 	start := time.Now()
-	var quickstart = 0
+	var quickadjust = 0
 
 	if TargetHeight < HighestKnownHeight-25000 {
 		TargetHeight = lowest_height + 25000
@@ -107,9 +117,8 @@ func start_gnomon_indexer() {
 			break
 		}
 
-		if Average == 0 && quickstart <= 1000 {
-			quickStart(&quickstart, start)
-		}
+		quickAdjust(&quickadjust, start)
+
 		t, _ := time.ParseDuration(strconv.Itoa(speed) + "ms")
 		time.Sleep(t)
 		wg.Add(1) //
@@ -120,7 +129,7 @@ func start_gnomon_indexer() {
 	fmt.Println("indexed")
 	wg.Wait()
 
-	adjustSpeed(lowest_height, start)
+	//adjustSpeed(lowest_height, start)
 
 	//Take a breather
 	t, _ := time.ParseDuration("1s")
@@ -148,11 +157,7 @@ func start_gnomon_indexer() {
 		start_gnomon_indexer() //without saving
 		return
 	}
-	//Request amount manager
-	if float64(Max_preferred_requests) < float64(Max_allowed)*.8 {
-		Max_preferred_requests += 20
-		fmt.Println("Increasing max requests by 10 to:", Max_preferred_requests)
-	}
+
 	//Essentials...
 	last := HighestKnownHeight
 	HighestKnownHeight = api.Get_TopoHeight()
@@ -225,7 +230,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		return
 	}
 	//Speed tuning
-	if Processing%100 == 0 {
+	if Processing%10 == 0 {
 		concreq := Processing - int64(bheight)
 		if concreq > Max_preferred_requests {
 			if concreq == Max_preferred_requests*2 {
@@ -235,7 +240,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 			}
 
 		} else if concreq < Max_preferred_requests {
-			if speed > 5 {
+			if speed > 3 {
 				speed = speed - 1
 			}
 		}
