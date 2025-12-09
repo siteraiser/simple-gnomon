@@ -31,11 +31,13 @@ func main() {
 
 var speed = 40
 
-// var maxmet = false
+// Request handling
 var Processing = int64(0)
-var Max_allowed = int64(200)
-var Max_preferred_requests = int64(200)
+var Max_allowed = int64(128)
+var Max_preferred_requests = int64(128)
 var BPH = float64(0)
+var Average = float64(0)
+
 var TargetHeight = int64(0)
 var HighestKnownHeight = api.Get_TopoHeight()
 var sqlite = &SqlStore{}
@@ -85,7 +87,14 @@ func start_gnomon_indexer() {
 	wg.Wait()
 
 	BPH = float64(TargetHeight-lowest_height) / time.Since(start).Hours()
-
+	if Average == 0 {
+		Average = BPH
+	} else {
+		Average = (BPH + Average) / 2
+	}
+	if Average > 100000 {
+		Max_allowed = 192
+	}
 	//Take a breather
 	t, _ := time.ParseDuration("1s")
 	time.Sleep(t)
@@ -104,7 +113,10 @@ func start_gnomon_indexer() {
 		}
 		//	maxmet = true //not really being used
 		speed += 5
-		Max_preferred_requests -= 20
+		if Max_preferred_requests > 30 {
+			Max_preferred_requests -= 20
+		}
+
 		api.Status_ok = true
 		start_gnomon_indexer() //without saving
 		return
