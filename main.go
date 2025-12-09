@@ -121,11 +121,12 @@ func start_gnomon_indexer() {
 		start_gnomon_indexer() //without saving
 		return
 	}
-
+	//Request amount manager
 	if float64(Max_preferred_requests) < float64(Max_allowed)*.8 {
-		fmt.Println("Increasing max requests by 10")
 		Max_preferred_requests += 10
+		fmt.Println("Increasing max requests by 10 to:", Max_preferred_requests)
 	}
+	//Essentials...
 	last := HighestKnownHeight
 	HighestKnownHeight = api.Get_TopoHeight()
 
@@ -171,6 +172,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 	//---- MAIN PRINTOUT
 	show := "Block:" + strconv.Itoa(int(bheight)) +
+		" Max En Route:" + strconv.Itoa(int(Max_preferred_requests)) +
 		" Speed:" + strconv.Itoa(speed) + "ms" +
 		" " + strconv.Itoa((1000/speed)*60*60) + "BPH"
 	if BPH != float64(0) {
