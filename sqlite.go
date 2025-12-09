@@ -370,7 +370,7 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 	if ss.Cancel {
 		return
 	}
-	fmt.Println("INSERT INTO scs (owner,scid,headers,class,tags) VALUES (?,?,?,?,?,?,?)")
+	//	fmt.Println("INSERT INTO scs (owner,scid,headers,class,tags) VALUES (?,?,?,?,?,?,?)")
 	statement, err := ss.DB.Prepare("INSERT INTO scs (scid,owner,scname,scdescr,scimgurl,class,tags) VALUES (?,?,?,?,?,?,?)")
 	if err != nil {
 		log.Fatal(err)
@@ -616,7 +616,7 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVaria
 	if err != nil {
 		return changes, fmt.Errorf("[StoreSCIDVariableDetails] could not marshal getinfo info: %v", err)
 	}
-	fmt.Println("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
+	//fmt.Println("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
 	statement, err := ss.DB.Prepare("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
 	if err != nil {
 		log.Fatal(err)
@@ -687,28 +687,28 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 		results[topoheight] = variables
 	}
 
-	fmt.Println("results: ", results)
-	/*	ss.DB.View(func(tx *bolt.Tx) (err error) {
-			b := tx.Bucket([]byte(bName))
-			if b != nil {
+	/*	fmt.Println("results: ", results)
+		ss.DB.View(func(tx *bolt.Tx) (err error) {
+				b := tx.Bucket([]byte(bName))
+				if b != nil {
 
-				c := b.Cursor()
+					c := b.Cursor()
 
-				for k, v := c.First(); err == nil; k, v = c.Next() {
-					if k != nil && v != nil {
-						topoheight, _ := strconv.ParseInt(string(k), 10, 64)
-						heights = append(heights, topoheight)
-						var variables []*SCIDVariable
-						_ = json.Unmarshal(v, &variables)
-						results[topoheight] = variables
-					} else {
-						break
+					for k, v := c.First(); err == nil; k, v = c.Next() {
+						if k != nil && v != nil {
+							topoheight, _ := strconv.ParseInt(string(k), 10, 64)
+							heights = append(heights, topoheight)
+							var variables []*SCIDVariable
+							_ = json.Unmarshal(v, &variables)
+							results[topoheight] = variables
+						} else {
+							break
+						}
 					}
 				}
-			}
 
-			return
-		})
+				return
+			})
 	*/
 	if results != nil {
 		// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
@@ -845,9 +845,9 @@ func (ss *SqlStore) GetAllSCIDVariableDetails(scid string) (hVars []*SCIDVariabl
 	results := make(map[int64][]*SCIDVariable)
 	var heights []int64
 
-	bName := scid + "vars"
-	fmt.Println("GetAllSCIDVariableDetails", bName)
-	fmt.Println("SELECT height,vars FROM variables WHERE height=? AND scid =?")
+	//bName := scid + "vars"
+	//fmt.Println("GetAllSCIDVariableDetails", bName)
+	//fmt.Println("SELECT height,vars FROM variables WHERE height=? AND scid =?")
 
 	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE scid =?",
 		scid,
@@ -1159,8 +1159,8 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 	var currSCIDInteractionHeight []byte
 	var interactionHeight []int64
 	var newInteractionHeight []byte
-	fmt.Println("StoreSCIDInteractionHeight... ")
-	fmt.Println("SELECT heights FROM interactions WHERE scid=?")
+	//fmt.Println("StoreSCIDInteractionHeight... ")
+	//fmt.Println("SELECT heights FROM interactions WHERE scid=?")
 	err = ss.DB.QueryRow("SELECT heights FROM interactions WHERE scid=?", scid).Scan(&currSCIDInteractionHeight)
 	//fmt.Println("currSCIDInteractionHeight:", currSCIDInteractionHeight)
 	//fmt.Println("currSCIDInteractionHeight err:", err)
@@ -1188,7 +1188,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 
 	//No record found, create one
 	if len(currSCIDInteractionHeight) == 0 {
-		fmt.Println("(sql, insert interaction) INSERT INTO interactions (heights, scid) VALUES (?,?)")
+		//	fmt.Println("(sql, insert interaction) INSERT INTO interactions (heights, scid) VALUES (?,?)")
 		statement, err := ss.DB.Prepare("INSERT INTO interactions (heights, scid) VALUES (?,?)")
 		if err != nil {
 			log.Fatal(err)
@@ -1207,7 +1207,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 
 	} else {
 
-		fmt.Println("(sql, update interaction) UPDATE interactions SET heights=? WHERE scid=?;")
+		//	fmt.Println("(sql, update interaction) UPDATE interactions SET heights=? WHERE scid=?;")
 		statement, err := ss.DB.Prepare("UPDATE interactions SET heights=? WHERE scid=?;")
 		if err != nil {
 			log.Fatal(err)
@@ -1277,8 +1277,8 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 
 // Gets SC interaction height and detail by a given SCID
 func (ss *SqlStore) GetSCIDInteractionHeight(scid string) (scidinteractions []int64) {
-	fmt.Println("GetSCIDInteractionHeight... ")
-	fmt.Println("SELECT heights FROM interactions WHERE scid=?")
+	//	fmt.Println("GetSCIDInteractionHeight... ")
+	//	fmt.Println("SELECT heights FROM interactions WHERE scid=?")
 	heights := ""
 	ss.DB.QueryRow("SELECT heights FROM interactions WHERE scid=?", scid).Scan(&heights)
 	if heights != "" {

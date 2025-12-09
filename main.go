@@ -33,7 +33,7 @@ var speed = 40
 
 // var maxmet = false
 var Processing = int64(0)
-var Max_preferred_requests = int64(128)
+var Max_preferred_requests = int64(200)
 var BPH = float64(0)
 var TargetHeight = int64(0)
 var HighestKnownHeight = api.Get_TopoHeight()
@@ -263,7 +263,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	class := ""
 	// range the indexers and add to index 1 at a time to prevent out of memory error
 	for key, name := range indexes {
-		fmt.Println("name: ", name)
+		//fmt.Println("name: ", name)
 		// if the code does not contain the filter, skip
 		//probably could use some suring up here
 		for _, filter := range name {
