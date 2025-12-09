@@ -41,6 +41,8 @@ var achieved_current_height int64
 var lowest_height int64
 var day_of_blocks int64
 
+var RUNNING bool
+
 // this is the processing thread
 func Start_gnomon_indexer() {
 	flag.Parse()
@@ -127,51 +129,54 @@ Options:
 	// wg := sync.WaitGroup{}
 	// limit := make(chan struct{}, 10)
 
-do_it_again: // simple-daemon
+	RUNNING = true
 
-	// a simple backup strategy
-	now := connections.Get_TopoHeight()
+	// simple-daemon
+	for RUNNING {
 
-	if ending_height != nil && *ending_height > -1 {
-		now = *ending_height
-	}
-	// in case db needs to re-parse from a desired height
-	if starting_height != nil && *starting_height < now && *starting_height > -1 && achieved_current_height == 0 {
-		lowest_height = *starting_height
-	}
-	// ticker := time.NewTicker(time.Millisecond * 20)
-	// main processing loop
-	for height := lowest_height; height < now; height++ {
+		// a simple backup strategy
+		now := connections.Get_TopoHeight()
 
-		if achieved_current_height > 0 &&
-			!established_backup &&
-			find_lowest_height(backups, now) { // if the current height is greater than a day of blocks...
+		if ending_height != nil && *ending_height > -1 {
+			now = *ending_height
+		}
+		// in case db needs to re-parse from a desired height
+		if starting_height != nil && *starting_height < now && *starting_height > -1 && achieved_current_height == 0 {
+			lowest_height = *starting_height
+		}
+		// ticker := time.NewTicker(time.Millisecond * 20)
+		// main processing loop
+		for height := lowest_height; height < now; height++ {
 
-			backup(height)
+			if achieved_current_height > 0 &&
+				!established_backup &&
+				find_lowest_height(backups, now) { // if the current height is greater than a day of blocks...
+
+				backup(height)
+			}
+
+			// limit <- struct{}{}
+			// wg.Add(1)
+			// <-ticker.C
+			n := time.Now()
+			indexing(workers, indices, height)
+			fmt.Println(height, time.Since(n))
+			// continue
+
+			// if time.Since(n) > time.Duration(time.Millisecond*20) {
+			// 	panic("slow block:" + strconv.Itoa(int(height)))
+			// }
 		}
 
-		// limit <- struct{}{}
-		// wg.Add(1)
-		// <-ticker.C
-		n := time.Now()
-		indexing(workers, indices, height)
-		fmt.Println(height, time.Since(n))
-		// continue
+		if achieved_current_height == 0 {
+			fmt.Println("current height acheived, proceeding to passively index")
+		}
+		// height achieved
+		achieved_current_height = connections.Get_TopoHeight()
 
-		// if time.Since(n) > time.Duration(time.Millisecond*20) {
-		// 	panic("slow block:" + strconv.Itoa(int(height)))
-		// }
+		lowest_height = min(now, achieved_current_height)
+
 	}
-
-	if achieved_current_height == 0 {
-		fmt.Println("current height acheived, proceeding to passively index")
-	}
-	// height achieved
-	achieved_current_height = connections.Get_TopoHeight()
-
-	lowest_height = min(now, achieved_current_height)
-
-	goto do_it_again
 
 }
 
