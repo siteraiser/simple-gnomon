@@ -29,10 +29,13 @@ import (
 var workers = make(map[string]*indexer.Worker)
 var backups = make(map[string]*indexer.Indexer)
 
-var endpoint = flag.String("endpoint", "", "-endpoint=<DAEMON_IP:PORT>")
-var starting_height = flag.Int64("starting_height", -1, "-starting_height=123")
-var ending_height = flag.Int64("ending_height", -1, "-ending_height=123")
-var help = flag.Bool("help", false, "-help")
+var (
+	endpoint        = flag.String("endpoint", "", "-endpoint=<DAEMON_IP:PORT>")
+	starting_height = flag.Int64("starting_height", -1, "-starting_height=123")
+	ending_height   = flag.Int64("ending_height", -1, "-ending_height=123")
+	help            = flag.Bool("help", false, "-help")
+	progress        = flag.Bool("progress", false, "-progress")
+)
 var established_backup bool
 var achieved_current_height int64
 var lowest_height int64
@@ -86,7 +89,7 @@ Options:
 		"all": {""},
 
 		// TODO: we are not currently indexing contract interactions within search filters
-		"g45":  {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
+		"g45":  {"G45-NFT", "G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
 		"nfa":  {"ART-NFA-MS1"},
 		"tela": {"docVersion", "telaVersion"},
 
@@ -121,8 +124,8 @@ Options:
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
 
 	// we'll implement a simple concurrency pattern
-	wg := sync.WaitGroup{}
-	limit := make(chan struct{}, 10)
+	// wg := sync.WaitGroup{}
+	// limit := make(chan struct{}, 10)
 
 do_it_again: // simple-daemon
 
@@ -136,24 +139,33 @@ do_it_again: // simple-daemon
 	if starting_height != nil && *starting_height < now && *starting_height > -1 && achieved_current_height == 0 {
 		lowest_height = *starting_height
 	}
-
+	// ticker := time.NewTicker(time.Millisecond * 20)
 	// main processing loop
 	for height := lowest_height; height < now; height++ {
 
 		if achieved_current_height > 0 &&
 			!established_backup &&
-			find_lowest(backups, now) { // if the current height is greater than a day of blocks...
+			find_lowest_height(backups, now) { // if the current height is greater than a day of blocks...
 
-			backup(height, limit)
+			backup(height)
 		}
 
-		limit <- struct{}{}
-		wg.Add(1)
-		go indexing(workers, indices, height, limit, &wg)
+		// limit <- struct{}{}
+		// wg.Add(1)
+		// <-ticker.C
+		n := time.Now()
+		indexing(workers, indices, height)
+		fmt.Println(height, time.Since(n))
+		// continue
 
+		// if time.Since(n) > time.Duration(time.Millisecond*20) {
+		// 	panic("slow block:" + strconv.Itoa(int(height)))
+		// }
 	}
-	wg.Wait()
 
+	if achieved_current_height == 0 {
+		fmt.Println("current height acheived, proceeding to passively index")
+	}
 	// height achieved
 	achieved_current_height = connections.Get_TopoHeight()
 
@@ -207,24 +219,27 @@ func set_up_backend(name string) error {
 func asynchronously_process_queues(worker *indexer.Worker, backup *indexer.Indexer) {
 	for staged := range worker.Queue {
 
-		fmt.Printf(
-			("staged scid: " +
-				"%s:%s " +
-				"%d / %d " +
-				"%s %s " +
-				"class:%s tags:%s\n"),
-			staged.Scid, staged.Fsi.Owner,
-			staged.Fsi.Height, connections.Get_TopoHeight(),
+		vars := func(staged structures.SCIDToIndexStage) string {
+			varstring := ""
+			for _, each := range staged.ScVars {
+				varstring += fmt.Sprint(each.Key) + ":" + fmt.Sprint(each.Value) + " "
+			}
+			return varstring
+		}(staged)
+
+		format := "staged scid: %s:%s %d / %d %s %s class:%s tags:%s\n"
+		a := []any{
+			staged.Scid,
+			staged.Fsi.Owner,
+			staged.Fsi.Height,
+			connections.Get_TopoHeight(),
 			staged.Fsi.Headers,
-			func(staged structures.SCIDToIndexStage) string {
-				varstring := ""
-				for _, each := range staged.ScVars {
-					varstring += fmt.Sprint(each.Key) + ":" + fmt.Sprint(each.Value) + " "
-				}
-				return varstring
-			}(staged),
-			staged.Class, staged.Tags,
-		)
+			vars,
+			staged.Class,
+			staged.Tags,
+		}
+
+		fmt.Printf(format, a...)
 
 		if err := worker.Idx.AddSCIDToIndex(staged); err != nil {
 			// if err.Error() != "no code" { // this is a contract interaction, we are not recording these right now
@@ -247,7 +262,8 @@ func asynchronously_process_queues(worker *indexer.Worker, backup *indexer.Index
 	}
 }
 
-func find_lowest(backups map[string]*indexer.Indexer, now int64) bool {
+func find_lowest_height(backups map[string]*indexer.Indexer, now int64) bool {
+
 	lowest := now
 	for _, each := range backups {
 		lowest = min(lowest, each.LastIndexedHeight)
@@ -256,30 +272,33 @@ func find_lowest(backups map[string]*indexer.Indexer, now int64) bool {
 }
 
 // this is the indexing action that will be done concurrently
-func indexing(workers map[string]*indexer.Worker, indices map[string][]string, height int64, limit chan struct{}, wg *sync.WaitGroup) {
+func indexing(workers map[string]*indexer.Worker, indices map[string][]string, height int64) {
 
 	// close up when done and remove item from limit
-	defer func() { <-limit; wg.Done() }()
+	// defer func() { <-limit; wg.Done() }()
+	if progress != nil && *progress {
 
-	fmt.Printf("auditing block: %d / %d\r", height, connections.Get_TopoHeight())
-
+		fmt.Printf("auditing block: %d / %d\n", height, connections.Get_TopoHeight())
+	}
+	// go func() {
 	err := indexHeight(workers, indices, height)
 	if err != nil {
 		fmt.Printf("error: %s %s %d\n", err, "height:", height)
 	}
+	// }()
 }
 
 // this will serve as the backup action
-func backup(each int64, limit chan struct{}) {
+func backup(each int64) {
 	mu := sync.Mutex{}
 
 	// wait for the other objects to finish
-	for len(limit) != 0 {
-		fmt.Println("allowing heights to clear before backing up db", each)
-		time.Sleep(time.Second)
+	// for len(limit) != 0 {
+	// 	fmt.Println("allowing heights to clear before backing up db", each)
+	// 	time.Sleep(time.Second)
 
-		continue
-	}
+	// 	continue
+	// }
 
 	// full backup
 	for _, worker := range workers {
@@ -299,7 +318,7 @@ func indexHeight(workers map[string]*indexer.Worker, indices map[string][]string
 	// if there is nothing, move on
 	count := result.Block_Header.TXCount
 	if count == 0 {
-		return nil
+		return storeHeight(workers, height)
 	}
 
 	if count > 400 {
@@ -310,12 +329,12 @@ func indexHeight(workers map[string]*indexer.Worker, indices map[string][]string
 
 	// like... just in case
 	if len(bl.Tx_hashes) < 1 {
-		return nil
+		return storeHeight(workers, int64(bl.Height))
 	}
 
 	processing(workers, indices, bl)
 
-	return storeHeight(workers, height)
+	return storeHeight(workers, int64(bl.Height))
 }
 
 func processing(workers map[string]*indexer.Worker, indices map[string][]string, bl block.Block) {
@@ -360,17 +379,19 @@ func processing(workers map[string]*indexer.Worker, indices map[string][]string,
 	if len(txs) == 0 {
 		return
 	}
+	go func() {
 
-	transaction_result := connections.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: txs})
+		transaction_result := connections.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: txs})
 
-	for i, tx := range transaction_result.Txs_as_hex {
+		for i, tx := range transaction_result.Txs_as_hex {
 
-		related_info := transaction_result.Txs[i]
+			related_info := transaction_result.Txs[i]
 
-		signer := related_info.Signer
+			signer := related_info.Signer
 
-		go process(workers, indices, bl.Height, tx, signer)
-	}
+			process(workers, indices, bl.Height, tx, signer)
+		}
+	}()
 
 }
 
@@ -420,86 +441,89 @@ func process(workers map[string]*indexer.Worker, indices map[string][]string, he
 	}
 
 	// fmt.Printf("%v\n", params)
+	go func() {
 
-	sc := connections.GetSC(params)
+		sc := connections.GetSC(params)
 
-	// fmt.Printf("%v\n", sc)
+		// fmt.Printf("%v\n", sc)
 
-	if signer == "" { // when ringsize is greater than 2...
-		signer = "null"
-	}
+		if signer == "" { // when ringsize is greater than 2...
+			signer = "null"
+		}
 
-	staged := stageSCIDForIndexers(sc, params.SCID, signer, height)
+		staged := stageSCIDForIndexers(sc, params.SCID, signer, height)
 
-	// unfortunately, there isn't a way to do this without checking twice
-	class := ""
-	// roll through the indices to obtain the class
-	for name := range indices {
+		// unfortunately, there isn't a way to do this without checking twice
+		class := ""
+		// roll through the indices to obtain the class
+		for name := range indices {
 
-		// obtain the filters
-		filters := indices[name]
+			// obtain the filters
+			filters := indices[name]
 
-		for _, filter := range filters { // range through the filters
+			for _, filter := range filters { // range through the filters
 
-			// if the code does not contain the filter, skip
-			if !strings.Contains(sc.Code, filter) {
-				continue
+				// if the code does not contain the filter, skip
+				if !strings.Contains(sc.Code, filter) {
+					continue
+				}
+
+				// if there is a match, add the name of the index to it's list of tags
+				class = filter
+				break
 			}
 
-			// if there is a match, add the name of the index to it's list of tags
-			class = filter
-			break
-		}
-
-		if class != "" {
-			break
-		}
-	}
-
-	// as class is currently the filter...
-	// make sure to implement more classes as necessary
-	switch class {
-	case "": // catchall
-		staged.Class = "null"
-	case indices["tela"][0]:
-		staged.Class = "TELA-DOC-1"
-	case indices["tela"][1]:
-		staged.Class = "TELA-INDEX-1"
-	default:
-		staged.Class = class
-	}
-
-	tags := []string{}
-
-	// roll through the indices again to obtain tags
-	for name := range indices {
-
-		// obtain the filters
-		filters := indices[name]
-
-		for _, filter := range filters { // range through the filters
-
-			// if the code does not contina the filter, skip it
-			if !strings.Contains(sc.Code, filter) {
-				continue
+			if class != "" {
+				break
 			}
-
-			// if there is a match, add the name of the index to it's list of tags
-			tags = append(tags, name)
-
 		}
-	}
 
-	// lexicographical order
-	slices.Sort(tags)
+		// as class is currently the filter...
+		// make sure to implement more classes as necessary
+		switch class {
+		case "": // catchall
+			staged.Class = "null"
+		case indices["tela"][0]:
+			staged.Class = "TELA-DOC-1"
+		case indices["tela"][1]:
+			staged.Class = "TELA-INDEX-1"
+		default:
+			staged.Class = class
+		}
 
-	// store as a single string
-	staged.Tags = strings.Join(tags, ",")
+		tags := []string{}
 
-	// for each tag, queue up for writing
-	for _, tag := range tags {
-		workers[tag].Queue <- staged
-	}
+		// roll through the indices again to obtain tags
+		for name := range indices {
+
+			// obtain the filters
+			filters := indices[name]
+
+			for _, filter := range filters { // range through the filters
+
+				// if the code does not contina the filter, skip it
+				if !strings.Contains(sc.Code, filter) {
+					continue
+				}
+
+				// if there is a match, add the name of the index to it's list of tags
+				tags = append(tags, name)
+
+			}
+		}
+
+		// lexicographical order
+		slices.Sort(tags)
+
+		// store as a single string
+		staged.Tags = strings.Join(tags, ",")
+
+		// for each tag, queue up for writing
+		for _, tag := range tags {
+			workers[tag].Queue <- staged
+		}
+	}()
+
 }
 
 func storeHeight(indexers map[string]*indexer.Worker, height int64) error {
