@@ -39,8 +39,8 @@ var speed = 40
 
 // Request handling
 var Processing = int64(0)
-var Max_allowed = int64(128)
-var Max_preferred_requests = int64(128)
+var Max_allowed = int64(120)
+var Max_preferred_requests = int64(120)
 var BPH = float64(0)
 var Average = float64(0)
 
@@ -65,7 +65,7 @@ func quickStart(quickstart *int, start time.Time) {
 	if *quickstart == 1000 {
 		Average = float64(1000 / time.Since(start).Hours())
 		if Average >= 90000 {
-			Max_allowed = int64(192)
+			Max_allowed = int64(160)
 			Max_preferred_requests += 10
 		}
 	} else {
