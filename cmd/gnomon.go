@@ -148,6 +148,9 @@ Options:
 		// main processing loop
 		wg := sync.WaitGroup{}
 		for height := lowest_height; height < now; height++ {
+			if !RUNNING {
+				return
+			}
 			wg.Add(1)
 			if achieved_current_height > 0 &&
 				!established_backup &&
