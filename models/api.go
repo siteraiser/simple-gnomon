@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"fyne.io/fyne/v2/storage"
 	"github.com/creachadair/jrpc2"
 	"github.com/deroproject/derohe/block"
 	"github.com/deroproject/derohe/rpc"
@@ -33,11 +32,12 @@ var Status_ok = true
 
 // 64.226.81.37:10102
 // var endpoint = "node.derofoundation.org:11012"
-var endpoint = "node.derofoundation.org:11012" //"64.226.81.37:10102"
+var Endpoints = [2]string{"64.226.81.37:10102", "node.derofoundation.org:11012"} //"64.226.81.37:10102"
+//var endpoint = 0
 
 // simple way to set timeouts
-const timeout = time.Second * 9    // the world is a really big place
-const deadline = time.Second * 300 // some content is just bigger
+const timeout = time.Second * 9 // the world is a really big place
+//const deadline = time.Second * 300 // some content is just bigger
 
 // simple way to identify gnomon
 // const gnomonSC = `a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4`
@@ -60,13 +60,26 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 	return result
 }
 
+var EO = 0
+var Striping = false
+
 func handleResult[T any](method string, params any) (T, error) {
 	var result T
 
 	var err error
 
 	var rpcClient jsonrpc.RPCClient
-	rpcClient = jsonrpc.NewClient("http://" + endpoint + "/json_rpc")
+
+	rpcClient = jsonrpc.NewClient("http://" + Endpoints[EO] + "/json_rpc")
+	if Striping {
+		if EO == 0 { //method == "DERO.GetSC" || method == "DERO.GetTransaction"
+			EO = 1
+		} else {
+			EO = 0
+		}
+	} else {
+		EO = 0
+	}
 
 	if params == nil {
 		err = rpcClient.CallFor(&result, method) // no params argument
@@ -75,7 +88,7 @@ func handleResult[T any](method string, params any) (T, error) {
 	}
 
 	if err != nil {
-		if strings.Contains(err.Error(), "-32098") { //Tx statement roothash mismatch ref blid... skip it
+		if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "mismatch") { //Tx statement roothash mismatch ref blid... skip it
 			fmt.Println(err)
 
 			var zero T
@@ -172,8 +185,8 @@ func GetSCIDImage(keys map[string]interface{}) image.Image {
 		value := string(b)
 		fmt.Println("scid", "key", k, "value", value)
 
-		furi, err := storage.ParseURI(value)
-		fmt.Println("storage.ParseURI:", furi)
+		//	furi, err := storage.ParseURI(value)
+		//	fmt.Println("storage.ParseURI:", furi)
 
 		uri, err := url.Parse(value) //storage.ParseURI(value)
 		fmt.Println("url.Parse:", uri)

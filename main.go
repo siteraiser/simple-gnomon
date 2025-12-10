@@ -26,6 +26,7 @@ func main() {
 		fmt.Println("[Main] Err creating sqlite:", err)
 		return
 	}
+	fmt.Println("starting ....")
 	start_gnomon_indexer()
 }
 
@@ -39,29 +40,34 @@ var speed = 40
 
 // Request handling
 var Processing = int64(0)
-var Max_allowed = int64(120)
-var Max_preferred_requests = int64(120)
+var Max_allowed = int64(200)
+var Max_preferred_requests = int64(200)
 var BPH = float64(0)
 var Average = float64(0)
 
 func quickAdjust(quickadjust *int, start time.Time) {
 	if *quickadjust%1000 == 0 && *quickadjust != 0 && *quickadjust != 1000 {
 		Average = (Average + float64(*quickadjust)/time.Since(start).Hours()) / 2
-		if Average >= 89000 {
-			Max_allowed = int64(180)
-			if Average > 150000 {
-				Max_allowed = int64(250)
-			}
-			if Max_preferred_requests <= Max_allowed-10 {
-				Max_preferred_requests += 10
-			} else if Max_preferred_requests > Max_allowed {
-				Max_preferred_requests = Max_allowed
-			}
-		} else {
-
-			Max_allowed = int64(120)
-			Max_preferred_requests = Max_allowed
+		if Average < float64(100000) {
+			api.Striping = true
 		}
+		/*
+			compensator := float64(1)
+				if speed > 100 {
+					compensator = float64(speed) * .01
+					if compensator <= float64(3) {
+						Max_preferred_requests = int64(compensator * 200)
+					}
+				}
+
+				Max_allowed = int64(compensator * 200)
+				fmt.Println(Max_allowed)
+				if Max_preferred_requests <= Max_allowed-10 {
+					Max_preferred_requests += 10
+				} else if Max_preferred_requests > Max_allowed {
+					Max_preferred_requests = Max_allowed
+				}
+		*/
 	}
 	*quickadjust++
 }
@@ -204,14 +210,14 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	//Speed tuning
 	if Processing%10 == 0 {
 		concreq := Processing - int64(bheight)
-		if concreq+int64(len(r.Txs_as_hex)) > Max_preferred_requests {
+		if concreq+int64(len(r.Txs_as_hex)) > Max_preferred_requests { //
 			if concreq == Max_preferred_requests*2 {
 				speed = speed + 2
 			} else {
 				speed = speed + 1
 			}
 
-		} else if concreq+int64(len(r.Txs_as_hex)) < Max_preferred_requests {
+		} else if concreq+int64(len(r.Txs_as_hex)) < Max_preferred_requests { //
 			if speed > 3 {
 				speed = speed - 1
 			}
@@ -221,9 +227,12 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	if len(r.Txs_as_hex) == 0 {
 		return
 	}
-	var wg2 sync.WaitGroup
-	for i, tx_hex := range r.Txs_as_hex {
 
+	var wg2 sync.WaitGroup
+
+	for i, tx_hex := range r.Txs_as_hex {
+		t, _ := time.ParseDuration(strconv.Itoa(speed) + "ms")
+		time.Sleep(t)
 		wg2.Add(1)
 		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
 	}

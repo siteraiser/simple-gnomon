@@ -3,9 +3,9 @@ module github.com/secretnamebasis/simple-gnomon
 go 1.24.0
 
 require (
-	fyne.io/fyne/v2 v2.7.1
 	github.com/blang/semver/v4 v4.0.0
 	github.com/civilware/tela v0.0.0-20250806221602-aa892d2ff8d4
+	github.com/creachadair/jrpc2 v0.35.4
 	github.com/deroproject/derohe v0.0.0-20250813215012-9b6a8b82c839
 	github.com/gorilla/websocket v1.5.0
 	github.com/sirupsen/logrus v1.9.3
@@ -14,13 +14,11 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/coder/websocket v1.8.12 // indirect
-	github.com/creachadair/jrpc2 v0.35.4 // indirect
 	github.com/dchest/siphash v1.2.3 // indirect
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815 // indirect
-	github.com/fredbi/uri v1.1.1 // indirect
+	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.6 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
@@ -39,7 +37,6 @@ require (
 	github.com/fxamacker/cbor/v2 v2.4.0 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/zapr v1.2.3 // indirect
-	github.com/go-sql-driver/mysql v1.9.3
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-sqlite3 v1.14.32
