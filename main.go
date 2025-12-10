@@ -22,10 +22,15 @@ import (
 )
 
 func main() {
-
+	closing := false
 	a := app.NewWithID("simple-gnomon_" + rand.Text())
 	w := a.NewWindow("simple-gnomon")
 	w.Resize(fyne.NewSize(400, 200))
+	w.SetCloseIntercept(func() {
+		cmd.RUNNING = false
+		closing = true
+		os.Exit(0)
+	})
 	endpoint := ""
 	connection := widget.NewEntry()
 	readout := widget.NewLabel("")
@@ -58,6 +63,9 @@ func main() {
 		}()
 
 		for !cmd.RUNNING {
+			if closing {
+				return
+			}
 			fmt.Println("gnomon is starting, please hold")
 			time.Sleep(time.Second)
 		}
