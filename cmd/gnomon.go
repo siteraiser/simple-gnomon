@@ -69,8 +69,9 @@ Options:
 		daemon := connections.GetDaemonEndpoint()
 		*endpoint = daemon.Endpoint
 	}
-
-	connections.RpcClient = jsonrpc.NewClient("http://" + *endpoint + "/json_rpc")
+	opts := &jsonrpc.RPCClientOpts{HTTPClient: &http.Client{Timeout: time.Second * 3}}
+	url := "http://" + *endpoint + "/json_rpc"
+	connections.RpcClient = jsonrpc.NewClientWithOpts(url, opts)
 
 	// if you are getting a zero... yeah, you are not connected
 	if connections.Get_TopoHeight() == 0 {
