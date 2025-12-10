@@ -282,12 +282,58 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 
 		related_info := transaction_result.Txs[0]
 
-		related_info := transaction_result.Txs[i]
-
+		if related_info.ValidBlock != result.Block_Header.Hash || len(related_info.InvalidBlock) > 0 {
+			return
+		}
 		signer := related_info.Signer
 
 		b, err := hex.DecodeString(tx)
 		if err != nil {
+			return
+		}
+
+		// because a possible panic arrises from unknown transaction types...
+		dryrun := b
+		testing, done := binary.Uvarint(dryrun)
+		if done <= 0 {
+			// fmt.Println("Invalid Version in Transaction")
+			return
+		}
+		dryrun = dryrun[done:]
+
+		if testing != 1 {
+			// fmt.Println("Transaction version not equal to 1 ")
+			return
+		}
+
+		_, done = binary.Uvarint(dryrun)
+		if done <= 0 {
+			// fmt.Println("Invalid SourceNetwork in Transaction")
+			return
+		}
+		dryrun = dryrun[done:]
+
+		_, done = binary.Uvarint(dryrun)
+		if done <= 0 {
+			// fmt.Println("Invalid DestNetwork in Transaction")
+			return
+		}
+		dryrun = dryrun[done:]
+
+		testing, done = binary.Uvarint(dryrun)
+		if done <= 0 {
+			// fmt.Println("Invalid TransactionType in Transaction")
+			return
+		}
+		switch transaction.TransactionType(testing) {
+		case transaction.PREMINE,
+			transaction.REGISTRATION,
+			transaction.COINBASE,
+			transaction.BURN_TX,
+			transaction.NORMAL,
+			transaction.SC_TX:
+			// these are all valid
+		default:
 			return
 		}
 
