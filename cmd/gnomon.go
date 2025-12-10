@@ -71,7 +71,7 @@ Options:
 		daemon := connections.GetDaemonEndpoint()
 		*endpoint = daemon.Endpoint
 	}
-	opts := &jsonrpc.RPCClientOpts{HTTPClient: &http.Client{Timeout: time.Second * 3}}
+	opts := &jsonrpc.RPCClientOpts{HTTPClient: &http.Client{Timeout: time.Second * 30}}
 	url := "http://" + *endpoint + "/json_rpc"
 	connections.RpcClient = jsonrpc.NewClientWithOpts(url, opts)
 
@@ -226,42 +226,25 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 		txs = []string{}
 
 		// simple concurrency pattern
-		ng    = sync.WaitGroup{}
-		mu    = sync.Mutex{}
-		limit = make(chan struct{}, 10)
+
 	)
 
 	// we are going to process these transactions as fast as simplicity will allow for
 	for _, hash := range bl.Tx_hashes {
 
-		limit <- struct{}{}
-		ng.Add(1)
+		// skip registrations; maybe process those another day
+		succesful_registration := hash[0] == 0 && hash[1] == 0 && hash[2] == 0
+		if succesful_registration {
+			return
+		}
 
-		go func(limit chan struct{}, ng *sync.WaitGroup, mu *sync.Mutex) {
-			// close up when done
-			defer func() { <-limit; ng.Done() }()
-
-			// skip registrations; maybe process those another day
-			succesful_registration := hash[0] == 0 && hash[1] == 0 && hash[2] == 0
-			if succesful_registration {
-				return
-			}
-
-			// lock the slice for safety
-			mu.Lock()
-			txs = append(txs, hash.String())
-			mu.Unlock()
-
-		}(limit, &ng, &mu)
+		txs = append(txs, hash.String())
 
 	}
-
-	ng.Wait()
 
 	if len(txs) == 0 {
 		return
 	}
-
 	for _, each := range txs {
 
 		if time.Since(measuring) > time.Duration(time.Second) {
