@@ -289,7 +289,7 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 		}
 		signer := related_info.Signer
 
-		b, err := hex.DecodeString(each)
+		b, err := hex.DecodeString(transaction_result.Txs_as_hex[0])
 		if err != nil {
 			return
 		}
