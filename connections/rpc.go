@@ -106,7 +106,7 @@ func handleResult[T any](method string, params any) (T, error) {
 	}
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, method, params, result)
 		var zero T
 		return zero, err
 	}
