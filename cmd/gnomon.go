@@ -287,7 +287,7 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 		}
 		signer := related_info.Signer
 
-		b, err := hex.DecodeString(tx)
+		b, err := hex.DecodeString(each)
 		if err != nil {
 			return
 		}
