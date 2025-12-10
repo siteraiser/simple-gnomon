@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/deroproject/derohe/rpc"
@@ -993,6 +994,7 @@ func (bbs *BboltStore) StoreSCIDInteractionHeight(scid string, height int64) (ch
 	var currSCIDInteractionHeight []byte
 	var interactionHeight []int64
 	var newInteractionHeight []byte
+	var mu sync.Mutex
 	bName := scid + "heights"
 	key := scid
 
@@ -1014,6 +1016,7 @@ func (bbs *BboltStore) StoreSCIDInteractionHeight(scid string, height int64) (ch
 			interactionHeight = append(interactionHeight, height)
 		} else {
 			// Retrieve value and conovert to SCIDInteractionHeight, so that you can manipulate and update db
+			mu.Lock()
 			_ = json.Unmarshal(currSCIDInteractionHeight, &interactionHeight)
 
 			if slices.Contains(interactionHeight, height) {
@@ -1026,6 +1029,7 @@ func (bbs *BboltStore) StoreSCIDInteractionHeight(scid string, height int64) (ch
 			}
 
 			interactionHeight = append(interactionHeight, height)
+			mu.Unlock()
 		}
 		newInteractionHeight, err = json.Marshal(interactionHeight)
 		if err != nil {
