@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ybbus/jsonrpc"
@@ -41,8 +42,8 @@ var established_backup bool
 var achieved_current_height int64
 var lowest_height int64
 var day_of_blocks int64
-var speed = time.Duration(time.Millisecond * 5)
-
+var download atomic.Int64
+var counter atomic.Int64
 var RUNNING bool
 
 // this is the processing thread
@@ -162,17 +163,17 @@ Options:
 				backup(height)
 			}
 
-			// limit <- struct{}{}
-			// wg.Add(1)
-			// fmt.Println(speed)
-			time.Sleep(speed)
+			fmt.Println(height, counter.Load(), download.Load())
+			switch {
+			case counter.Load() < 3 && download.Load()/100 < 3:
+				go indexing(workers, indices, height, &wg)
+			case counter.Load() > 3 && download.Load() > 3:
+				fallthrough
+			default:
+				indexing(workers, indices, height, &wg)
+				storeHeight(workers, height)
+			}
 
-			go indexing(workers, indices, height, &wg)
-			// continue
-
-			// if time.Since(n) > time.Duration(time.Millisecond*20) {
-			// 	panic("slow block:" + strconv.Itoa(int(height)))
-			// }
 		}
 		wg.Wait()
 		if achieved_current_height == 0 {
@@ -195,17 +196,15 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 
 		fmt.Printf("auditing block: %d / %d\n", height, connections.Get_TopoHeight())
 	}
-	measuring := time.Now()
+
+	counter.Add(1)
+
+	measure := time.Now()
 	result := connections.GetBlockInfo(rpc.GetBlock_Params{Height: uint64(height)})
-	if progress != nil && *progress {
-		fmt.Println(height, time.Since(measuring))
-	}
+	download.Swap(time.Since(measure).Milliseconds())
 
-	if time.Since(measuring) >= speed {
-		speed = time.Duration(measuring.Unix()) / 1000
-		time.Sleep(time.Duration(measuring.Unix()))
-	}
-
+	counter.Add(-1)
+	// fmt.Println(result)
 	// if there is nothing, move on
 	count := result.Block_Header.TXCount
 	if count == 0 {
@@ -248,23 +247,14 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 	}
 	for _, each := range txs {
 
-		if time.Since(measuring) >= speed {
-			speed = time.Duration(measuring.Unix()) / 1000
-			time.Sleep(time.Duration(measuring.Unix()))
-		}
-
+		counter.Add(1)
 		transaction_result := connections.GetTransaction(rpc.GetTransaction_Params{ // presumably,
 			// one could pass an array of transaction hashes...
 			// but noooooooo.... that's a vector for spam...
 			// so we'll so this one at a time
 			Tx_Hashes: []string{each},
 		})
-
-		measuring = time.Now()
-
-		if progress != nil && *progress {
-			fmt.Println(height, time.Since(measuring))
-		}
+		counter.Add(-1)
 
 		related_info := transaction_result.Txs[0]
 
@@ -361,17 +351,12 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 			continue
 		}
 
-		// fmt.Printf("%v\n", params)
+		var sc rpc.GetSC_Result
+		if params.Code && params.Variables {
+			counter.Add(1)
+			sc = connections.GetSC(params)
+			counter.Add(-1)
 
-		if time.Since(measuring) >= speed {
-			speed = time.Duration(measuring.Unix()) / 1000
-			time.Sleep(time.Duration(measuring.Unix()))
-		}
-
-		measuring = time.Now()
-		sc := connections.GetSC(params)
-		if progress != nil && *progress {
-			fmt.Println(height, time.Since(measuring))
 		}
 
 		// fmt.Printf("%v\n", sc)
