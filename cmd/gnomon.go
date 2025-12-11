@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"path/filepath"
 	"slices"
@@ -153,7 +154,6 @@ Options:
 			lowest_height = *starting_height
 		}
 		// main processing loop
-		var governer atomic.Int64
 
 		wg := sync.WaitGroup{}
 		for height := lowest_height; height < now; height++ {
