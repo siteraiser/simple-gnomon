@@ -601,22 +601,22 @@ func set_up_backend(name string) error {
 func asynchronously_process_queues(worker *indexer.Worker, backup *indexer.Indexer) {
 	for staged := range worker.Queue {
 
-		vars := func(staged structures.SCIDToIndexStage) string {
-			varstring := ""
-			for _, each := range staged.ScVars {
-				varstring += fmt.Sprint(each.Key) + ":" + fmt.Sprint(each.Value) + " "
-			}
-			return varstring
-		}(staged)
+		// vars := func(staged structures.SCIDToIndexStage) string {
+		// 	varstring := ""
+		// 	for _, each := range staged.ScVars {
+		// 		varstring += fmt.Sprint(each.Key) + ":" + fmt.Sprint(each.Value) + " "
+		// 	}
+		// 	return varstring
+		// }(staged)
 
-		format := "staged scid: %s:%s %d / %d %s %s class:%s tags:%s\n"
+		format := "staged scid: %s:%s %d / %d %s %d class:%s tags:%s\n"
 		a := []any{
 			staged.Scid,
 			staged.Fsi.Owner,
 			staged.Fsi.Height,
 			connections.Get_TopoHeight(),
 			staged.Fsi.Headers,
-			vars,
+			len(staged.ScVars),
 			staged.Class,
 			staged.Tags,
 		}
