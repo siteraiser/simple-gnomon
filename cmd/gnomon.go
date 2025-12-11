@@ -42,8 +42,12 @@ var established_backup bool
 var achieved_current_height int64
 var lowest_height int64
 var day_of_blocks int64
+
+// we are going to use these for later
 var download atomic.Int64
-var counter atomic.Int64
+var request atomic.Int64
+var governor atomic.Int64
+
 var RUNNING bool
 
 // this is the processing thread
@@ -164,19 +168,54 @@ Options:
 
 				backup(height)
 			}
+
+			// SCHEDULER
+			//
+			// when the number of requests is less than the govenor...
+			// obviously, the machine can take more
+			more_requests_please := governor.Load() <= request.Load()
+
+			// we are measuring the time for node responses
+			// when the downloads take longer, scale back.
+			// the primary way is to stop scheduling new requests, handle them one at a time.
+			// then, when speeds improve, scale back in by scheduling more
+			stop_scheduling := download.Load() <= request.Load()
+
+			fast := more_requests_please && !stop_scheduling
+
+			slow := more_requests_please && stop_scheduling
+
 			switch {
-			case counter.Load() < governer.Load() && download.Load()/100 < governer.Load():
-				governer.Add(-14)
+
+			case fast:
+				// as more objects are scheduled, the machine does it really fast
+				// like micro... pico... fast. so don't schedule too many
+				governor.Add(1) // later, the govener will be adjusted
+
+				// think of concurrency as scheduling and things become much faster
 				go indexing(workers, indices, height, &wg)
-				fmt.Println("scheduling", height, counter.Load(), download.Load(), governer.Load())
-			case counter.Load() > governer.Load() && download.Load() > governer.Load():
-				fmt.Println("fallthrough", height, counter.Load(), download.Load(), governer.Load())
-				fallthrough
+
+				// fmt.Println(height, "schedule",
+				// 	"governor", governor.Load(), "/", "reqeusts", request.Load(), "/", "download", download.Load(),
+				// )
+
+			case slow:
+				// because we can still take on requests just not that many...
+				// adjust the govener upward towards the number of outgoing requests
+				governor.Add(1)
+				indexing(workers, indices, height, &wg)
+				// fmt.Println(height, "slowdown",
+				// 	"governor", governor.Load(), "/", "reqeusts", request.Load(), "/", "download", download.Load(),
+				// )
 			default:
-				governer.Add(100)
-				fmt.Println("direct", height, counter.Load(), download.Load(), governer.Load())
+				// at this point, no more scheduling should be done.
+				// however, the machine probably waited long enough to be able to schedule more requests
+				governor.Add(-100) // drop the govener waay down and let the scheduler take over
 				indexing(workers, indices, height, &wg)
 				storeHeight(workers, height)
+				// fmt.Println(height, "default",
+				// 	"governor", governor.Load(), "/", "reqeusts", request.Load(), "/", "download", download.Load(),
+				// )
 			}
 
 		}
@@ -194,22 +233,29 @@ Options:
 
 // this is the indexing action that will be done concurrently
 func indexing(workers map[string]*indexer.Worker, indices map[string][]string, height int64, wg *sync.WaitGroup) {
-	defer wg.Done()
 	// close up when done and remove item from limit
+	defer wg.Done()
+
+	// once a request comes in, count it
+	request.Add(1)
+
+	// regardless of what happens...
+	defer request.Add(-1) // drop the request count
+
 	if progress != nil && *progress {
 
 		fmt.Printf("auditing block: %d / %d\n", height, connections.Get_TopoHeight())
 	}
 
-	counter.Add(1)
-
 	measure := time.Now()
 	result := connections.GetBlockInfo(rpc.GetBlock_Params{Height: uint64(height)})
-	if time.Since(measure).Milliseconds() > download.Load() {
-		download.Swap(time.Since(measure).Milliseconds())
-	}
 
-	counter.Add(-1)
+	// blocks are fast when there is little in them.
+	// when the centralized scheduler reviews the download metric,
+	// should be floating around the highest to govern request load
+	// stop_scheduling = download.Load() <= request.Load()
+	download.Swap(max(download.Load(), time.Since(measure).Milliseconds()))
+
 	// fmt.Println(result)
 	// if there is nothing, move on
 	count := result.Block_Header.TXCount
@@ -254,13 +300,14 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 		transaction_result := connections.GetTransaction(rpc.GetTransaction_Params{ // presumably,
 			// one could pass an array of transaction hashes...
 			// but noooooooo.... that's a vector for spam...
-			// so we'll so this one at a time
+			// so we'll do this one at a time
 			Tx_Hashes: []string{each},
 		})
-		if time.Since(measure).Milliseconds() > download.Load() {
-			download.Swap(time.Since(measure).Milliseconds())
-		}
-		counter.Add(-1)
+		// transactions are almost always the same size,
+		// except for when they have stuff in them: like sc_data or tx_payload data
+		// scheduling will want to make sure that the download metric is closer to equal with request load
+		// stop_scheduling = download.Load() <= request.Load()
+		download.Swap(min(download.Load(), time.Since(measure).Milliseconds()))
 
 		related_info := transaction_result.Txs[0]
 
@@ -362,12 +409,13 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 			counter.Add(1)
 			measure = time.Now()
 			sc = connections.GetSC(params)
-			if time.Since(measure).Milliseconds() > download.Load() {
-				download.Swap(time.Since(measure).Milliseconds())
-			}
-			counter.Add(-1)
-		}
-		// download.Swap(time.Since(measure).Milliseconds())
+
+			// smart contracts and their vars are always going to be big
+			// there might be small code, there might be few vars...
+			// with that said, the name service contract and gnomonSC,
+			// will always push the download metric towards the request limit
+			// stop_scheduling = download.Load() <= request.Load()
+			download.Swap(min(download.Load(), time.Since(measure).Milliseconds()))
 
 		// fmt.Printf("%v\n", sc)
 
