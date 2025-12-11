@@ -45,9 +45,28 @@ const timeout = time.Second * 9 // the world is a really big place
 var RpcClient jrpc2.Client
 
 var Out int
+var Speed = 50
+var Max_preferred_requests = int64(50)
 
+func adjust() {
+
+	total := Out
+
+	ratio := float64(Max_preferred_requests) / float64(total)
+	if ratio != float64(1) {
+		Speed = int(float64(Speed) / float64(ratio))
+	}
+	if Speed < 2 {
+		Speed = 1
+	}
+	if Speed > 1000 {
+		Speed = 1000
+	}
+
+}
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 	Out++
+	adjust()
 	result, err := handleResult[t](method, params)
 	Out--
 	if err != nil {

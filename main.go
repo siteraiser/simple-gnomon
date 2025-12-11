@@ -37,50 +37,28 @@ var sqlite = &SqlStore{}
 var sqlindexer = &Indexer{}
 var UseMem = true
 
-var speed = 40
-var speedaverage = 40
 var inarow = 1
 
 // Request handling
 var Processing = int64(0)
-var Max_allowed = int64(100)
-var Max_preferred_requests = int64(100)
+
+// var Max_allowed = int64(20)
 
 // var BPH = float64(0)
 var Average = float64(0)
 var Bcountstrart time.Time
 
-func adjust() {
-
-	speedorig := speed
-	total := api.Out
-
-	ratio := float64(Max_preferred_requests) / float64(total)
-	if ratio != float64(1) {
-		speed = int(float64(speed) / float64(ratio))
-	}
-	if speed < 2 {
-		speed = 1
-	}
-	if speed > 1000 {
-		speed = 1000
-	}
-
-	speedaverage = (speedaverage + speedorig + speed) / 3
-	speed = speedaverage
-
-}
 func quickAdjust(quickadjust *int, start time.Time) {
 	if *quickadjust%10 == 0 {
 		//10 in a row at 1ms might be too much... tap the brakes
-		if time.Since(Bcountstrart).Milliseconds() < 12 && speed == 1 {
+		if time.Since(Bcountstrart).Milliseconds() < 12 && api.Speed == 1 {
 			fmt.Println("MS. too fast, slowwing a bit", time.Since(Bcountstrart).Milliseconds())
-			speed = inarow
+			api.Speed = inarow
 			inarow++
 			if inarow > 1000 {
-				speed = 1
+				api.Speed = 1
 			} else if inarow > 10 {
-				speed = 2
+				api.Speed = 2
 			}
 
 		} else {
@@ -134,8 +112,8 @@ func start_gnomon_indexer() {
 		}
 
 		quickAdjust(&quickadjust, start)
-		adjust()
-		t, _ := time.ParseDuration(strconv.Itoa(speed) + "ms")
+		//	adjust()
+		t, _ := time.ParseDuration(strconv.Itoa(api.Speed) + "ms")
 		time.Sleep(t)
 		wg.Add(1)
 		go ProcessBlock(&wg, bheight)
@@ -163,9 +141,9 @@ func start_gnomon_indexer() {
 			return
 		}
 
-		speed = 50
-		Max_preferred_requests = 50
-		Max_allowed = 50
+		api.Speed = 50
+		//Max_preferred_requests = 50
+		//Max_allowed = 50
 
 		api.Status_ok = true
 		start_gnomon_indexer() //without saving
@@ -202,21 +180,22 @@ func start_gnomon_indexer() {
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
 	if !api.Status_ok {
-		speed = 50
+		api.Speed = 50
 		return
 	}
+
 	//---- MAIN PRINTOUT
 	show := "Block:" + strconv.Itoa(int(bheight)) +
-		" Max En Route:" + strconv.Itoa(int(Max_preferred_requests)) +
+		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
 		" Actual En Route:" + strconv.Itoa(int(api.Out)) +
-		" Speed:" + strconv.Itoa(speed) + "ms" +
-		" " + strconv.Itoa((1000/speed)*60*60) + "bph"
+		" Speed:" + strconv.Itoa(api.Speed) + "ms" +
+		" " + strconv.Itoa((1000/api.Speed)*60*60) + "bph"
 	if Average != float64(0) {
 		show += " Ave bph:" + strconv.FormatFloat(Average, 'f', 2, 64) + " (last 1000)"
 	}
 
 	fmt.Print("\r", show)
-
+	//adjust()
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
 	})
@@ -230,12 +209,13 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	for _, hash := range bl.Tx_hashes {
 		tx_str_list = append(tx_str_list, hash.String())
 	}
+	//adjust()
 	//	fmt.Println("concreq2:", Processing-int64(bheight))
 	// not a mined transaction
 	r := api.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: tx_str_list})
 	//let the rest go unsaved if one request fails
 	if !api.Status_ok {
-		speed = 50
+		api.Speed = 50
 		return
 	}
 
@@ -247,8 +227,8 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	var wg2 sync.WaitGroup
 
 	for i, tx_hex := range r.Txs_as_hex {
-		adjust()
-		t, _ := time.ParseDuration(strconv.Itoa(speed) + "ms")
+		//adjust()
+		t, _ := time.ParseDuration(strconv.Itoa(api.Speed) + "ms")
 		time.Sleep(t)
 		wg2.Add(1)
 		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
@@ -324,7 +304,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		}
 	}
 
-	adjust()
+	//adjust()
 	sc := api.GetSC(params) //Variables: true,
 
 	vars, err := GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
