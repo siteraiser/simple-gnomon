@@ -358,13 +358,15 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 		}
 
 		var sc rpc.GetSC_Result
-		counter.Add(1)
-		measure = time.Now()
-		sc = connections.GetSC(params)
-		if time.Since(measure).Milliseconds() > download.Load() {
-			download.Swap(time.Since(measure).Milliseconds())
+		if params.SCID != globals.MAINNET_GNOMON_SCID && params.SCID != globals.Hardcoded_SCIDS[0] {
+			counter.Add(1)
+			measure = time.Now()
+			sc = connections.GetSC(params)
+			if time.Since(measure).Milliseconds() > download.Load() {
+				download.Swap(time.Since(measure).Milliseconds())
+			}
+			counter.Add(-1)
 		}
-		counter.Add(-1)
 		// download.Swap(time.Since(measure).Milliseconds())
 
 		// fmt.Printf("%v\n", sc)
