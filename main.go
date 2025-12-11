@@ -45,7 +45,7 @@ var Processing = int64(0)
 // var Max_allowed = int64(20)
 
 // var BPH = float64(0)
-var Average = float64(0)
+
 var Bcountstrart time.Time
 
 func quickAdjust(quickadjust *int, start time.Time) {
@@ -70,7 +70,7 @@ func quickAdjust(quickadjust *int, start time.Time) {
 	}
 	if *quickadjust%1000 == 0 && *quickadjust != 0 && *quickadjust != 1000 {
 
-		Average = (Average + float64(*quickadjust)/time.Since(start).Hours()) / 2
+		api.Average = (api.Average + float64(*quickadjust)/time.Since(start).Hours()) / 2
 
 	}
 
@@ -95,8 +95,8 @@ func start_gnomon_indexer() {
 	//	fmt.Println("starting to index ", api.Get_TopoHeight())
 
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
-	start := time.Now()
-	var quickadjust = 0
+	//start := time.Now()
+	//var quickadjust = 0
 
 	if TargetHeight < HighestKnownHeight-25000 {
 		TargetHeight = lowest_height + 25000
@@ -106,13 +106,13 @@ func start_gnomon_indexer() {
 
 	var wg sync.WaitGroup
 	for bheight := lowest_height; bheight <= TargetHeight; bheight++ { //program.wallet.Get_TopoHeight()
-		Processing = bheight
+		Processing = bheight //maybe remove
 		if !api.Status_ok {
 			break
 		}
 
-		quickAdjust(&quickadjust, start)
-		//	adjust()
+		//	quickAdjust(&quickadjust, start)
+		//api.Adjust()
 		t, _ := time.ParseDuration(strconv.Itoa(api.Speed) + "ms")
 		time.Sleep(t)
 		wg.Add(1)
@@ -177,6 +177,8 @@ func start_gnomon_indexer() {
 
 }
 
+/********************************/
+/********************************/
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
 	if !api.Status_ok {
@@ -185,17 +187,14 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	//---- MAIN PRINTOUT
-	show := "Block:" + strconv.Itoa(int(bheight)) +
-		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
+	show := "Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
 		" Actual En Route:" + strconv.Itoa(int(api.Out)) +
 		" Speed:" + strconv.Itoa(api.Speed) + "ms" +
-		" " + strconv.Itoa((1000/api.Speed)*60*60) + "bph"
-	if Average != float64(0) {
-		show += " Ave bph:" + strconv.FormatFloat(Average, 'f', 2, 64) + " (last 1000)"
-	}
+		" " + strconv.Itoa((1000/api.Speed)*60*60) + "bph" +
+		" Block:" + strconv.Itoa(int(bheight))
 
 	fmt.Print("\r", show)
-	//adjust()
+	//api.Adjust()
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
 	})
@@ -209,7 +208,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	for _, hash := range bl.Tx_hashes {
 		tx_str_list = append(tx_str_list, hash.String())
 	}
-	//adjust()
+	//api.Adjust()
 	//	fmt.Println("concreq2:", Processing-int64(bheight))
 	// not a mined transaction
 	r := api.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: tx_str_list})
@@ -227,7 +226,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	var wg2 sync.WaitGroup
 
 	for i, tx_hex := range r.Txs_as_hex {
-		//adjust()
+		//	api.Adjust()
 		t, _ := time.ParseDuration(strconv.Itoa(api.Speed) + "ms")
 		time.Sleep(t)
 		wg2.Add(1)
@@ -238,6 +237,8 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 }
 
+/********************************/
+/********************************/
 func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int64) {
 	defer wg2.Done()
 
@@ -270,6 +271,9 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	//fmt.Println("\nReq: ", Processing-int64(bheight))
 
 	if tx.TransactionType != transaction.SC_TX {
+		//api.Adjust()
+		//	}(sqlindexer)
+
 		storeHeight(bheight)
 		return
 	}
@@ -304,7 +308,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		}
 	}
 
-	//adjust()
+	//api.Adjust()
 	sc := api.GetSC(params) //Variables: true,
 
 	vars, err := GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)

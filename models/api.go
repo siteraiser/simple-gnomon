@@ -17,16 +17,10 @@ import (
 	"github.com/deroproject/derohe/block"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/walletapi"
-	"github.com/gorilla/websocket"
 	"github.com/ybbus/jsonrpc"
 )
 
-type Client struct {
-	WS  *websocket.Conn
-	RPC *jrpc2.Client
-	sync.RWMutex
-}
-
+var Mutex sync.Mutex
 var Status_ok = true
 
 // var endpoint = "64.226.81.37:10102"
@@ -45,17 +39,15 @@ const timeout = time.Second * 9 // the world is a really big place
 var RpcClient jrpc2.Client
 
 var Out int
-var Speed = 50
-var Max_preferred_requests = int64(50)
+var Speed = 80
+var Max_preferred_requests = int64(80)
+var Average = float64(0)
+var SpeedAverage = float64(50)
 
-func adjust() {
+func Adjust() {
 
-	total := Out
-
-	ratio := float64(Max_preferred_requests) / float64(total)
-	if ratio != float64(1) {
-		Speed = int(float64(Speed) / float64(ratio))
-	}
+	ratio := float64(Max_preferred_requests) / float64(Out)
+	Speed = int(float64(Speed) / float64(ratio))
 	if Speed < 2 {
 		Speed = 1
 	}
@@ -65,10 +57,9 @@ func adjust() {
 
 }
 func callRPC[t any](method string, params any, validator func(t) bool) t {
-	Out++
-	adjust()
+
 	result, err := handleResult[t](method, params)
-	Out--
+
 	if err != nil {
 		//	log.Fatal(err)
 		var zero t
@@ -85,7 +76,7 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 }
 
 var EO = 0
-var Striping = false
+var Striping = true
 
 func handleResult[T any](method string, params any) (T, error) {
 	var result T
@@ -104,13 +95,18 @@ func handleResult[T any](method string, params any) (T, error) {
 	} else {
 		EO = 0
 	}
-
+	Mutex.Lock()
+	Out++
+	Adjust()
+	Mutex.Unlock()
 	if params == nil {
 		err = rpcClient.CallFor(&result, method) // no params argument
 	} else {
 		err = rpcClient.CallFor(&result, method, params)
 	}
-
+	Mutex.Lock()
+	Out--
+	Mutex.Unlock()
 	if err != nil {
 		if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "mismatch") { //Tx statement roothash mismatch ref blid... skip it
 			fmt.Println(err)
