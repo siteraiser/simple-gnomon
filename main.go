@@ -71,7 +71,7 @@ func start_gnomon_indexer() {
 	}
 
 	var wg sync.WaitGroup
-	for bheight := lowest_height; bheight <= TargetHeight; bheight++ { //program.wallet.Get_TopoHeight()
+	for bheight := lowest_height; bheight < TargetHeight; bheight++ { //program.wallet.Get_TopoHeight()
 		Processing = bheight //maybe remove
 		if !api.Status_ok {
 			break
