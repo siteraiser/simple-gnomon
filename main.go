@@ -136,6 +136,10 @@ func start_gnomon_indexer() {
 		sqlite.BackupToDisk()
 	}
 	if TargetHeight == last {
+		if UseMem == false {
+			sqlite.StoreLastIndexHeight(TargetHeight)
+		}
+
 		fmt.Println("All caught up..............................", TargetHeight)
 		t, _ := time.ParseDuration("5s")
 		time.Sleep(t)
