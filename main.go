@@ -42,40 +42,7 @@ var inarow = 1
 // Request handling
 var Processing = int64(0)
 
-// var Max_allowed = int64(20)
-
-// var BPH = float64(0)
-
 var Bcountstrart time.Time
-
-func quickAdjust(quickadjust *int, start time.Time) {
-	if *quickadjust%10 == 0 {
-		//10 in a row at 1ms might be too much... tap the brakes
-		if time.Since(Bcountstrart).Milliseconds() < 12 && api.Speed == 1 {
-			fmt.Println("MS. too fast, slowwing a bit", time.Since(Bcountstrart).Milliseconds())
-			api.Speed = inarow
-			inarow++
-			if inarow > 1000 {
-				api.Speed = 1
-			} else if inarow > 10 {
-				api.Speed = 2
-			}
-
-		} else {
-			inarow = 1
-		}
-
-		Bcountstrart = time.Now()
-
-	}
-	if *quickadjust%1000 == 0 && *quickadjust != 0 && *quickadjust != 1000 {
-
-		api.Average = (api.Average + float64(*quickadjust)/time.Since(start).Hours()) / 2
-
-	}
-
-	*quickadjust++
-}
 
 func start_gnomon_indexer() {
 
@@ -92,8 +59,7 @@ func start_gnomon_indexer() {
 	fmt.Println("SqlIndexer ", sqlindexer)
 
 	//Logger.Info("starting to index ", api.Get_TopoHeight()) // program.wallet.Get_TopoHeight()
-	//	fmt.Println("starting to index ", api.Get_TopoHeight())
-
+	fmt.Println("topoheight ", api.Get_TopoHeight())
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
 	//start := time.Now()
 	//var quickadjust = 0
@@ -109,6 +75,13 @@ func start_gnomon_indexer() {
 		Processing = bheight //maybe remove
 		if !api.Status_ok {
 			break
+		}
+		fmt.Println("\n  processing: ", bheight)
+		fmt.Println("TargetHeight: ", TargetHeight)
+		if bheight > TargetHeight {
+			fmt.Println("\nproceffffssing: ", bheight)
+			fmt.Println("TargetHfffffffffeight: ", TargetHeight)
+			panic("")
 		}
 
 		//	quickAdjust(&quickadjust, start)
@@ -126,8 +99,8 @@ func start_gnomon_indexer() {
 	//adjustSpeed(lowest_height, start)
 
 	//Take a breather
-	t, _ := time.ParseDuration("1s")
-	time.Sleep(t)
+	w, _ := time.ParseDuration("1s")
+	time.Sleep(w)
 
 	//check if there was a missing request
 	if !api.Status_ok { //Start over from last saved.
@@ -154,12 +127,18 @@ func start_gnomon_indexer() {
 	last := HighestKnownHeight
 	HighestKnownHeight = api.Get_TopoHeight()
 
-	fmt.Println("Saving Batch.............................................................")
+	fmt.Println("last:", last)
+	fmt.Println("TargetHeight:", TargetHeight)
+
 	if UseMem {
+		fmt.Println("Saving Batch.............................................................")
+		sqlite.StoreLastIndexHeight(TargetHeight)
 		sqlite.BackupToDisk()
 	}
 	if TargetHeight == last {
-
+		fmt.Println("All caught up..............................", TargetHeight)
+		t, _ := time.ParseDuration("5s")
+		time.Sleep(t)
 		UseMem = false
 
 		// Extract filename
@@ -187,7 +166,8 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	//---- MAIN PRINTOUT
-	show := "Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
+	show := "Block:" + strconv.Itoa(int(bheight)) +
+		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
 		" Actual En Route:" + strconv.Itoa(int(api.Out)) +
 		" Speed:" + strconv.Itoa(api.Speed) + "ms" +
 		" " + strconv.Itoa((1000/api.Speed)*60*60) + "bph" +

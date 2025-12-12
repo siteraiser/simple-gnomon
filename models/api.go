@@ -76,18 +76,18 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 }
 
 var EO = 0
-var Striping = true
+var Striping = false
 
 func handleResult[T any](method string, params any) (T, error) {
 	var result T
-
 	var err error
-
 	var rpcClient jsonrpc.RPCClient
+
 	nodeaddr := "http://" + Endpoints[EO] + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
+
 	if Striping {
-		if EO == 0 { //method == "DERO.GetSC" || method == "DERO.GetTransaction"
+		if EO == 0 {
 			EO = 1
 		} else {
 			EO = 0
@@ -95,25 +95,29 @@ func handleResult[T any](method string, params any) (T, error) {
 	} else {
 		EO = 0
 	}
+
 	Mutex.Lock()
 	Out++
 	Adjust()
 	Mutex.Unlock()
+
 	if params == nil {
 		err = rpcClient.CallFor(&result, method) // no params argument
 	} else {
 		err = rpcClient.CallFor(&result, method, params)
 	}
+
 	Mutex.Lock()
 	Out--
 	Mutex.Unlock()
+
 	if err != nil {
 		if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "mismatch") { //Tx statement roothash mismatch ref blid... skip it
 			fmt.Println(err)
 
 			var zero T
 			return zero, err
-		} else if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "too many") {
+		} else if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "many parameters") { //try to catch deronode.net non-standard error... check this
 			fmt.Println(err)
 			log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
 		} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+nodeaddr+")") {
@@ -143,6 +147,9 @@ func GetTransaction(params rpc.GetTransaction_Params) rpc.GetTransaction_Result 
 
 func GetBlockInfo(params rpc.GetBlock_Params) rpc.GetBlock_Result {
 	validator := func(r rpc.GetBlock_Result) bool {
+		if r.Block_Header.Depth == 0 {
+
+		}
 		return r.Block_Header.Depth != 0
 	}
 	result := callRPC("DERO.GetBlock", params, validator)
