@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -39,18 +38,13 @@ const timeout = time.Second * 9 // the world is a really big place
 // const gnomonSC = `a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4`
 var RpcClient jrpc2.Client
 
-func Init() {
-	go regulate()
-}
+func Ask() bool {
 
-func regulate() {
 	for {
-		//fmt.Printf("%v+\n", time.Now())
+
 		time.Sleep(time.Millisecond)
-		if Out >= int(Max_preferred_requests) {
-			Blocked = true
-		} else {
-			Blocked = false
+		if Out < int(Max_preferred_requests) {
+			return true
 		}
 	}
 }
@@ -63,7 +57,7 @@ var Average = float64(0)
 var SpeedAverage = float64(50)
 
 func Adjust() {
-	fmt.Println(" Actual En Route:", strconv.Itoa(int(Out)))
+	//	fmt.Println(" Actual En Route:", strconv.Itoa(int(Out)))
 	//	offset := int(Max_preferred_requests) - Out
 	/*	if Out >= int(Max_preferred_requests) {
 			Speed = 10000

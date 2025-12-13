@@ -27,7 +27,6 @@ func main() {
 		fmt.Println("[Main] Err creating sqlite:", err)
 		return
 	}
-	api.Init()
 	start_gnomon_indexer()
 }
 
@@ -71,19 +70,18 @@ func start_gnomon_indexer() {
 	}
 
 	var wg sync.WaitGroup
-	for bheight := lowest_height; bheight < TargetHeight; { //program.wallet.Get_TopoHeight()
+	for bheight := lowest_height; bheight < TargetHeight; bheight++ { //program.wallet.Get_TopoHeight()
 		Processing = bheight //maybe remove
 		if !api.Status_ok {
 			break
 		}
-		if api.Blocked {
-			continue
-		}
-		api.Blocked = true
+
+		api.Ask()
+
 		bheight++
 		//	quickAdjust(&quickadjust, start)
 		//api.Adjust()
-
+		time.Sleep(time.Millisecond)
 		wg.Add(1)
 		go ProcessBlock(&wg, bheight)
 
@@ -175,9 +173,13 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	fmt.Print("\r", show)
 	//api.Adjust()
+
+	api.Ask()
+
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
 	})
+
 	//fmt.Println("result", result)
 	bl := api.GetBlockDeserialized(result.Blob)
 
@@ -192,7 +194,10 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	//	fmt.Println("concreq2:", Processing-int64(bheight))
 	// not a mined transaction
 
+	api.Ask()
+
 	r := api.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: tx_str_list})
+
 	//let the rest go unsaved if one request fails
 	if !api.Status_ok {
 		api.Speed = 50
@@ -207,10 +212,9 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	var wg2 sync.WaitGroup
 
 	for i, tx_hex := range r.Txs_as_hex {
-		//	api.Adjust()
-		if api.Blocked {
-			continue
-		}
+
+		api.Ask()
+
 		wg2.Add(1)
 		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
 	}
