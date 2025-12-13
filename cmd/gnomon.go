@@ -309,18 +309,41 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 
 	}
 
-	if len(txs) == 0 {
+	tx_count := len(txs)
+
+	if tx_count == 0 {
 		return
 	}
-	for _, each := range txs {
 
-		measure := time.Now()
-		transaction_result := connections.GetTransaction(rpc.GetTransaction_Params{ // presumably,
+	batch_size := 5
+	batch_count := int(math.Ceil(float64(tx_count) / float64(batch_size)))
+	var to_process = make([][]rpc.GetTransaction_Result, batch_count)
+
+	for i := range batch_count {
+		var transaction_result rpc.GetTransaction_Result
+
+		fmt.Println((batch_size * i) + batch_size)
+		if i == batch_count-1 {
+			batch_size = len(txs)
+		}
+		transaction_result = connections.GetTransaction(rpc.GetTransaction_Params{ // presumably,
 			// one could pass an array of transaction hashes...
 			// but noooooooo.... that's a vector for spam...
 			// so we'll do this one at a time
-			Tx_Hashes: []string{each},
+
+			Tx_Hashes: txs[batch_size*i : (batch_size*i)+batch_size],
 		})
+
+		to_process[i] = append(to_process[i], transaction_result)
+	}
+
+	var i = 0
+	for _, transaction_results := range to_process {
+
+		transaction_result := transaction_results[i]
+		i++
+		measure := time.Now()
+
 		// transactions are almost always the same size,
 		// except for when they have stuff in them: like sc_data or tx_payload data
 		// scheduling will want to make sure that the download metric is closer to equal with request load
