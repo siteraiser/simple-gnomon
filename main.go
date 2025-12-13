@@ -134,6 +134,27 @@ func start_gnomon_indexer() {
 
 /********************************/
 /********************************/
+func getSpeed() int {
+	t := time.Now()
+
+	if len(PriorTimes) > 1000 {
+		PriorTimes = PriorTimes[1000:]
+	}
+	PriorTimes = append(PriorTimes, time.Since(LastTime).Milliseconds())
+	total := int64(0)
+	for _, ti := range PriorTimes {
+		total += ti
+	}
+
+	LastTime = t
+
+	value := int64(total) / int64(len(PriorTimes))
+	return int(value)
+}
+
+var LastTime = time.Now()
+var PriorTimes []int64
+
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
 	if !api.Status_ok {
@@ -144,14 +165,12 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	show := "Block:" + strconv.Itoa(int(bheight)) +
 		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
 		" Actual En Route:" + strconv.Itoa(int(api.Out)) +
-		" Speed:" + strconv.Itoa(api.Speed) + "ms" +
-		" " + strconv.Itoa((1000/api.Speed)*60*60) + "bph"
+		" Speed:" + strconv.Itoa(getSpeed()) + "ms"
+	//	" " + strconv.Itoa((1000/api.Speed)*60*60) + "bph"
 
 	fmt.Print("\r", show)
-	//api.Adjust()
 
 	api.Ask()
-
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
 	})
@@ -166,12 +185,11 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	for _, hash := range bl.Tx_hashes {
 		tx_str_list = append(tx_str_list, hash.String())
 	}
-	//api.Adjust()
+
 	//	fmt.Println("concreq2:", Processing-int64(bheight))
 	// not a mined transaction
 
 	api.Ask()
-
 	r := api.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: tx_str_list})
 
 	//let the rest go unsaved if one request fails
@@ -187,9 +205,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	var wg2 sync.WaitGroup
 
 	for i, tx_hex := range r.Txs_as_hex {
-
 		api.Ask()
-
 		wg2.Add(1)
 		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
 	}

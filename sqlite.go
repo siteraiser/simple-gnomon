@@ -211,6 +211,9 @@ func handleError(err error) {
 func (ss *SqlStore) ViewTables() {
 	fmt.Println("\nOpen: ", sqlite.DBPath)
 	hard, err := sql.Open("sqlite3", sqlite.DBPath)
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer hard.Close()
 	/// check tables
 	/*	*/

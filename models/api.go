@@ -48,14 +48,13 @@ func Ask() bool {
 }
 
 var Out int
-var Speed = 10
 var Max_preferred_requests = int64(10)
+var Speed = 0
 var Average = float64(0)
-var SpeedAverage = float64(50)
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 
-	result, err := handleResult[t](method, params)
+	result, err := getResult[t](method, params)
 
 	if err != nil {
 		//	log.Fatal(err)
@@ -75,7 +74,7 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 var EO = 0
 var Striping = false
 
-func handleResult[T any](method string, params any) (T, error) {
+func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var err error
 	var rpcClient jsonrpc.RPCClient
@@ -143,9 +142,6 @@ func GetTransaction(params rpc.GetTransaction_Params) rpc.GetTransaction_Result 
 
 func GetBlockInfo(params rpc.GetBlock_Params) rpc.GetBlock_Result {
 	validator := func(r rpc.GetBlock_Result) bool {
-		if r.Block_Header.Depth == 0 {
-			fmt.Println(r)
-		}
 		return r.Block_Header.Depth != 0
 	}
 	result := callRPC("DERO.GetBlock", params, validator)
