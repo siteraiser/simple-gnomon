@@ -45,16 +45,23 @@ var Average = float64(0)
 var SpeedAverage = float64(50)
 
 func Adjust() {
-
-	ratio := float64(Max_preferred_requests) / float64(Out)
-	Speed = int(float64(Speed) / float64(ratio))
-	if Speed < 2 {
+	offset := int(Max_preferred_requests) - Out
+	if offset > 0 {
 		Speed = 1
-	}
-	if Speed > 1000 {
+	} else {
 		Speed = 1000
 	}
+	/*
 
+		ratio := float64(Max_preferred_requests) / float64(Out)
+		Speed = int(float64(Speed) / float64(ratio))
+		if Speed < 2 {
+			Speed = 1
+		}
+		if Speed > 1000 {
+			Speed = 1000
+		}
+	*/
 }
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 
@@ -148,7 +155,7 @@ func GetTransaction(params rpc.GetTransaction_Params) rpc.GetTransaction_Result 
 func GetBlockInfo(params rpc.GetBlock_Params) rpc.GetBlock_Result {
 	validator := func(r rpc.GetBlock_Result) bool {
 		if r.Block_Header.Depth == 0 {
-
+			fmt.Println(r)
 		}
 		return r.Block_Header.Depth != 0
 	}
