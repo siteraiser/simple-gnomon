@@ -77,8 +77,6 @@ func start_gnomon_indexer() {
 			break
 		}
 		if api.Blocked {
-			t, _ := time.ParseDuration("1ms")
-			time.Sleep(t)
 			continue
 		}
 		api.Blocked = true
@@ -193,6 +191,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	//api.Adjust()
 	//	fmt.Println("concreq2:", Processing-int64(bheight))
 	// not a mined transaction
+
 	r := api.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: tx_str_list})
 	//let the rest go unsaved if one request fails
 	if !api.Status_ok {
@@ -209,8 +208,9 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	for i, tx_hex := range r.Txs_as_hex {
 		//	api.Adjust()
-		t, _ := time.ParseDuration(strconv.Itoa(api.Speed) + "ms")
-		time.Sleep(t)
+		if api.Blocked {
+			continue
+		}
 		wg2.Add(1)
 		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
 	}
