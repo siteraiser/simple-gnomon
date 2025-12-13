@@ -77,8 +77,6 @@ func start_gnomon_indexer() {
 		}
 
 		api.Ask()
-
-		bheight++
 		//	quickAdjust(&quickadjust, start)
 		//api.Adjust()
 		time.Sleep(time.Millisecond)

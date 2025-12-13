@@ -39,9 +39,7 @@ const timeout = time.Second * 9 // the world is a really big place
 var RpcClient jrpc2.Client
 
 func Ask() bool {
-
 	for {
-
 		time.Sleep(time.Millisecond)
 		if Out < int(Max_preferred_requests) {
 			return true
@@ -118,7 +116,6 @@ func handleResult[T any](method string, params any) (T, error) {
 
 	Mutex.Lock()
 	Out++
-	Adjust()
 	Mutex.Unlock()
 
 	if params == nil {
