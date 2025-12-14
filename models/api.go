@@ -47,16 +47,13 @@ func Ask() bool {
 	for {
 		time.Sleep(time.Millisecond * 1)
 		if Out2[Endpoints[0]] < int(Max_preferred_requests) {
-			Mutex.Lock()
 			current_endpoint = Endpoints[0]
-			Mutex.Unlock()
 			return true
 		} else if Out2[Endpoints[1]] < int(Max_preferred_requests) {
-			Mutex.Lock()
 			current_endpoint = Endpoints[1]
-			Mutex.Unlock()
 			return true
 		}
+
 	}
 }
 
@@ -101,16 +98,16 @@ func getResult[T any](method string, params any) (T, error) {
 	Mutex.Unlock()
 
 	if params == nil {
-		if current_endpoint == Endpoints[0] {
+		if this_end_point == Endpoints[0] {
 			err = rpcClient1.CallFor(&result, method) // no params argument
-		} else if current_endpoint == Endpoints[1] {
+		} else if this_end_point == Endpoints[1] {
 			err = rpcClient2.CallFor(&result, method) // no params argument
 		}
 	} else {
 
-		if current_endpoint == Endpoints[0] {
+		if this_end_point == Endpoints[0] {
 			err = rpcClient1.CallFor(&result, method, params) // no params argument
-		} else if current_endpoint == Endpoints[1] {
+		} else if this_end_point == Endpoints[1] {
 			err = rpcClient2.CallFor(&result, method, params) // no params argument
 		}
 
