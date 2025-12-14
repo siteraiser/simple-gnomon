@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
-	"math"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -194,66 +193,66 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	// not a mined transaction
 
-	//api.Ask()
-	//r := api.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: tx_str_list})
+	api.Ask()
+	r := api.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: tx_str_list})
 
 	//---------------
-	/**/
-	tx_count := len(tx_str_list)
+	/*
+		tx_count := len(tx_str_list)
 
-	if tx_count == 0 {
+		if tx_count == 0 {
+			return
+		}
+		fmt.Println("-------tx_str_list", tx_str_list)
+		process_count := 0
+		batch_size := 4
+		//Find total number of batches
+		batch_count := int(math.Ceil(float64(tx_count) / float64(batch_size)))
+		//Make an array to hold the result sets
+		var r rpc.GetTransaction_Result
+		//Go through the array of batches and collect the results
+		for i := range batch_count {
+			process_count = 0
+			var transaction_result rpc.GetTransaction_Result
+			end := batch_size * i
+			if i == batch_count-1 {
+				end = len(tx_str_list)
+			}
+			api.Ask()
+			transaction_result = api.GetTransaction(rpc.GetTransaction_Params{ // presumably,
+				// one could pass an array of transaction hashes...
+				// but noooooooo.... that's a vector for spam...
+				// so we'll do this one at a time
+
+				Tx_Hashes: tx_str_list[batch_size*i : end],
+			})
+			//	fmt.Println("txs[batch_size*i : ]", batch_size*i)
+			//	fmt.Println("txs[: end]", end)
+			//	fmt.Println("transaction_result", transaction_result)
+			process_count += len(transaction_result.Txs)
+			fmt.Println("-------r", r)
+			//--------------------------
+	*/
+	//let the rest go unsaved if one request fails
+	if !api.Status_ok {
 		return
 	}
 
-	process_count := 0
-	batch_size := 4
-	//Find total number of batches
-	batch_count := int(math.Ceil(float64(tx_count) / float64(batch_size)))
-	//Make an array to hold the result sets
-	var r rpc.GetTransaction_Result
-	//Go through the array of batches and collect the results
-	for i := range batch_count {
-		process_count = 0
-		var transaction_result rpc.GetTransaction_Result
-		end := batch_size * i
-		if i == batch_count-1 {
-			end = len(tx_str_list)
-		}
-		api.Ask()
-		transaction_result = api.GetTransaction(rpc.GetTransaction_Params{ // presumably,
-			// one could pass an array of transaction hashes...
-			// but noooooooo.... that's a vector for spam...
-			// so we'll do this one at a time
-
-			Tx_Hashes: tx_str_list[batch_size*i : end],
-		})
-		//	fmt.Println("txs[batch_size*i : ]", batch_size*i)
-		//	fmt.Println("txs[: end]", end)
-		//	fmt.Println("transaction_result", transaction_result)
-		process_count += len(transaction_result.Txs)
-
-		//--------------------------
-
-		//let the rest go unsaved if one request fails
-		if !api.Status_ok {
-			return
-		}
-
-		//likely an error
-		if len(r.Txs_as_hex) == 0 {
-			return
-		}
-
-		var wg2 sync.WaitGroup
-
-		for i, tx_hex := range r.Txs_as_hex {
-			api.Ask()
-			wg2.Add(1)
-			go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
-		}
-
-		wg2.Wait()
+	//likely an error
+	if len(r.Txs_as_hex) == 0 {
+		return
 	}
+
+	var wg2 sync.WaitGroup
+
+	for i, tx_hex := range r.Txs_as_hex {
+		api.Ask()
+		wg2.Add(1)
+		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
+	}
+
+	wg2.Wait()
+	//	}
 }
 
 /********************************/
