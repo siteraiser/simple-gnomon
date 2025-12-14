@@ -30,6 +30,9 @@ var Status_ok = true
 var Endpoints = [2]string{"node.derofoundation.org:11012", "64.226.81.37:10102"} //
 //var endpoint = 0
 
+var rpcClient1 = jsonrpc.NewClient("http://" + Endpoints[0] + "/json_rpc")
+var rpcClient2 = jsonrpc.NewClient("http://" + Endpoints[1] + "/json_rpc")
+
 // simple way to set timeouts
 const timeout = time.Second * 9 // the world is a really big place
 //const deadline = time.Second * 300 // some content is just bigger
@@ -37,20 +40,32 @@ const timeout = time.Second * 9 // the world is a really big place
 // simple way to identify gnomon
 // const gnomonSC = `a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4`
 var RpcClient jrpc2.Client
+var current_endpoint = Endpoints[0]
 
 func Ask() bool {
+
 	for {
-		time.Sleep(time.Millisecond)
-		if Out < int(Max_preferred_requests) {
+		time.Sleep(time.Millisecond * 1)
+		if Out2[Endpoints[0]] < int(Max_preferred_requests) {
+			Mutex.Lock()
+			current_endpoint = Endpoints[0]
+			Mutex.Unlock()
+			return true
+		} else if Out2[Endpoints[1]] < int(Max_preferred_requests) {
+			Mutex.Lock()
+			current_endpoint = Endpoints[1]
+			Mutex.Unlock()
 			return true
 		}
 	}
 }
 
-var Out int
-var Max_preferred_requests = int64(10)
+var Out2 = make(map[string]int)
+
+var Max_preferred_requests = int64(4)
 var Speed = 0
 var Average = float64(0)
+var Striping = true
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 
@@ -72,38 +87,37 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 }
 
 var EO = 0
-var Striping = false
 
 func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var err error
-	var rpcClient jsonrpc.RPCClient
-
-	nodeaddr := "http://" + Endpoints[EO] + "/json_rpc"
-	rpcClient = jsonrpc.NewClient(nodeaddr)
-
-	if Striping {
-		if EO == 0 {
-			EO = 1
-		} else {
-			EO = 0
-		}
-	} else {
-		EO = 0
-	}
 
 	Mutex.Lock()
-	Out++
+	this_end_point := current_endpoint
+	Mutex.Unlock()
+
+	Mutex.Lock()
+	Out2[this_end_point]++
 	Mutex.Unlock()
 
 	if params == nil {
-		err = rpcClient.CallFor(&result, method) // no params argument
+		if current_endpoint == Endpoints[0] {
+			err = rpcClient1.CallFor(&result, method) // no params argument
+		} else if current_endpoint == Endpoints[1] {
+			err = rpcClient2.CallFor(&result, method) // no params argument
+		}
 	} else {
-		err = rpcClient.CallFor(&result, method, params)
+
+		if current_endpoint == Endpoints[0] {
+			err = rpcClient1.CallFor(&result, method, params) // no params argument
+		} else if current_endpoint == Endpoints[1] {
+			err = rpcClient2.CallFor(&result, method, params) // no params argument
+		}
+
 	}
 
 	Mutex.Lock()
-	Out--
+	Out2[this_end_point]--
 	Mutex.Unlock()
 
 	if err != nil {
@@ -114,12 +128,12 @@ func getResult[T any](method string, params any) (T, error) {
 			return zero, err
 		} else if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "many parameters") { //try to catch deronode.net non-standard error... check this
 			fmt.Println(err)
-			log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
-		} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+nodeaddr+")") {
+			//	log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
+		} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed") {
 			//maybe handle connection errors here with a cancel / rollback instead.
 			Status_ok = false
-			fmt.Println(err)
-			//	log.Fatal(err)
+			//	fmt.Println(err)
+			log.Fatal(err)
 		}
 	}
 
