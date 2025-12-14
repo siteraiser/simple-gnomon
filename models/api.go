@@ -132,8 +132,10 @@ func Get_TopoHeight() int64 {
 	result := callRPC("DERO.GetInfo", nil, validator)
 	return result.TopoHeight
 }
+
 func GetTransaction(params rpc.GetTransaction_Params) rpc.GetTransaction_Result {
 	validator := func(r rpc.GetTransaction_Result) bool {
+
 		return r.Status != ""
 	}
 	result := callRPC("DERO.GetTransaction", params, validator)
