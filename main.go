@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -164,15 +163,17 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	//---- MAIN PRINTOUT
 	s := getSpeed()
-	speedms := strconv.Itoa(s)
-	speedbph := strconv.Itoa((1000 / s) * 60 * 60)
-	show := "Block:" + strconv.Itoa(int(bheight)) +
-		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
-		" Actual En Route:" + strconv.Itoa(int(api.Out)) +
-		" Speed:" + speedms + "ms" +
-		" " + speedbph + "bph"
-
-	fmt.Print("\r", show)
+	speedms := s
+	speedbph := (1000 / s) * 60 * 60
+	format := "Block: %d Max En Route: %d Actual En Route: %d Speed: %d ms %dbph\r"
+	a := []any{
+		bheight,
+		api.Max_preferred_requests,
+		api.Out,
+		speedms,
+		speedbph,
+	}
+	fmt.Printf(format, a...)
 
 	api.Ask()
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
