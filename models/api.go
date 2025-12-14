@@ -22,16 +22,10 @@ import (
 var Mutex sync.Mutex
 var Status_ok = true
 
-// var endpoint = "64.226.81.37:10102"
-
-// 64.226.81.37:10102
-// var endpoint = "node.derofoundation.org:11012"
-var Endpoints = [2]string{"node.derofoundation.org:11012", "64.226.81.37:10102"} //
-//var endpoint = 0
+var Endpoints = [2]string{"node.derofoundation.org:11012", "64.226.81.37:10102"}
 
 // simple way to set timeouts
 const timeout = time.Second * 9 // the world is a really big place
-//const deadline = time.Second * 300 // some content is just bigger
 
 // simple way to identify gnomon
 // const gnomonSC = `a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4`
@@ -41,13 +35,11 @@ var current_endpoint = Endpoints[0]
 func Ask() bool {
 
 	for {
-		time.Sleep(time.Millisecond * 20)
+		time.Sleep(time.Millisecond * 2)
 		if Out1 < int(Max_preferred_requests) {
-
 			Mutex.Lock()
 			current_endpoint = Endpoints[0]
 			Mutex.Unlock()
-
 			return true
 		} else if Out2 < int(Max_preferred_requests) {
 			Mutex.Lock()
@@ -59,30 +51,9 @@ func Ask() bool {
 	}
 }
 
-// var Out = make(map[string]int)
 var Out1 = 0
 var Out2 = 0
 
-/*
-	rpcClient1 = jsonrpc.NewClientWithOpts("http://"+this_end_point+"/json_rpc", &jsonrpc.RPCClientOpts{
-		HTTPClient: &http.Client{
-			Timeout: 20 * time.Second,
-		},
-	})
-
-//var RpcClient jrpc2.Client
-
-	func Ask() bool {
-		for {
-			time.Sleep(time.Millisecond)
-			if Out < int(Max_preferred_requests) {
-				return true
-			}
-		}
-	}
-
-var Out int
-*/
 var Max_preferred_requests = int64(10)
 var Speed = 0
 var Average = float64(0)
