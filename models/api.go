@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -307,6 +308,64 @@ func GetSCIDImageURLFromVars(keys map[string]interface{}) string {
 	}
 	return text
 }
+
+func GetSCHeaderFromMetaData(keys map[string]any) (string, string, string) {
+
+	var name, description, image string
+
+	for key, value := range keys {
+
+		k := strings.ToLower(key)
+		if !strings.Contains(k, "metadata") || key == "metadataFormat" {
+			continue
+		}
+
+		v, ok := value.(string)
+		if !ok {
+			continue
+		}
+
+		b, e := hex.DecodeString(v)
+		if e != nil {
+			continue // what else can we do ?
+		}
+
+		var metadata map[string]any
+		if err := json.Unmarshal(b, &metadata); err != nil {
+			fmt.Println(err, k, string(b))
+			continue
+		}
+
+		v, ok = metadata["name"].(string)
+		if !ok {
+			name = ""
+		} else {
+			name = v
+		}
+
+		b, e = json.Marshal(metadata["attributes"])
+		if e != nil {
+			description = ""
+		} else {
+			description = string(b)
+		}
+
+		v, ok = metadata["image"].(string)
+		if !ok {
+			image = ""
+		}
+		u, err := url.Parse(v)
+		if err != nil {
+			image = ""
+		} else {
+			image = u.String()
+		}
+
+	}
+
+	return name, description, image
+}
+
 func GetBlockDeserialized(blob string) block.Block {
 
 	var bl block.Block

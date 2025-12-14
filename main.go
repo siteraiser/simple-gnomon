@@ -340,6 +340,11 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	scdesc := api.GetSCDescriptionFromVars(kv)
 	scimgurl := api.GetSCIDImageURLFromVars(kv)
 
+	// for the case of g45
+	if scname == "" && scdesc == "" && scimgurl == "" {
+		scname, scdesc, scimgurl = api.GetSCHeaderFromMetaData(kv)
+	}
+
 	//	fmt.Println("headers", headers)
 	tags := ""
 	class := ""
