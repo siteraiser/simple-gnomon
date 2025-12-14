@@ -58,7 +58,7 @@ func Ask() bool {
 
 var Out2 = make(map[string]int)
 
-var Max_preferred_requests = int64(4)
+var Max_preferred_requests = int64(2)
 var Speed = 0
 var Average = float64(0)
 var Striping = true
