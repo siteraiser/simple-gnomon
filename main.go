@@ -102,12 +102,13 @@ func start_gnomon_indexer() {
 
 	fmt.Println("last:", last)
 	fmt.Println("TargetHeight:", TargetHeight)
-
+	measure := time.Now()
 	if UseMem {
 		fmt.Println("Saving Batch.............................................................")
 		sqlite.StoreLastIndexHeight(TargetHeight)
 		sqlite.BackupToDisk()
 	}
+	fmt.Println("Backup time", time.Since(measure))
 	if TargetHeight == last {
 		if UseMem == false {
 			sqlite.StoreLastIndexHeight(TargetHeight)
@@ -169,7 +170,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	a := []any{
 		bheight,
 		api.Max_preferred_requests,
-		api.Out2,
+		api.Out2["64.226.81.37:10102"] + api.Out2["node.derofoundation.org:11012"],
 		speedms,
 		speedbph,
 	}
