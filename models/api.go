@@ -30,9 +30,6 @@ var Status_ok = true
 var Endpoints = [2]string{"node.derofoundation.org:11012", "64.226.81.37:10102"} //
 //var endpoint = 0
 
-var rpcClient1 = jsonrpc.NewClient("http://" + Endpoints[0] + "/json_rpc")
-var rpcClient2 = jsonrpc.NewClient("http://" + Endpoints[1] + "/json_rpc")
-
 // simple way to set timeouts
 const timeout = time.Second * 9 // the world is a really big place
 //const deadline = time.Second * 300 // some content is just bigger
@@ -45,7 +42,7 @@ var current_endpoint = Endpoints[0]
 func Ask() bool {
 
 	for {
-		time.Sleep(time.Millisecond * 1)
+		time.Sleep(time.Millisecond * 2)
 		if Out2[Endpoints[0]] < int(Max_preferred_requests) {
 			current_endpoint = Endpoints[0]
 			return true
@@ -59,7 +56,7 @@ func Ask() bool {
 
 var Out2 = make(map[string]int)
 
-var Max_preferred_requests = int64(4)
+var Max_preferred_requests = int64(2)
 var Speed = 0
 var Average = float64(0)
 var Striping = true
@@ -92,11 +89,12 @@ func getResult[T any](method string, params any) (T, error) {
 	Mutex.Lock()
 	this_end_point := current_endpoint
 	Mutex.Unlock()
+	rpcClient1 := jsonrpc.NewClient("http://" + Endpoints[0] + "/json_rpc")
+	rpcClient2 := jsonrpc.NewClient("http://" + Endpoints[1] + "/json_rpc")
 
 	Mutex.Lock()
 	Out2[this_end_point]++
 	Mutex.Unlock()
-
 	if params == nil {
 		if this_end_point == Endpoints[0] {
 			err = rpcClient1.CallFor(&result, method) // no params argument
@@ -112,7 +110,6 @@ func getResult[T any](method string, params any) (T, error) {
 		}
 
 	}
-
 	Mutex.Lock()
 	Out2[this_end_point]--
 	Mutex.Unlock()
