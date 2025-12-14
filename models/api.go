@@ -47,10 +47,14 @@ func Ask() bool {
 	for {
 		time.Sleep(time.Millisecond * 1)
 		if Out2[Endpoints[0]] < int(Max_preferred_requests) {
+			Mutex.Lock()
 			current_endpoint = Endpoints[0]
+			Mutex.Unlock()
 			return true
 		} else if Out2[Endpoints[1]] < int(Max_preferred_requests) {
+			Mutex.Lock()
 			current_endpoint = Endpoints[1]
+			Mutex.Unlock()
 			return true
 		}
 	}
@@ -58,7 +62,7 @@ func Ask() bool {
 
 var Out2 = make(map[string]int)
 
-var Max_preferred_requests = int64(2)
+var Max_preferred_requests = int64(4)
 var Speed = 0
 var Average = float64(0)
 var Striping = true
