@@ -309,11 +309,38 @@ func indexing(workers map[string]*indexer.Worker, indices map[string][]string, h
 
 	}
 
-	if len(txs) == 0 {
+	tx_count := len(txs)
+
+	if tx_count == 0 {
 		return
 	}
-	for _, each := range txs {
 
+	batch_size := 5
+	batch_count := int(math.Ceil(float64(tx_count) / float64(batch_size)))
+	var to_process = make([][]rpc.GetTransaction_Result, batch_count)
+
+	for i := range batch_count {
+		var transaction_result rpc.GetTransaction_Result
+
+		if i == batch_count-1 {
+			batch_size = len(txs) - batch_size*i
+		}
+		transaction_result = connections.GetTransaction(rpc.GetTransaction_Params{ // presumably,
+			// one could pass an array of transaction hashes...
+			// but noooooooo.... that's a vector for spam...
+			// so we'll do this one at a time
+
+			Tx_Hashes: txs[batch_size*i : (batch_size*i)+batch_size],
+		})
+
+		to_process[i] = append(to_process[i], transaction_result)
+	}
+
+	var i = 0
+	for _, transaction_results := range to_process {
+
+		transaction_result := transaction_results[i]
+		i++
 		measure := time.Now()
 		transaction_result := connections.GetTransaction(rpc.GetTransaction_Params{ // presumably,
 			// one could pass an array of transaction hashes...
