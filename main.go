@@ -148,8 +148,10 @@ func getSpeed() int {
 	}
 
 	LastTime = t
-
-	value := int64(total) / int64(len(PriorTimes))
+	value := int64(0)
+	if len(PriorTimes) != 0 {
+		value = int64(total) / int64(len(PriorTimes))
+	}
 	return int(value)
 }
 
