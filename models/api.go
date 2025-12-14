@@ -37,17 +37,24 @@ const timeout = time.Second * 9 // the world is a really big place
 // simple way to identify gnomon
 // const gnomonSC = `a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4`
 var RpcClient jrpc2.Client
+var current_endpoint = Endpoints[0]
 
 func Ask() bool {
+
 	for {
 		time.Sleep(time.Millisecond)
-		if Out < int(Max_preferred_requests) {
+		if Out2[Endpoints[0]] < int(Max_preferred_requests) {
+			current_endpoint = Endpoints[0]
+			return true
+		} else if Out2[Endpoints[1]] < int(Max_preferred_requests) {
+			current_endpoint = Endpoints[1]
 			return true
 		}
 	}
 }
 
-var Out int
+var Out2 = make(map[string]int)
+
 var Max_preferred_requests = int64(10)
 var Speed = 0
 var Average = float64(0)
@@ -78,32 +85,32 @@ func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var err error
 	var rpcClient jsonrpc.RPCClient
-
-	nodeaddr := "http://" + Endpoints[EO] + "/json_rpc"
+	this_endPoint := current_endpoint
+	nodeaddr := "http://" + this_endPoint + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
-
-	if Striping {
-		if EO == 0 {
-			EO = 1
+	/*
+		if Striping {
+			if EO == 0 {
+				EO = 1
+			} else {
+				EO = 0
+			}
 		} else {
 			EO = 0
 		}
-	} else {
-		EO = 0
-	}
-
+	*/
 	Mutex.Lock()
-	Out++
+	Out2[this_endPoint]++
 	Mutex.Unlock()
-
 	if params == nil {
 		err = rpcClient.CallFor(&result, method) // no params argument
 	} else {
 		err = rpcClient.CallFor(&result, method, params)
+
 	}
 
 	Mutex.Lock()
-	Out--
+	Out2[this_endPoint]--
 	Mutex.Unlock()
 
 	if err != nil {

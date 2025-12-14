@@ -166,9 +166,10 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	s := getSpeed()
 	speedms := strconv.Itoa(s)
 	speedbph := strconv.Itoa((1000 / s) * 60 * 60)
+
 	show := "Block:" + strconv.Itoa(int(bheight)) +
 		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
-		" Actual En Route:" + strconv.Itoa(int(api.Out)) +
+		" Actual En Route:" + strconv.Itoa(int(api.Out2[api.Endpoints[0]]+api.Out2[api.Endpoints[1]])) +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph"
 
