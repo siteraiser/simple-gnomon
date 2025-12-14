@@ -171,7 +171,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	show := "Block:" + strconv.Itoa(int(bheight)) +
 		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
-		" Actual En Route:" + strconv.Itoa(int(api.Out2[api.Endpoints[0]]+api.Out2[api.Endpoints[1]])) +
+		" Actual En Route:" + strconv.Itoa(int(api.Out)) + //api.Out2[api.Endpoints[0]]+api.Out2[api.Endpoints[1]]
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph"
 
