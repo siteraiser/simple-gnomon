@@ -172,7 +172,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	a := []any{
 		bheight,
 		api.Max_preferred_requests,
-		api.Out2["64.226.81.37:10102"] + api.Out2["node.derofoundation.org:11012"],
+		api.Out1 + api.Out2,
 		speedms,
 		speedbph,
 	}

@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/creachadair/jrpc2"
 	"github.com/deroproject/derohe/block"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/walletapi"
@@ -36,30 +35,57 @@ const timeout = time.Second * 9 // the world is a really big place
 
 // simple way to identify gnomon
 // const gnomonSC = `a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4`
-var RpcClient jrpc2.Client
+
 var current_endpoint = Endpoints[0]
 
 func Ask() bool {
 
 	for {
-		time.Sleep(time.Millisecond * 2)
-		if Out2[Endpoints[0]] < int(Max_preferred_requests) {
+		time.Sleep(time.Millisecond * 20)
+		if Out1 < int(Max_preferred_requests) {
+
+			Mutex.Lock()
 			current_endpoint = Endpoints[0]
+			Mutex.Unlock()
+
 			return true
-		} else if Out2[Endpoints[1]] < int(Max_preferred_requests) {
+		} else if Out2 < int(Max_preferred_requests) {
+			Mutex.Lock()
 			current_endpoint = Endpoints[1]
+			Mutex.Unlock()
 			return true
 		}
 
 	}
 }
 
-var Out2 = make(map[string]int)
+// var Out = make(map[string]int)
+var Out1 = 0
+var Out2 = 0
 
-var Max_preferred_requests = int64(2)
+/*
+	rpcClient1 = jsonrpc.NewClientWithOpts("http://"+this_end_point+"/json_rpc", &jsonrpc.RPCClientOpts{
+		HTTPClient: &http.Client{
+			Timeout: 20 * time.Second,
+		},
+	})
+
+//var RpcClient jrpc2.Client
+
+	func Ask() bool {
+		for {
+			time.Sleep(time.Millisecond)
+			if Out < int(Max_preferred_requests) {
+				return true
+			}
+		}
+	}
+
+var Out int
+*/
+var Max_preferred_requests = int64(10)
 var Speed = 0
 var Average = float64(0)
-var Striping = true
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 
@@ -81,37 +107,38 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 }
 
 var EO = 0
+var Striping = false
 
 func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var err error
-
+	var rpcClient jsonrpc.RPCClient
+	var endpoint string
 	Mutex.Lock()
-	this_end_point := current_endpoint
-	Mutex.Unlock()
-	rpcClient1 := jsonrpc.NewClient("http://" + Endpoints[0] + "/json_rpc")
-	rpcClient2 := jsonrpc.NewClient("http://" + Endpoints[1] + "/json_rpc")
+	endpoint = current_endpoint
 
-	Mutex.Lock()
-	Out2[this_end_point]++
-	Mutex.Unlock()
-	if params == nil {
-		if this_end_point == Endpoints[0] {
-			err = rpcClient1.CallFor(&result, method) // no params argument
-		} else if this_end_point == Endpoints[1] {
-			err = rpcClient2.CallFor(&result, method) // no params argument
-		}
+	nodeaddr := "http://" + endpoint + "/json_rpc"
+
+	rpcClient = jsonrpc.NewClient(nodeaddr)
+	if endpoint == Endpoints[0] {
+		Out1++
 	} else {
-
-		if this_end_point == Endpoints[0] {
-			err = rpcClient1.CallFor(&result, method, params) // no params argument
-		} else if this_end_point == Endpoints[1] {
-			err = rpcClient2.CallFor(&result, method, params) // no params argument
-		}
-
+		Out2++
 	}
+	Mutex.Unlock()
+
+	if params == nil {
+		err = rpcClient.CallFor(&result, method) // no params argument
+	} else {
+		err = rpcClient.CallFor(&result, method, params)
+	}
+
 	Mutex.Lock()
-	Out2[this_end_point]--
+	if endpoint == Endpoints[0] {
+		Out1--
+	} else {
+		Out2--
+	}
 	Mutex.Unlock()
 
 	if err != nil {
@@ -122,12 +149,12 @@ func getResult[T any](method string, params any) (T, error) {
 			return zero, err
 		} else if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "many parameters") { //try to catch deronode.net non-standard error... check this
 			fmt.Println(err)
-			//	log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
-		} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed") {
+			log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
+		} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+nodeaddr+")") {
 			//maybe handle connection errors here with a cancel / rollback instead.
 			Status_ok = false
-			//	fmt.Println(err)
-			log.Fatal(err)
+			fmt.Println(err)
+			//	log.Fatal(err)
 		}
 	}
 
