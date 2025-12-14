@@ -165,7 +165,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	s := getSpeed()
 	speedms := s
 	speedbph := (1000 / s) * 60 * 60
-	format := "Block: %d Max En Route: %d Actual En Route: %d Speed: %d ms %dbph\r"
+	format := "\rBlock: %d Max En Route: %d Actual En Route: %d Speed: %d ms %dbph  "
 	a := []any{
 		bheight,
 		api.Max_preferred_requests,
