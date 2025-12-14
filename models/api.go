@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/creachadair/jrpc2"
 	"github.com/deroproject/derohe/block"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/walletapi"
@@ -36,18 +35,54 @@ const timeout = time.Second * 9 // the world is a really big place
 
 // simple way to identify gnomon
 // const gnomonSC = `a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4`
-var RpcClient jrpc2.Client
+
+var current_endpoint = Endpoints[0]
 
 func Ask() bool {
+
 	for {
-		time.Sleep(time.Millisecond)
-		if Out < int(Max_preferred_requests) {
+		time.Sleep(time.Millisecond * 20)
+		if Out1 < int(Max_preferred_requests) {
+
+			Mutex.Lock()
+			current_endpoint = Endpoints[0]
+			Mutex.Unlock()
+
+			return true
+		} else if Out2 < int(Max_preferred_requests) {
+			Mutex.Lock()
+			current_endpoint = Endpoints[1]
+			Mutex.Unlock()
 			return true
 		}
+
 	}
 }
 
+// var Out = make(map[string]int)
+var Out1 = 0
+var Out2 = 0
+
+/*
+	rpcClient1 = jsonrpc.NewClientWithOpts("http://"+this_end_point+"/json_rpc", &jsonrpc.RPCClientOpts{
+		HTTPClient: &http.Client{
+			Timeout: 20 * time.Second,
+		},
+	})
+
+//var RpcClient jrpc2.Client
+
+	func Ask() bool {
+		for {
+			time.Sleep(time.Millisecond)
+			if Out < int(Max_preferred_requests) {
+				return true
+			}
+		}
+	}
+
 var Out int
+*/
 var Max_preferred_requests = int64(10)
 var Speed = 0
 var Average = float64(0)
@@ -72,28 +107,24 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 }
 
 var EO = 0
-var Striping = true
+var Striping = false
 
 func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var err error
 	var rpcClient jsonrpc.RPCClient
-
-	nodeaddr := "http://" + Endpoints[EO] + "/json_rpc"
-	rpcClient = jsonrpc.NewClient(nodeaddr)
-
-	if Striping {
-		if EO == 0 {
-			EO = 1
-		} else {
-			EO = 0
-		}
-	} else {
-		EO = 0
-	}
-
+	var endpoint string
 	Mutex.Lock()
-	Out++
+	endpoint = current_endpoint
+
+	nodeaddr := "http://" + endpoint + "/json_rpc"
+
+	rpcClient = jsonrpc.NewClient(nodeaddr)
+	if endpoint == Endpoints[0] {
+		Out1++
+	} else {
+		Out2++
+	}
 	Mutex.Unlock()
 
 	if params == nil {
@@ -103,7 +134,11 @@ func getResult[T any](method string, params any) (T, error) {
 	}
 
 	Mutex.Lock()
-	Out--
+	if endpoint == Endpoints[0] {
+		Out1--
+	} else {
+		Out2--
+	}
 	Mutex.Unlock()
 
 	if err != nil {
