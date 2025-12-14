@@ -133,31 +133,6 @@ func start_gnomon_indexer() {
 
 }
 
-/********************************/
-/********************************/
-func getSpeed() int {
-	t := time.Now()
-
-	if len(PriorTimes) > 1000 {
-		PriorTimes = PriorTimes[1000:]
-	}
-	PriorTimes = append(PriorTimes, time.Since(LastTime).Milliseconds())
-	total := int64(0)
-	for _, ti := range PriorTimes {
-		total += ti
-	}
-
-	LastTime = t
-	value := int64(0)
-	if len(PriorTimes) != 0 {
-		value = int64(total) / int64(len(PriorTimes))
-	}
-	return int(value)
-}
-
-var LastTime = time.Now()
-var PriorTimes []int64
-
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
 	if !api.Status_ok {
@@ -171,7 +146,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	show := "Block:" + strconv.Itoa(int(bheight)) +
 		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
-		" Actual En Route:" + strconv.Itoa(int(api.Out1+api.Out2)) + //api.Out2[api.Endpoints[0]]+api.Out2[api.Endpoints[1]]
+		" Actual En Route:" + strconv.Itoa(int(api.Out1+api.Out2)) +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph"
 
@@ -192,16 +167,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	for _, hash := range bl.Tx_hashes {
 		tx_str_list = append(tx_str_list, hash.String())
 	}
-
-	//	fmt.Println("concreq2:", Processing-int64(bheight))
-
-	// not a mined transaction
-
-	//api.Ask()
-	//r := api.GetTransaction(rpc.GetTransaction_Params{Tx_Hashes: tx_str_list})
-	//r := api.GetTransactionArray(rpc.GetTransaction_Params{Tx_Hashes: tx_str_list})
-
-	//---------------
 
 	tx_count := len(tx_str_list)
 
@@ -233,8 +198,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		})
 		r.Txs = append(r.Txs, tx.Txs...)
 		r.Txs_as_hex = append(r.Txs_as_hex, tx.Txs_as_hex...)
-
-		//--------------------------
 	}
 
 	//let the rest go unsaved if one request fails
@@ -387,3 +350,29 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 
 	storeHeight(bheight)
 }
+
+/********************************/
+/*********** Helpers ************/
+/********************************/
+func getSpeed() int {
+	t := time.Now()
+
+	if len(PriorTimes) > 1000 {
+		PriorTimes = PriorTimes[1000:]
+	}
+	PriorTimes = append(PriorTimes, time.Since(LastTime).Milliseconds())
+	total := int64(0)
+	for _, ti := range PriorTimes {
+		total += ti
+	}
+
+	LastTime = t
+	value := int64(0)
+	if len(PriorTimes) != 0 {
+		value = int64(total) / int64(len(PriorTimes))
+	}
+	return int(value)
+}
+
+var LastTime = time.Now()
+var PriorTimes []int64
