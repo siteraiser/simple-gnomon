@@ -108,7 +108,7 @@ func NewSqlDB(dbPath, dbName string) (*SqlStore, error) {
 	}
 	fullPath := filepath.Join(dbPath, dbName)
 	hard, err := sql.Open("sqlite3", fullPath)
-	createTables(hard)
+	CreateTables(hard)
 	//fmt.Print("viewTables1...")
 	//	ViewTables(hard)
 	hard.Close()
@@ -136,7 +136,7 @@ func NewSqlDB(dbPath, dbName string) (*SqlStore, error) {
 	return Sql_backend, err
 }
 
-func createTables(Db *sql.DB) {
+func CreateTables(Db *sql.DB) {
 
 	var startup = [5]string{}
 	startup[0] = "CREATE TABLE IF NOT EXISTS state (" +
@@ -188,6 +188,10 @@ func createTables(Db *sql.DB) {
 		fmt.Println("setting defaults")
 		//set defaults
 		statement, err := Db.Prepare("INSERT INTO state (name,value) VALUES('lastindexedheight'," + strconv.Itoa(int(startat)) + ");")
+		handleError(err)
+		statement.Exec()
+
+		statement, err = Db.Prepare("CREATE INDEX height_index ON interactions(heights);")
 		handleError(err)
 		statement.Exec()
 	}

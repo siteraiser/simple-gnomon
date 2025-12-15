@@ -27,6 +27,7 @@ func main() {
 		sqlite, err = NewSqlDB(db_path, db_name)
 	} else {
 		sqlite, err = NewDiskDB(db_path, db_name)
+		CreateTables(sqlite.DB)
 	}
 
 	if err != nil {

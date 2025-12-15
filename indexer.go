@@ -153,9 +153,11 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		if !changed {
 			return errors.New("did not store scid/owner")
 		}
+		if UseMem {
+			//fmt.Print("bb  [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllOwnersAndSCIDs())))
+			fmt.Print("sql [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.SSSBackend.GetAllOwnersAndSCIDs())))
+		}
 
-		//fmt.Print("bb  [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllOwnersAndSCIDs())))
-		fmt.Print("sql [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.SSSBackend.GetAllOwnersAndSCIDs())))
 	} else {
 		//was not an install or a failed install
 		changed, err := indexer.SSSBackend.StoreSCIDInteractionHeight(
@@ -169,8 +171,10 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		if !changed {
 			return errors.New("did not store scid/interaction")
 		}
-		//fmt.Print("bb  [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
-		fmt.Print("sql [AddSCIDToIndex] New updated disk: ", fmt.Sprint(len(indexer.SSSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
+		if UseMem {
+			//fmt.Print("bb  [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
+			fmt.Print("sql [AddSCIDToIndex] New updated disk: ", fmt.Sprint(len(indexer.SSSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
+		}
 	}
 
 	//	indexer.SSSBackend.Writing = false
