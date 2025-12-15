@@ -11,12 +11,15 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/civilware/tela/logger"
 	"github.com/mattn/go-sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+var Mutex sync.Mutex
 
 type SqlStore struct {
 	DB      *sql.DB
@@ -29,6 +32,12 @@ type SqlStore struct {
 }
 
 var Ready = true
+
+func ready(ready bool) {
+	Mutex.Lock()
+	Ready = ready
+	Mutex.Unlock()
+}
 
 func Ask() bool {
 
@@ -309,12 +318,12 @@ func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool
 	if err != nil {
 		panic(err)
 	}
-	Ready = false
+	ready(false)
 	result, err := statement.Exec(
 		last_indexedheight,
 		"lastindexedheight",
 	)
-	Ready = true
+	ready(true)
 	if err == nil {
 		affected_rows, _ := result.RowsAffected()
 		if affected_rows != 0 {
@@ -397,7 +406,7 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 	if err != nil {
 		log.Fatal(err)
 	}
-	Ready = false
+	ready(false)
 	result, err := statement.Exec(
 		scid,
 		owner,
@@ -407,7 +416,7 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 		class,
 		tags,
 	)
-	Ready = true
+	ready(true)
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		fmt.Println("ownerinsertid: ", last_insert_id)
@@ -645,13 +654,13 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVaria
 	if err != nil {
 		log.Fatal(err)
 	}
-	Ready = false
+	ready(false)
 	result, err := statement.Exec(
 		int(topoheight),
 		scid,
 		confBytes,
 	)
-	Ready = true
+	ready(true)
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		if last_insert_id >= 0 {
@@ -1238,12 +1247,12 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 		if err != nil {
 			log.Fatal(err)
 		}
-		Ready = false
+		ready(false)
 		result, err := statement.Exec(
 			newInteractionHeight,
 			scid,
 		)
-		Ready = true
+		ready(true)
 		if err == nil {
 			affected, _ := result.RowsAffected()
 			if affected >= 0 {
