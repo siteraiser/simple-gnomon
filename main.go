@@ -337,7 +337,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		fmt.Println(err, " ", staged.Scid, " ", staged.Fsi.Height)
 		return
 	}
-
+	Ask()
 	storeHeight(bheight)
 }
 
