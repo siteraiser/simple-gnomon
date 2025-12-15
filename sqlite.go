@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -239,6 +240,19 @@ func handleError(err error) {
 }
 
 func (ss *SqlStore) PruneHeight(height int) {
+	var scids []string
+	rows, err := ss.DB.Query("SELECT scid FROM scs WHERE height > "+strconv.Itoa(height)+";", nil) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
+	if err != nil {
+		fmt.Println(err)
+	}
+	var (
+		scid string
+	)
+	for rows.Next() {
+		rows.Scan(&scid)
+		scids = append(scids, scid)
+		fmt.Println("scid ", scid)
+	}
 
 	statement, err := ss.DB.Prepare("DELETE FROM scs WHERE height > " + strconv.Itoa(height) + ";")
 	handleError(err)
@@ -252,7 +266,13 @@ func (ss *SqlStore) PruneHeight(height int) {
 	handleError(err)
 	statement.Exec()
 
-	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE heights  LIKE '%" + strconv.Itoa(height) + "%';")
+	in := ""
+	for _, scid := range scids {
+		in = "'" + scid + "',"
+	}
+	in = strings.TrimRight(in, ",")
+
+	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE scid IN(" + in + ");")
 	handleError(err)
 	statement.Exec()
 
