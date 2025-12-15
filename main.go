@@ -251,7 +251,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	//fmt.Println("\nReq: ", Processing-int64(bheight))
 
 	if tx.TransactionType != transaction.SC_TX {
-		Ask()
 		storeHeight(bheight)
 		return
 	}
@@ -340,7 +339,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		fmt.Println(err, " ", staged.Scid, " ", staged.Fsi.Height)
 		return
 	}
-
 	storeHeight(bheight)
 	ready(true)
 }
