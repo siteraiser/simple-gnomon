@@ -55,8 +55,6 @@ var Out1 = 0
 var Out2 = 0
 
 var Max_preferred_requests = int64(10)
-var Speed = 0
-var Average = float64(0)
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 
@@ -76,9 +74,6 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 
 	return result
 }
-
-var EO = 0
-var Striping = false
 
 func getResult[T any](method string, params any) (T, error) {
 	var result T

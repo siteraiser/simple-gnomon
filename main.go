@@ -138,19 +138,8 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	if !api.Status_ok {
 		return
 	}
-
 	//---- MAIN PRINTOUT
-	s := getSpeed()
-	speedms := strconv.Itoa(s)
-	speedbph := strconv.Itoa((1000 / s) * 60 * 60)
-
-	show := "Block:" + strconv.Itoa(int(bheight)) +
-		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
-		" Actual En Route:" + strconv.Itoa(int(api.Out1+api.Out2)) +
-		" Speed:" + speedms + "ms" +
-		" " + speedbph + "bph"
-
-	fmt.Print("\r", show)
+	showBlockStatus(bheight)
 
 	api.Ask()
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
@@ -255,9 +244,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	//fmt.Println("\nReq: ", Processing-int64(bheight))
 
 	if tx.TransactionType != transaction.SC_TX {
-		//api.Adjust()
-		//	}(sqlindexer)
-
 		storeHeight(bheight)
 		return
 	}
@@ -338,15 +324,13 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	fmt.Println("staged scid:", staged.Scid, ":", fmt.Sprint(staged.Fsi.Height))
 	fmt.Println("staged params.scid:", params.SCID, ":", fmt.Sprint(staged.Fsi.Height))
 
-	//	wg.Add(1)
 	// now add the scid to the index
-	//go func(*Indexer) {
+
 	// if the contract already exists, record the interaction
 	if err := sqlindexer.AddSCIDToIndex(staged); err != nil {
 		fmt.Println(err, " ", staged.Scid, " ", staged.Fsi.Height)
 		return
 	}
-	//	}(sqlindexer)
 
 	storeHeight(bheight)
 }
@@ -354,6 +338,9 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 /********************************/
 /*********** Helpers ************/
 /********************************/
+var LastTime = time.Now()
+var PriorTimes []int64
+
 func getSpeed() int {
 	t := time.Now()
 
@@ -374,5 +361,16 @@ func getSpeed() int {
 	return int(value)
 }
 
-var LastTime = time.Now()
-var PriorTimes []int64
+func showBlockStatus(bheight int64) {
+	s := getSpeed()
+	speedms := strconv.Itoa(s)
+	speedbph := strconv.Itoa((1000 / s) * 60 * 60)
+
+	show := "Block:" + strconv.Itoa(int(bheight)) +
+		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
+		" Actual En Route:" + strconv.Itoa(int(api.Out1+api.Out2)) +
+		" Speed:" + speedms + "ms" +
+		" " + speedbph + "bph"
+
+	fmt.Print("\r", show)
+}
