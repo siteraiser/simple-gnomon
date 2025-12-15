@@ -338,12 +338,12 @@ func (ss *SqlStore) ViewTables() {
 
 // Stores bbolt's last indexed height - this is for stateful stores on close and reference on open
 func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool, err error) {
-
+	ready(false)
 	statement, err := ss.DB.Prepare("UPDATE state SET value = ? WHERE name = ?;")
 	if err != nil {
 		panic(err)
 	}
-	ready(false)
+
 	result, err := statement.Exec(
 		last_indexedheight,
 		"lastindexedheight",

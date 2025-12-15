@@ -121,6 +121,7 @@ func start_gnomon_indexer() {
 	}
 	if TargetHeight == last {
 		if UseMem == false {
+			fmt.Println("Saving after batch")
 			sqlite.StoreLastIndexHeight(TargetHeight)
 		}
 
