@@ -345,13 +345,12 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 
 	// now add the scid to the index
 	Ask()
-	ready(false)
 	// if the contract already exists, record the interaction
 	if err := sqlindexer.AddSCIDToIndex(staged); err != nil {
 		fmt.Println(err, " ", staged.Scid, " ", staged.Fsi.Height)
 		return
 	}
-	ready(true)
+
 }
 
 /********************************/

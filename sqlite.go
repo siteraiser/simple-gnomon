@@ -383,6 +383,7 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 	if ss.Cancel {
 		return
 	}
+	ready(false)
 	//	fmt.Println("INSERT INTO scs (owner,scid,headers,class,tags) VALUES (?,?,?,?,?,?,?)")
 	statement, err := ss.DB.Prepare("INSERT INTO scs (scid,owner,scname,scdescr,scimgurl,class,tags) VALUES (?,?,?,?,?,?,?)")
 	if err != nil {
@@ -398,7 +399,7 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 		class,
 		tags,
 	)
-
+	ready(true)
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		fmt.Println("ownerinsertid: ", last_insert_id)
@@ -443,6 +444,7 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVaria
 	if err != nil {
 		return changes, fmt.Errorf("[StoreSCIDVariableDetails] could not marshal getinfo info: %v", err)
 	}
+	ready(false)
 	//fmt.Println("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
 	statement, err := ss.DB.Prepare("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
 	if err != nil {
@@ -454,7 +456,7 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVaria
 		scid,
 		confBytes,
 	)
-
+	ready(true)
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		if last_insert_id >= 0 {
@@ -921,7 +923,7 @@ func (ss *SqlStore) GetSCIDValuesByKey(scid string, key interface{}, height int6
 
 // Stores SC interaction height and detail - height invoked upon and type (scinstall/scinvoke). This is separate tree & k/v since we can query it for other things at less data retrieval
 func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (changes bool, err error) {
-
+	ready(false)
 	var currSCIDInteractionHeight []byte
 	var interactionHeight []int64
 	var newInteractionHeight []byte
@@ -997,7 +999,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 		}
 
 	}
-
+	ready(true)
 	return
 
 }
