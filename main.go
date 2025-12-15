@@ -17,6 +17,13 @@ import (
 	api "github.com/secretnamebasis/simple-gnomon/models"
 )
 
+var TargetHeight = int64(0)
+var HighestKnownHeight = api.Get_TopoHeight()
+var sqlite = &SqlStore{}
+var sqlindexer = &Indexer{}
+var UseMem = false
+var batch_size = 4
+
 func main() {
 	fmt.Println("starting ....")
 	var err error
@@ -24,8 +31,12 @@ func main() {
 	wd := globals.GetDataDirectory()
 	db_path := filepath.Join(wd, "gnomondb")
 	if UseMem {
+		batch_size = 8
+		api.Max_preferred_requests = 10
 		sqlite, err = NewSqlDB(db_path, db_name)
 	} else {
+		batch_size = 4
+		api.Max_preferred_requests = 8
 		sqlite, err = NewDiskDB(db_path, db_name)
 		CreateTables(sqlite.DB)
 	}
@@ -36,12 +47,6 @@ func main() {
 	}
 	start_gnomon_indexer()
 }
-
-var TargetHeight = int64(0)
-var HighestKnownHeight = api.Get_TopoHeight()
-var sqlite = &SqlStore{}
-var sqlindexer = &Indexer{}
-var UseMem = true
 
 func start_gnomon_indexer() {
 
@@ -176,7 +181,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 	var wg2 sync.WaitGroup
 
-	batch_size := 4
 	//Find total number of batches
 	batch_count := int(math.Ceil(float64(tx_count) / float64(batch_size)))
 	//Make an array to hold the result sets
