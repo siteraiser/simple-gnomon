@@ -25,29 +25,34 @@ var Status_ok = true
 var Endpoints = [2]string{"node.derofoundation.org:11012", "64.226.81.37:10102"}
 var current_endpoint = Endpoints[0]
 
-func Ask() bool {
+func Ask() {
 
 	for {
-		time.Sleep(time.Millisecond)
-		if Out1 < int(Max_preferred_requests) {
-			Mutex.Lock() //might be removable
-			current_endpoint = Endpoints[0]
-			Mutex.Unlock()
-			return true
-		} else if Out2 < int(Max_preferred_requests) {
-			Mutex.Lock()
-			current_endpoint = Endpoints[1]
-			Mutex.Unlock()
-			return true
-		}
+		time.Sleep(time.Millisecond * 2)
+		Mutex.Lock() //might be removable
+		if Out1+Out2 < Max_preferred_requests*2 {
 
+			if Out1 < Max_preferred_requests {
+
+				current_endpoint = Endpoints[0]
+				Mutex.Unlock()
+				return
+			} else if Out2 < Max_preferred_requests {
+
+				current_endpoint = Endpoints[1]
+				Mutex.Unlock()
+				return
+			}
+
+		}
+		Mutex.Unlock()
 	}
 }
 
 var Out1 = 0
 var Out2 = 0
 
-var Max_preferred_requests = int64(8)
+var Max_preferred_requests = int(8)
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 
@@ -75,6 +80,7 @@ func getResult[T any](method string, params any) (T, error) {
 	var endpoint string
 
 	Mutex.Lock()
+
 	endpoint = current_endpoint
 	nodeaddr := "http://" + endpoint + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)

@@ -32,14 +32,14 @@ type SqlStore struct {
 	//Buckets []string
 }
 
-var Ready = true
+var dbready = true
 
 func ready(ready bool) {
 	if UseMem {
 		return
 	}
 	Mutex.Lock()
-	Ready = ready
+	dbready = ready
 	Mutex.Unlock()
 }
 
@@ -48,8 +48,8 @@ func Ask() bool {
 		return true
 	}
 	for {
-		time.Sleep(time.Millisecond * 2)
-		if Ready {
+		time.Sleep(time.Millisecond)
+		if dbready {
 			return true
 		}
 	}

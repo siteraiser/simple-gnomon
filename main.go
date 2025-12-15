@@ -41,7 +41,7 @@ var TargetHeight = int64(0)
 var HighestKnownHeight = api.Get_TopoHeight()
 var sqlite = &SqlStore{}
 var sqlindexer = &Indexer{}
-var UseMem = false
+var UseMem = true
 
 func start_gnomon_indexer() {
 
@@ -74,10 +74,9 @@ func start_gnomon_indexer() {
 		if !api.Status_ok {
 			break
 		}
-
-		api.Ask()
 		//---- MAIN PRINTOUT
 		showBlockStatus(bheight)
+		api.Ask()
 		wg.Add(1)
 		go ProcessBlock(&wg, bheight)
 
@@ -154,7 +153,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	if !api.Status_ok {
 		return
 	}
-
+	api.Ask() //smooth it over a bit
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
 	})
@@ -194,7 +193,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 			end = len(tx_str_list)
 		}
 		api.Ask()
-
 		tx := api.GetTransaction(rpc.GetTransaction_Params{
 			Tx_Hashes: tx_str_list[batch_size*i : end],
 		})
@@ -214,7 +212,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	for i, tx_hex := range r.Txs_as_hex {
-		Ask()
+		//	Ask()
 		wg2.Add(1)
 		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
 	}
@@ -387,10 +385,14 @@ func showBlockStatus(bheight int64) {
 		speedms = strconv.Itoa(s)
 		speedbph = strconv.Itoa((1000 / s) * 60 * 60)
 	}
-
+	//Mutex.Lock()
+	//o1 := int(api.Out1)
+	//o2 := int(api.Out2)
+	//Mutex.Unlock()
 	show := "Block:" + strconv.Itoa(int(bheight)) +
 		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
-		" Actual En Route:" + strconv.Itoa(int(api.Out1+api.Out2)) +
+		" En Route " + strconv.Itoa(int(api.Out1)) +
+		":" + strconv.Itoa(int(api.Out2)) +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph"
 
