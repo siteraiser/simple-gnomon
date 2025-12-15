@@ -103,22 +103,6 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		return errors.New("nothing to import")
 	}
 
-	//	writeWait, _ := time.ParseDuration("1s")
-
-	//	time.Sleep(writeWait)
-
-	/*	for indexer.SSSBackend.Writing {
-			if indexer.Closing {
-				return
-			}
-			fmt.Printf("[AddSCIDToIndex-StoreAltDBInput] DB is writing... sleeping for %v...", writeWait)
-			//l.Debugf("[AddSCIDToIndex-StoreAltDBInput] GravitonDB is writing... sleeping for %v...", writeWait)
-			time.Sleep(writeWait)
-		}
-
-		indexer.SSSBackend.Writing = true
-	*/
-
 	//	fmt.Printf("SCIDS TO ADD: %v...", scidstoadd.ScVars)
 	// By returning valid variables of a given Scid (GetSC --> parse vars), we can conclude it is a valid SCID. Otherwise, skip adding to validated scids
 	if len(scidstoadd.ScVars) != 0 {

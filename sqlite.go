@@ -356,53 +356,6 @@ func (ss *SqlStore) GetLastIndexHeight() (topoheight int64, err error) {
 	return
 }
 
-/*
-// Stores bbolt's txcount by a given txType - this is for stateful stores on close and reference on open
-func (ss *SqlStore) StoreTxCount(count int64, txType string) (changes bool, err error) {
-	bName := "stats"
-
-	err = ss.DB.Update(func(tx *bolt.Tx) (err error) {
-		b, err := tx.CreateBucketIfNotExists([]byte(bName))
-		if err != nil {
-			return fmt.Errorf("bucket: %s", err)
-		}
-
-		key := txType + "txcount"
-
-		txCount := strconv.FormatInt(count, 10)
-
-		err = b.Put([]byte(key), []byte(txCount))
-		changes = true
-		return
-	})
-
-	return
-}
-
-// Gets bbolt's txcount by a given txType - this is for stateful stores on close and reference on open
-func (ss *SqlStore) GetTxCount(txType string) (txCount int64) {
-	bName := "stats"
-
-	ss.DB.View(func(tx *bolt.Tx) (err error) {
-		b := tx.Bucket([]byte(bName))
-		if b != nil {
-			key := txType + "txcount"
-			v := b.Get([]byte(key))
-
-			if v != nil {
-				txCount, err = strconv.ParseInt(string(v), 10, 64)
-				if err != nil {
-					return fmt.Errorf("[ss-GetLastIndexHeight] ERR - Error parsing stored int for txcount: %v", err)
-				}
-			}
-		}
-		return
-	})
-
-	return
-}
-*/
-
 // Stores the owner (who deployed it) of a given scid
 func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr string, scimgurl string, class string, tags string) (changes bool, err error) {
 	if ss.Cancel {
@@ -436,49 +389,9 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 		ss.Cancel = true
 	}
 	return
-	/*
-		bName := "scowner"
 
-		err = ss.DB.Update(func(tx *bolt.Tx) (err error) {
-			b, err := tx.CreateBucketIfNotExists([]byte(bName))
-			if err != nil {
-				return fmt.Errorf("bucket: %s", err)
-			}
-
-			err = b.Put([]byte(scid), []byte(owner))
-			changes = true
-			return
-		})
-
-		return
-	*/
 }
 
-/*
-// Returns the owner (who deployed it) of a given scid
-func (ss *SqlStore) GetOwner(scid string) string {
-	var v []byte
-	bName := "scowner"
-
-	ss.DB.View(func(tx *bolt.Tx) (err error) {
-		b := tx.Bucket([]byte(bName))
-		if b != nil {
-			key := scid
-			v = b.Get([]byte(key))
-		}
-
-		return
-	})
-
-	if v != nil {
-		return string(v)
-	}
-
-	logger.Printf("[GetOwner] No owner for %v", scid)
-
-	return ""
-}
-*/
 // Returns all of the deployed SCIDs with their corresponding owners (who deployed it)
 func (ss *SqlStore) GetAllOwnersAndSCIDs() map[string]string {
 	//	fmt.Println("SELECT scid, owner FROM scs")
@@ -497,158 +410,8 @@ func (ss *SqlStore) GetAllOwnersAndSCIDs() map[string]string {
 	}
 	return results
 
-	/*
-		bName := "scowner"
-		results := make(map[string]string)
-		ss.DB.View(func(tx *bolt.Tx) (err error) {
-			b := tx.Bucket([]byte(bName))
-			if b != nil {
-				c := b.Cursor()
-
-				for k, v := c.First(); err == nil; k, v = c.Next() {
-					if k != nil && v != nil {
-						results[string(k)] = string(v)
-					} else {
-						break
-					}
-				}
-			}
-
-			return
-		})
-
-		return results
-	*/
 }
 
-/*
-// Stores all scinvoke details of a given scid
-func (ss *SqlStore) StoreInvokeDetails(scid string, signer string, entrypoint string, topoheight int64, invokedetails *SCTXParse) (changes bool, err error) {
-	confBytes, err := json.Marshal(invokedetails)
-	if err != nil {
-		return changes, fmt.Errorf("[StoreInvokeDetails] could not marshal invokedetails info: %v", err)
-	}
-
-	bName := scid
-
-	txidLen := len(invokedetails.Txid)
-	key := signer + ":" + invokedetails.Txid[0:3] + invokedetails.Txid[txidLen-3:txidLen] + ":" + strconv.FormatInt(topoheight, 10) + ":" + entrypoint
-	//signer:txid:height:entrypoint
-	err = ss.DB.Update(func(tx *bolt.Tx) (err error) {
-		b, err := tx.CreateBucketIfNotExists([]byte(bName))
-		if err != nil {
-			return fmt.Errorf("bucket: %s", err)
-		}
-
-		err = b.Put([]byte(key), confBytes)
-		changes = true
-		return
-	})
-
-	return
-}
-
-// Returns all scinvoke calls from a given scid
-func (ss *SqlStore) GetAllSCIDInvokeDetails(scid string) (invokedetails []*SCTXParse) {
-	bName := scid
-
-	ss.DB.View(func(tx *bolt.Tx) (err error) {
-		b := tx.Bucket([]byte(bName))
-		if b != nil {
-
-			c := b.Cursor()
-
-			for _, v := c.First(); err == nil; _, v = c.Next() {
-				if v != nil {
-					var currdetails *SCTXParse
-					_ = json.Unmarshal(v, &currdetails)
-					invokedetails = append(invokedetails, currdetails)
-				} else {
-					break
-				}
-			}
-		}
-
-		return
-	})
-
-	// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
-	sort.SliceStable(invokedetails, func(i, j int) bool {
-		return invokedetails[i].Height < invokedetails[j].Height
-	})
-
-	return invokedetails
-}
-
-// Retruns all scinvoke calls from a given scid that match a given entrypoint
-func (ss *SqlStore) GetAllSCIDInvokeDetailsByEntrypoint(scid string, entrypoint string) (invokedetails []*SCTXParse) {
-	bName := scid
-
-	ss.DB.View(func(tx *bolt.Tx) (err error) {
-		b := tx.Bucket([]byte(bName))
-		if b != nil {
-
-			c := b.Cursor()
-
-			for _, v := c.First(); err == nil; _, v = c.Next() {
-				if v != nil {
-					var currdetails *SCTXParse
-					_ = json.Unmarshal(v, &currdetails)
-					if currdetails.Entrypoint == entrypoint {
-						invokedetails = append(invokedetails, currdetails)
-					}
-				} else {
-					break
-				}
-			}
-		}
-
-		return
-	})
-
-	// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
-	sort.SliceStable(invokedetails, func(i, j int) bool {
-		return invokedetails[i].Height < invokedetails[j].Height
-	})
-
-	return invokedetails
-}
-
-// Returns all scinvoke calls from a given scid that match a given signer
-func (ss *SqlStore) GetAllSCIDInvokeDetailsBySigner(scid string, signerPart string) (invokedetails []*SCTXParse) {
-	bName := scid
-
-	ss.DB.View(func(tx *bolt.Tx) (err error) {
-		b := tx.Bucket([]byte(bName))
-		if b != nil {
-
-			c := b.Cursor()
-
-			for _, v := c.First(); err == nil; _, v = c.Next() {
-				if v != nil {
-					var currdetails *SCTXParse
-					_ = json.Unmarshal(v, &currdetails)
-					split := strings.Split(currdetails.Sender, signerPart)
-					if len(split) > 1 {
-						invokedetails = append(invokedetails, currdetails)
-					}
-				} else {
-					break
-				}
-			}
-		}
-
-		return
-	})
-
-	// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
-	sort.SliceStable(invokedetails, func(i, j int) bool {
-		return invokedetails[i].Height < invokedetails[j].Height
-	})
-
-	return invokedetails
-}
-*/
 // Stores SC variables at a given topoheight (called on any new scdeploy or scinvoke actions)
 func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVariable, topoheight int64) (changes bool, err error) {
 	if ss.Cancel {
@@ -680,28 +443,6 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVaria
 		ss.Cancel = true
 	}
 
-	/*
-
-		confBytes, err := json.Marshal(variables)
-		if err != nil {
-			return changes, fmt.Errorf("[StoreSCIDVariableDetails] could not marshal getinfo info: %v", err)
-		}
-
-		bName := scid + "vars"
-
-		key := strconv.FormatInt(topoheight, 10)
-
-		err = ss.DB.Update(func(tx *bolt.Tx) (err error) {
-			b, err := tx.CreateBucketIfNotExists([]byte(bName))
-			if err != nil {
-				return fmt.Errorf("bucket: %s", err)
-			}
-
-			err = b.Put([]byte(key), confBytes)
-			changes = true
-			return
-		})
-	*/
 	return
 }
 
@@ -734,29 +475,6 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 		results[topoheight] = variables
 	}
 
-	/*	fmt.Println("results: ", results)
-		ss.DB.View(func(tx *bolt.Tx) (err error) {
-				b := tx.Bucket([]byte(bName))
-				if b != nil {
-
-					c := b.Cursor()
-
-					for k, v := c.First(); err == nil; k, v = c.Next() {
-						if k != nil && v != nil {
-							topoheight, _ := strconv.ParseInt(string(k), 10, 64)
-							heights = append(heights, topoheight)
-							var variables []*SCIDVariable
-							_ = json.Unmarshal(v, &variables)
-							results[topoheight] = variables
-						} else {
-							break
-						}
-					}
-				}
-
-				return
-			})
-	*/
 	if results != nil {
 		// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
 		sort.SliceStable(heights, func(i, j int) bool {
@@ -915,29 +633,7 @@ func (ss *SqlStore) GetAllSCIDVariableDetails(scid string) (hVars []*SCIDVariabl
 	}
 
 	fmt.Println("results: ", results)
-	/*
-		ss.DB.View(func(tx *bolt.Tx) (err error) {
-			b := tx.Bucket([]byte(bName))
-			if b != nil {
 
-				c := b.Cursor()
-
-				for k, v := c.First(); err == nil; k, v = c.Next() {
-					if k != nil && v != nil {
-						topoheight, _ := strconv.ParseInt(string(k), 10, 64)
-						heights = append(heights, topoheight)
-						var variables []*SCIDVariable
-						_ = json.Unmarshal(v, &variables)
-						results[topoheight] = variables
-					} else {
-						break
-					}
-				}
-			}
-
-			return
-		})
-	*/
 	if results != nil {
 		// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
 		sort.SliceStable(heights, func(i, j int) bool {
@@ -1281,51 +977,6 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 	}
 
 	return
-	/*
-		err = b.Put([]byte(key), newInteractionHeight)
-		changes = true
-
-		err = ss.DB.View(func(tx *bolt.Tx) (err error) {
-			b := tx.Bucket([]byte(bName))
-			if b != nil {
-				currSCIDInteractionHeight = b.Get([]byte(key))
-			}
-			return
-		})
-
-		err = ss.DB.Update(func(tx *bolt.Tx) (err error) {
-			b, err := tx.CreateBucketIfNotExists([]byte(bName))
-			if err != nil {
-				return fmt.Errorf("bucket: %s", err)
-			}
-
-			if currSCIDInteractionHeight == nil {
-				interactionHeight = append(interactionHeight, height)
-			} else {
-				// Retrieve value and conovert to SCIDInteractionHeight, so that you can manipulate and update db
-				_ = json.Unmarshal(currSCIDInteractionHeight, &interactionHeight)
-
-				for _, v := range interactionHeight {
-					if v == height {
-						// Return nil if already exists in array.
-						// Clause for this is in event we pop backwards in time and already have this data stored.
-						// TODO: What if interaction happened on false-chain and pop to retain correct chain. Bad data may be stored here still, as it isn't removed. Need fix for this in future.
-						return
-					}
-				}
-
-				interactionHeight = append(interactionHeight, height)
-			}
-			newInteractionHeight, err = json.Marshal(interactionHeight)
-			if err != nil {
-				return fmt.Errorf("[BBolt] could not marshal interactionHeight info: %v", err)
-			}
-
-			err = b.Put([]byte(key), newInteractionHeight)
-			changes = true
-			return
-		})
-	*/
 
 }
 
@@ -1342,25 +993,6 @@ func (ss *SqlStore) GetSCIDInteractionHeight(scid string) (scidinteractions []in
 	}
 	return
 
-	/*
-
-	   bName := scid + "heights"
-	   	ss.DB.View(func(tx *bolt.Tx) (err error) {
-	   		b := tx.Bucket([]byte(bName))
-	   		if b != nil {
-	   			key := scid
-	   			v := b.Get([]byte(key))
-
-	   			if v != nil {
-	   				_ = json.Unmarshal(v, &scidinteractions)
-	   			}
-	   		}
-	   		return
-	   	})
-
-	   	return
-
-	*/
 }
 
 func (ss *SqlStore) GetInteractionIndex(topoheight int64, heights []int64, rmax bool) (height int64) {
