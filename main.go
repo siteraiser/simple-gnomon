@@ -46,7 +46,7 @@ var UseMem = false
 func start_gnomon_indexer() {
 
 	var lowest_height int64
-
+	Ask()
 	height, err := sqlite.GetLastIndexHeight()
 	if err != nil {
 		height = startat
