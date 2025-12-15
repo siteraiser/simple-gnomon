@@ -50,8 +50,6 @@ func start_gnomon_indexer() {
 
 	sqlindexer = NewSQLIndexer(sqlite, height, []string{MAINNET_GNOMON_SCID})
 	fmt.Println("SqlIndexer ", sqlindexer)
-
-	//Logger.Info("starting to index ", api.Get_TopoHeight()) // program.wallet.Get_TopoHeight()
 	fmt.Println("topoheight ", api.Get_TopoHeight())
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
 	//start := time.Now()
@@ -68,6 +66,8 @@ func start_gnomon_indexer() {
 			break
 		}
 		api.Ask()
+		//---- MAIN PRINTOUT
+		showBlockStatus(bheight)
 		wg.Add(1)
 		go ProcessBlock(&wg, bheight)
 
@@ -138,10 +138,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	if !api.Status_ok {
 		return
 	}
-	//---- MAIN PRINTOUT
-	showBlockStatus(bheight)
 
-	api.Ask()
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
 	})
@@ -201,7 +198,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	for i, tx_hex := range r.Txs_as_hex {
-		api.Ask()
 		wg2.Add(1)
 		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
 	}
@@ -227,7 +223,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
 			fmt.Println("Error Saving LastIndexHeight: ", err)
 			return
-
 		}
 	}
 
@@ -362,9 +357,13 @@ func getSpeed() int {
 }
 
 func showBlockStatus(bheight int64) {
+	speedms := "0"
+	speedbph := "0"
 	s := getSpeed()
-	speedms := strconv.Itoa(s)
-	speedbph := strconv.Itoa((1000 / s) * 60 * 60)
+	if s != 0 {
+		speedms = strconv.Itoa(s)
+		speedbph = strconv.Itoa((1000 / s) * 60 * 60)
+	}
 
 	show := "Block:" + strconv.Itoa(int(bheight)) +
 		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
