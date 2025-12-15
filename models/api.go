@@ -23,13 +23,6 @@ var Mutex sync.Mutex
 var Status_ok = true
 
 var Endpoints = [2]string{"node.derofoundation.org:11012", "64.226.81.37:10102"}
-
-// simple way to set timeouts
-const timeout = time.Second * 9 // the world is a really big place
-
-// simple way to identify gnomon
-// const gnomonSC = `a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4`
-
 var current_endpoint = Endpoints[0]
 
 func Ask() bool {
@@ -117,7 +110,9 @@ func getResult[T any](method string, params any) (T, error) {
 			log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
 		} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+nodeaddr+")") {
 			//maybe handle connection errors here with a cancel / rollback instead.
+			Mutex.Lock()
 			Status_ok = false
+			Mutex.Unlock()
 			fmt.Println(err)
 			//	log.Fatal(err)
 		}
@@ -196,6 +191,8 @@ func GetSCValues(scid string) rpc.GetSC_Result {
 }
 
 func GetSCIDImage(keys map[string]interface{}) image.Image {
+	// simple way to set timeouts
+	const timeout = time.Second * 9 // the world is a really big place
 	for k, v := range keys {
 		if !strings.Contains(k, "image") && !strings.Contains(k, "icon") {
 			continue

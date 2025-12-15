@@ -23,7 +23,12 @@ func main() {
 	db_name := fmt.Sprintf("sql%s.db", "GNOMON")
 	wd := globals.GetDataDirectory()
 	db_path := filepath.Join(wd, "gnomondb")
-	sqlite, err = NewSqlDB(db_path, db_name)
+	if UseMem {
+		sqlite, err = NewSqlDB(db_path, db_name)
+	} else {
+		sqlite, err = NewDiskDB(db_path, db_name)
+	}
+
 	if err != nil {
 		fmt.Println("[Main] Err creating sqlite:", err)
 		return
@@ -35,7 +40,7 @@ var TargetHeight = int64(0)
 var HighestKnownHeight = api.Get_TopoHeight()
 var sqlite = &SqlStore{}
 var sqlindexer = &Indexer{}
-var UseMem = true
+var UseMem = false
 
 func start_gnomon_indexer() {
 
