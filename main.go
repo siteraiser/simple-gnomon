@@ -56,7 +56,7 @@ func start_gnomon_indexer() {
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
 	//start := time.Now()
 
-	if TargetHeight < HighestKnownHeight-25000 {
+	if TargetHeight < HighestKnownHeight-25000 && lowest_height+25000 < HighestKnownHeight {
 		TargetHeight = lowest_height + 25000
 	} else {
 		TargetHeight = HighestKnownHeight
