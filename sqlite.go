@@ -35,7 +35,6 @@ var Ready = true
 
 func ready(ready bool) {
 	if UseMem {
-		//Ready = ready
 		return
 	}
 	Mutex.Lock()
@@ -44,7 +43,9 @@ func ready(ready bool) {
 }
 
 func Ask() bool {
-
+	if UseMem {
+		return true
+	}
 	for {
 		time.Sleep(time.Millisecond * 2)
 		if Ready {
