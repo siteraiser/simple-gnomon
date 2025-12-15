@@ -238,6 +238,26 @@ func handleError(err error) {
 	}
 }
 
+func (ss *SqlStore) PruneHeight(height int) {
+
+	statement, err := ss.DB.Prepare("DELETE FROM scs WHERE height > " + strconv.Itoa(height) + ";")
+	handleError(err)
+	statement.Exec()
+
+	statement, err = ss.DB.Prepare("DELETE FROM variables WHERE height > " + strconv.Itoa(height) + ";")
+	handleError(err)
+	statement.Exec()
+
+	statement, err = ss.DB.Prepare("DELETE FROM invokes WHERE height > " + strconv.Itoa(height) + ";")
+	handleError(err)
+	statement.Exec()
+
+	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE heights  LIKE '%" + strconv.Itoa(height) + "%';")
+	handleError(err)
+	statement.Exec()
+
+}
+
 // --- extras...
 func (ss *SqlStore) ViewTables() {
 	fmt.Println("\nOpen: ", sqlite.DBPath)

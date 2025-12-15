@@ -53,6 +53,9 @@ func start_gnomon_indexer() {
 		fmt.Println("err: ", err)
 	}
 	lowest_height = height
+	if UseMem == false {
+		sqlite.PruneHeight(int(height))
+	}
 
 	sqlindexer = NewSQLIndexer(sqlite, height, []string{MAINNET_GNOMON_SCID})
 	fmt.Println("SqlIndexer ", sqlindexer)
@@ -211,7 +214,18 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	wg2.Wait()
-
+	storeHeight(bheight)
+}
+func storeHeight(bheight int64) {
+	Ask()
+	//--maybe replace by using add owner and add a height to there...
+	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
+		if strings.Contains(err.Error(), "database is locked") {
+			panic(err)
+		}
+		fmt.Println("Error Saving LastIndexHeight: ", err)
+		return
+	}
 }
 
 /********************************/
@@ -224,18 +238,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		"nfa":   {"ART-NFA-MS1"},
 		"swaps": {"StartSwap"},
 		"tela":  {"docVersion", "telaVersion"},
-	}
-
-	storeHeight := func(bheight int64) {
-		Ask()
-		//--maybe replace by using add owner and add a height to there...
-		if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
-			if strings.Contains(err.Error(), "database is locked") {
-				panic(err)
-			}
-			fmt.Println("Error Saving LastIndexHeight: ", err)
-			return
-		}
 	}
 
 	b, err := hex.DecodeString(tx_hex)
@@ -251,7 +253,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	//fmt.Println("\nReq: ", Processing-int64(bheight))
 
 	if tx.TransactionType != transaction.SC_TX {
-		storeHeight(bheight)
 		return
 	}
 
@@ -339,7 +340,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		fmt.Println(err, " ", staged.Scid, " ", staged.Fsi.Height)
 		return
 	}
-	storeHeight(bheight)
 	ready(true)
 }
 
