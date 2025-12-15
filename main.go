@@ -229,6 +229,9 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	storeHeight := func(bheight int64) {
 		//--maybe replace by using add owner and add a height to there...
 		if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
+			if strings.Contains(err.Error(), "database is locked") {
+				panic(err)
+			}
 			fmt.Println("Error Saving LastIndexHeight: ", err)
 			return
 		}
