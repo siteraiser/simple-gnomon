@@ -96,7 +96,12 @@ func start_gnomon_indexer() {
 		filename := filepath.Base(sqlite.DBPath)
 		dir := filepath.Dir(sqlite.DBPath)
 		//start from last saved to disk to ensure integrity (play it safe for now)
-		sqlite, err = NewSqlDB(dir, filename)
+		if UseMem {
+			sqlite, err = NewSqlDB(dir, filename)
+		} else {
+			sqlite, err = NewDiskDB(dir, filename)
+		}
+
 		if err != nil {
 			fmt.Println("[Main] Err creating sqlite:", err)
 			return
@@ -215,7 +220,10 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	wg2.Wait()
-	storeHeight(bheight)
+	if api.Status_ok {
+		storeHeight(bheight)
+	}
+
 }
 func storeHeight(bheight int64) {
 	Ask()
