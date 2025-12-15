@@ -54,7 +54,7 @@ func Ask() bool {
 var Out1 = 0
 var Out2 = 0
 
-var Max_preferred_requests = int64(10)
+var Max_preferred_requests = int64(8)
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 
@@ -80,11 +80,10 @@ func getResult[T any](method string, params any) (T, error) {
 	var err error
 	var rpcClient jsonrpc.RPCClient
 	var endpoint string
+
 	Mutex.Lock()
 	endpoint = current_endpoint
-
 	nodeaddr := "http://" + endpoint + "/json_rpc"
-
 	rpcClient = jsonrpc.NewClient(nodeaddr)
 	if endpoint == Endpoints[0] {
 		Out1++
@@ -113,7 +112,7 @@ func getResult[T any](method string, params any) (T, error) {
 
 			var zero T
 			return zero, err
-		} else if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "many parameters") { //try to catch deronode.net non-standard error... check this
+		} else if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "many parameters") { //Using batching now so this shouldn't occur
 			fmt.Println(err)
 			log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
 		} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+nodeaddr+")") {
