@@ -34,6 +34,10 @@ type SqlStore struct {
 var Ready = true
 
 func ready(ready bool) {
+	if UseMem {
+		Ready = ready
+		return
+	}
 	Mutex.Lock()
 	Ready = ready
 	Mutex.Unlock()
