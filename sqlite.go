@@ -984,12 +984,12 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 		if err != nil {
 			log.Fatal(err)
 		}
-		ready(false)
+
 		result, err := statement.Exec(
 			newInteractionHeight,
 			scid,
 		)
-		ready(true)
+
 		if err == nil {
 			affected, _ := result.RowsAffected()
 			if affected >= 0 {
