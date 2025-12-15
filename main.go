@@ -223,7 +223,8 @@ func storeHeight(bheight int64) {
 	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
 		fmt.Println("Error Saving LastIndexHeight: ", err)
 		if strings.Contains(err.Error(), "database is locked") {
-			panic(err)
+			api.Status_ok = false
+			//panic(err)
 		}
 
 		return
