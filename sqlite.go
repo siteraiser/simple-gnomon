@@ -355,6 +355,8 @@ func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool
 			changes = true
 			return
 		}
+	} else {
+		fmt.Println("Error storing last index height")
 	}
 
 	return
@@ -925,9 +927,9 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 	var newInteractionHeight []byte
 	//fmt.Println("StoreSCIDInteractionHeight... ")
 	//fmt.Println("SELECT heights FROM interactions WHERE scid=?")
-	ready(false)
+
 	err = ss.DB.QueryRow("SELECT heights FROM interactions WHERE scid=?", scid).Scan(&currSCIDInteractionHeight)
-	ready(true)
+
 	//fmt.Println("currSCIDInteractionHeight:", currSCIDInteractionHeight)
 	//fmt.Println("currSCIDInteractionHeight err:", err)
 	if err == nil {
@@ -959,12 +961,12 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 		if err != nil {
 			log.Fatal(err)
 		}
-		ready(false)
+
 		result, err := statement.Exec(
 			newInteractionHeight,
 			scid,
 		)
-		ready(true)
+
 		if err == nil {
 			last_insert_id, _ := result.LastInsertId()
 			if last_insert_id >= 0 {

@@ -46,7 +46,7 @@ var UseMem = false
 func start_gnomon_indexer() {
 
 	var lowest_height int64
-	Ask()
+	//Ask()
 	height, err := sqlite.GetLastIndexHeight()
 	if err != nil {
 		height = startat
@@ -220,10 +220,11 @@ func storeHeight(bheight int64) {
 	Ask()
 	//--maybe replace by using add owner and add a height to there...
 	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
+		fmt.Println("Error Saving LastIndexHeight: ", err)
 		if strings.Contains(err.Error(), "database is locked") {
 			panic(err)
 		}
-		fmt.Println("Error Saving LastIndexHeight: ", err)
+
 		return
 	}
 }
