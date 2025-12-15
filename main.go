@@ -71,6 +71,7 @@ func start_gnomon_indexer() {
 		if !api.Status_ok {
 			break
 		}
+
 		api.Ask()
 		//---- MAIN PRINTOUT
 		showBlockStatus(bheight)
@@ -204,6 +205,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	for i, tx_hex := range r.Txs_as_hex {
+		Ask()
 		wg2.Add(1)
 		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
 	}
@@ -326,7 +328,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	fmt.Println("staged params.scid:", params.SCID, ":", fmt.Sprint(staged.Fsi.Height))
 
 	// now add the scid to the index
-
+	Ask()
 	// if the contract already exists, record the interaction
 	if err := sqlindexer.AddSCIDToIndex(staged); err != nil {
 		fmt.Println(err, " ", staged.Scid, " ", staged.Fsi.Height)

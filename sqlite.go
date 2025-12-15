@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/civilware/tela/logger"
 	"github.com/mattn/go-sqlite3"
@@ -27,6 +28,17 @@ type SqlStore struct {
 	//Buckets []string
 }
 
+var Ready = true
+
+func Ask() bool {
+
+	for {
+		time.Sleep(time.Millisecond * 2)
+		if Ready {
+			return true
+		}
+	}
+}
 func (ss *SqlStore) BackupToDisk() error {
 
 	// Open destination database
@@ -297,10 +309,12 @@ func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool
 	if err != nil {
 		panic(err)
 	}
+	Ready = false
 	result, err := statement.Exec(
 		last_indexedheight,
 		"lastindexedheight",
 	)
+	Ready = true
 	if err == nil {
 		affected_rows, _ := result.RowsAffected()
 		if affected_rows != 0 {
@@ -383,6 +397,7 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 	if err != nil {
 		log.Fatal(err)
 	}
+	Ready = false
 	result, err := statement.Exec(
 		scid,
 		owner,
@@ -392,6 +407,7 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 		class,
 		tags,
 	)
+	Ready = true
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		fmt.Println("ownerinsertid: ", last_insert_id)
@@ -629,11 +645,13 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVaria
 	if err != nil {
 		log.Fatal(err)
 	}
+	Ready = false
 	result, err := statement.Exec(
 		int(topoheight),
 		scid,
 		confBytes,
 	)
+	Ready = true
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		if last_insert_id >= 0 {
@@ -1220,10 +1238,12 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 		if err != nil {
 			log.Fatal(err)
 		}
+		Ready = false
 		result, err := statement.Exec(
 			newInteractionHeight,
 			scid,
 		)
+		Ready = true
 		if err == nil {
 			affected, _ := result.RowsAffected()
 			if affected >= 0 {
