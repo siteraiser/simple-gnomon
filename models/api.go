@@ -37,7 +37,7 @@ func Ask() bool {
 	for {
 		time.Sleep(time.Millisecond * 2)
 		if Out1 < int(Max_preferred_requests) {
-			Mutex.Lock()
+			Mutex.Lock() //might be removable
 			current_endpoint = Endpoints[0]
 			Mutex.Unlock()
 			return true

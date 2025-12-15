@@ -292,7 +292,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		}
 	}
 
-	//api.Adjust()
+	api.Ask()
 	sc := api.GetSC(params) //Variables: true,
 
 	vars, err := GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
