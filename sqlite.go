@@ -342,7 +342,9 @@ func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool
 // Gets bbolt's last indexed height - this is for stateful stores on close and reference on open
 func (ss *SqlStore) GetLastIndexHeight() (topoheight int64, err error) {
 	var lastindexedheight int
+	ready(false)
 	ss.DB.QueryRow("SELECT value FROM state WHERE name = 'lastindexedheight' ").Scan(&lastindexedheight)
+	ready(true)
 	if lastindexedheight > 0 {
 		topoheight = int64(lastindexedheight)
 	}
@@ -480,7 +482,9 @@ func (ss *SqlStore) GetOwner(scid string) string {
 func (ss *SqlStore) GetAllOwnersAndSCIDs() map[string]string {
 	//	fmt.Println("SELECT scid, owner FROM scs")
 	results := make(map[string]string)
+	ready(false)
 	rows, _ := ss.DB.Query("SELECT scid, owner FROM scs", nil)
+	ready(true)
 	var (
 		scid  string
 		owner string
@@ -707,11 +711,14 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 
 	bName := scid + "vars"
 	fmt.Println("GetSCIDVariableDetailsAtTopoheight", bName)
+
 	fmt.Println("SELECT height,vars FROM variables WHERE height=? AND scid =?")
+	ready(false)
 	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE height=? AND scid =?",
 		int(topoheight),
 		scid,
 	)
+	ready(true)
 	var (
 		vars   string
 		height int
@@ -887,10 +894,11 @@ func (ss *SqlStore) GetAllSCIDVariableDetails(scid string) (hVars []*SCIDVariabl
 	//bName := scid + "vars"
 	//fmt.Println("GetAllSCIDVariableDetails", bName)
 	//fmt.Println("SELECT height,vars FROM variables WHERE height=? AND scid =?")
-
+	ready(false)
 	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE scid =?",
 		scid,
 	)
+	ready(true)
 	var (
 		vars   string
 		height int
@@ -1200,7 +1208,9 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 	var newInteractionHeight []byte
 	//fmt.Println("StoreSCIDInteractionHeight... ")
 	//fmt.Println("SELECT heights FROM interactions WHERE scid=?")
+	ready(false)
 	err = ss.DB.QueryRow("SELECT heights FROM interactions WHERE scid=?", scid).Scan(&currSCIDInteractionHeight)
+	ready(true)
 	//fmt.Println("currSCIDInteractionHeight:", currSCIDInteractionHeight)
 	//fmt.Println("currSCIDInteractionHeight err:", err)
 	if err == nil {
@@ -1232,10 +1242,12 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 		if err != nil {
 			log.Fatal(err)
 		}
+		ready(false)
 		result, err := statement.Exec(
 			newInteractionHeight,
 			scid,
 		)
+		ready(true)
 		if err == nil {
 			last_insert_id, _ := result.LastInsertId()
 			if last_insert_id >= 0 {
@@ -1321,7 +1333,9 @@ func (ss *SqlStore) GetSCIDInteractionHeight(scid string) (scidinteractions []in
 	//	fmt.Println("GetSCIDInteractionHeight... ")
 	//	fmt.Println("SELECT heights FROM interactions WHERE scid=?")
 	heights := ""
+	ready(false)
 	ss.DB.QueryRow("SELECT heights FROM interactions WHERE scid=?", scid).Scan(&heights)
+	ready(true)
 	if heights != "" {
 		_ = json.Unmarshal([]byte(heights), &scidinteractions)
 	}
