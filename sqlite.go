@@ -35,7 +35,7 @@ var Ready = true
 
 func ready(ready bool) {
 	if UseMem {
-		Ready = ready
+		//Ready = ready
 		return
 	}
 	Mutex.Lock()
