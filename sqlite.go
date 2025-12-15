@@ -412,7 +412,7 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 	if err != nil {
 		log.Fatal(err)
 	}
-	ready(false)
+
 	result, err := statement.Exec(
 		scid,
 		owner,
@@ -422,7 +422,7 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 		class,
 		tags,
 	)
-	ready(true)
+
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		fmt.Println("ownerinsertid: ", last_insert_id)
@@ -662,13 +662,13 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVaria
 	if err != nil {
 		log.Fatal(err)
 	}
-	ready(false)
+
 	result, err := statement.Exec(
 		int(topoheight),
 		scid,
 		confBytes,
 	)
-	ready(true)
+
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		if last_insert_id >= 0 {
