@@ -173,7 +173,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	if !api.StatusOk {
 		return
 	}
-	api.Ask() //smooth it over a bit
+	//api.Ask() smooth it over a bit
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
 	})
