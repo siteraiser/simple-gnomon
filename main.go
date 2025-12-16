@@ -17,12 +17,21 @@ import (
 	api "github.com/secretnamebasis/simple-gnomon/models"
 )
 
+var startat = int64(0)              // Start at Block Height
+var block_batch_size = int64(25000) // Batch size (how many to process before saving w/ mem mode)
+var UseMem = true                   // Use in-memory db
+// Optimized settings for mode db mode
+var mem_batch_size = 8
+var mem_preferred_requests = 10
+var disk_batch_size = 4
+var disk_preferred_requests = 8
+
+// Program vars
 var TargetHeight = int64(0)
 var HighestKnownHeight = api.Get_TopoHeight()
 var sqlite = &SqlStore{}
 var sqlindexer = &Indexer{}
-var UseMem = false
-var batch_size = 4
+var batch_size = 0
 
 func main() {
 	fmt.Println("starting ....")
@@ -31,12 +40,12 @@ func main() {
 	wd := globals.GetDataDirectory()
 	db_path := filepath.Join(wd, "gnomondb")
 	if UseMem {
-		batch_size = 8
-		api.Max_preferred_requests = 10
+		batch_size = mem_batch_size
+		api.Max_preferred_requests = mem_preferred_requests
 		sqlite, err = NewSqlDB(db_path, db_name)
 	} else {
-		batch_size = 4
-		api.Max_preferred_requests = 8
+		batch_size = disk_batch_size
+		api.Max_preferred_requests = disk_preferred_requests
 		sqlite, err = NewDiskDB(db_path, db_name)
 		CreateTables(sqlite.DB)
 	}
@@ -51,7 +60,6 @@ func main() {
 func start_gnomon_indexer() {
 
 	var lowest_height int64
-	//Ask()
 	height, err := sqlite.GetLastIndexHeight()
 	if err != nil {
 		height = startat
@@ -66,10 +74,9 @@ func start_gnomon_indexer() {
 	fmt.Println("SqlIndexer ", sqlindexer)
 	fmt.Println("topoheight ", api.Get_TopoHeight())
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
-	//start := time.Now()
 
-	if TargetHeight < HighestKnownHeight-25000 && lowest_height+25000 < HighestKnownHeight {
-		TargetHeight = lowest_height + 25000
+	if TargetHeight < HighestKnownHeight-block_batch_size && lowest_height+block_batch_size < HighestKnownHeight {
+		TargetHeight = lowest_height + block_batch_size
 	} else {
 		TargetHeight = HighestKnownHeight
 	}
