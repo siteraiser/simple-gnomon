@@ -17,9 +17,9 @@ import (
 	api "github.com/secretnamebasis/simple-gnomon/models"
 )
 
-var startAt = int64(0)            // Start at Block Height
+var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
 var blockBatchSize = int64(25000) // Batch size (how many to process before saving w/ mem mode)
-var UseMem = true                 // Use in-memory db
+var UseMem = false                // Use in-memory db
 // Optimized settings for mode db mode
 var memBatchSize = 8
 var memPreferredRequests = 10
@@ -42,6 +42,8 @@ const TESTNET_GNOMON_SCID = "c9d23d2fc3aaa8e54e238a2218c0e5176a6e48780920fd8474f
 var Hardcoded_SCIDS = []string{"0000000000000000000000000000000000000000000000000000000000000001"}
 
 func main() {
+
+	fmt.Println("foundfirst ....")
 	fmt.Println("starting ....")
 	var err error
 	db_name := fmt.Sprintf("sql%s.db", "GNOMON")
@@ -70,7 +72,10 @@ func start_gnomon_indexer() {
 	var last_height int64
 	last_height, err := sqlite.GetLastIndexHeight()
 	if err != nil {
-		last_height = startAt
+		if startAt == 0 {
+			last_height = findStart(1, HighestKnownHeight)
+		}
+
 		fmt.Println("err: ", err)
 	}
 
@@ -327,11 +332,8 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	//	fmt.Println("headers", headers)
 	tags := ""
 	class := ""
-	// range the indexers and add to index 1 at a time to prevent out of memory error
+
 	for key, name := range indexes {
-		//fmt.Println("name: ", name)
-		// if the code does not contain the filter, skip
-		//probably could use some suring up here
 		for _, filter := range name {
 			if !strings.Contains(sc.Code, filter) {
 				continue
@@ -339,7 +341,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 			class = key
 			tags = tags + "," + filter
 		}
-
 		if tags != "" && tags[0:1] == "," {
 			tags = tags[1:]
 		}
@@ -370,6 +371,32 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 /********************************/
 /*********** Helpers ************/
 /********************************/
+func blockExists(block int64) bool {
+	result := api.GetBlockInfo(rpc.GetBlock_Params{Height: uint64(block)})
+	if result.Status == "OK" {
+		return true
+	}
+	return false
+}
+
+func findStart(start int64, top int64) (block int64) {
+
+	difference := top - start
+	offset := difference / 2
+
+	if top-start == 1 {
+		return top - 1
+	}
+	if blockExists(offset + start) {
+		fmt.Println("true:", offset+start)
+		return findStart(start, offset+start)
+	} else {
+		fmt.Println("false:", offset+start)
+		return findStart(offset+start, top)
+	}
+
+}
+
 var lastTime = time.Now()
 var priorTimes []int64
 
