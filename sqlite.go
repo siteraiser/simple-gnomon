@@ -500,7 +500,7 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 
 	fmt.Println("SELECT height,vars FROM variables WHERE height=? AND scid =?")
 	ready(false)
-	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE height=? AND scid =?",
+	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE height=? AND scid =? ORDER BY height ASC",
 		int(topoheight),
 		scid,
 	)
@@ -525,124 +525,7 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 			return heights[i] < heights[j]
 		})
 
-		vs2k := make(map[interface{}]interface{})
-		for _, v := range heights {
-			if v > topoheight {
-				break
-			}
-			for _, vs := range results[v] {
-				switch ckey := vs.Key.(type) {
-				case float64:
-					switch cval := vs.Value.(type) {
-					case float64:
-						vs2k[uint64(ckey)] = uint64(cval)
-					case uint64:
-						vs2k[uint64(ckey)] = cval
-					case string:
-						vs2k[uint64(ckey)] = cval
-					default:
-						if cval != nil {
-							fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' does not match string, uint64 or float64.", cval)
-						} else {
-							vs2k[uint64(ckey)] = cval
-						}
-					}
-				case uint64:
-					switch cval := vs.Value.(type) {
-					case float64:
-						vs2k[ckey] = uint64(cval)
-					case uint64:
-						vs2k[ckey] = cval
-					case string:
-						vs2k[ckey] = cval
-					default:
-						if cval != nil {
-							fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' does not match string, uint64 or float64.", cval)
-						} else {
-							vs2k[ckey] = cval
-						}
-					}
-				case string:
-					switch cval := vs.Value.(type) {
-					case float64:
-						vs2k[ckey] = uint64(cval)
-					case uint64:
-						vs2k[ckey] = cval
-					case string:
-						vs2k[ckey] = cval
-					default:
-						if cval != nil {
-							fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' does not match string, uint64 or float64.", cval)
-						} else {
-							vs2k[ckey] = cval
-						}
-					}
-				default:
-					if ckey != nil {
-						fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Key '%v' does not match string, uint64 or float64.", ckey)
-					}
-				}
-			}
-		}
-
-		for k, v := range vs2k {
-			// If value is nil, no reason to add.
-			if v == nil || (reflect.ValueOf(v).Kind() == reflect.Ptr && reflect.ValueOf(v).IsNil()) || k == nil || (reflect.ValueOf(k).Kind() == reflect.Ptr && reflect.ValueOf(k).IsNil()) {
-				//logger.Debugf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' is nil. Continuing.", fmt.Sprintf("%v", v), fmt.Sprintf("%v", k))
-				continue
-			}
-			co := &SCIDVariable{}
-
-			switch ckey := k.(type) {
-			case float64:
-				switch cval := v.(type) {
-				case float64:
-					co.Key = uint64(ckey)
-					co.Value = uint64(cval)
-				case uint64:
-					co.Key = uint64(ckey)
-					co.Value = cval
-				case string:
-					co.Key = uint64(ckey)
-					co.Value = cval
-				default:
-					fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", uint64(ckey)))
-					continue
-				}
-			case uint64:
-				switch cval := v.(type) {
-				case float64:
-					co.Key = ckey
-					co.Value = uint64(cval)
-				case uint64:
-					co.Key = ckey
-					co.Value = cval
-				case string:
-					co.Key = ckey
-					co.Value = cval
-				default:
-					fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", ckey))
-					continue
-				}
-			case string:
-				switch cval := v.(type) {
-				case float64:
-					co.Key = ckey
-					co.Value = uint64(cval)
-				case uint64:
-					co.Key = ckey
-					co.Value = cval
-				case string:
-					co.Key = ckey
-					co.Value = cval
-				default:
-					fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", ckey))
-					continue
-				}
-			}
-
-			hVars = append(hVars, co)
-		}
+		hVars = getTypedVariables(heights, results)
 	}
 
 	return
@@ -658,7 +541,7 @@ func (ss *SqlStore) GetAllSCIDVariableDetails(scid string) (hVars []*SCIDVariabl
 	//fmt.Println("GetAllSCIDVariableDetails", bName)
 	//fmt.Println("SELECT height,vars FROM variables WHERE height=? AND scid =?")
 	ready(false)
-	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE scid =?",
+	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE scid =? ORDER BY height ASC",
 		scid,
 	)
 	ready(true)
@@ -684,121 +567,7 @@ func (ss *SqlStore) GetAllSCIDVariableDetails(scid string) (hVars []*SCIDVariabl
 			return heights[i] < heights[j]
 		})
 
-		vs2k := make(map[interface{}]interface{})
-		for _, v := range heights {
-			for _, vs := range results[v] {
-				switch ckey := vs.Key.(type) {
-				case float64:
-					switch cval := vs.Value.(type) {
-					case float64:
-						vs2k[uint64(ckey)] = uint64(cval)
-					case uint64:
-						vs2k[uint64(ckey)] = cval
-					case string:
-						vs2k[uint64(ckey)] = cval
-					default:
-						if cval != nil {
-							logger.Errorf("[GetAllSCIDVariableDetails] Value '%v' does not match string, uint64 or float64.", cval)
-						} else {
-							vs2k[uint64(ckey)] = cval
-						}
-					}
-				case uint64:
-					switch cval := vs.Value.(type) {
-					case float64:
-						vs2k[ckey] = uint64(cval)
-					case uint64:
-						vs2k[ckey] = cval
-					case string:
-						vs2k[ckey] = cval
-					default:
-						if cval != nil {
-							logger.Errorf("[GetAllSCIDVariableDetails] Value '%v' does not match string, uint64 or float64.", cval)
-						} else {
-							vs2k[ckey] = cval
-						}
-					}
-				case string:
-					switch cval := vs.Value.(type) {
-					case float64:
-						vs2k[ckey] = uint64(cval)
-					case uint64:
-						vs2k[ckey] = cval
-					case string:
-						vs2k[ckey] = cval
-					default:
-						if cval != nil {
-							logger.Errorf("[GetAllSCIDVariableDetails] Value '%v' does not match string, uint64 or float64.", cval)
-						} else {
-							vs2k[ckey] = cval
-						}
-					}
-				default:
-					if ckey != nil {
-						logger.Errorf("[GetAllSCIDVariableDetails] Key '%v' does not match string, uint64 or float64.", ckey)
-					}
-				}
-			}
-		}
-
-		for k, v := range vs2k {
-			// If value is nil, no reason to add.
-			if v == nil || (reflect.ValueOf(v).Kind() == reflect.Ptr && reflect.ValueOf(v).IsNil()) || k == nil || (reflect.ValueOf(k).Kind() == reflect.Ptr && reflect.ValueOf(k).IsNil()) {
-				//logger.Debugf("[GetAllSCIDVariableDetails] Value '%v' or Key '%v' is nil. Continuing.", fmt.Sprintf("%v", v), fmt.Sprintf("%v", k))
-				continue
-			}
-			co := &SCIDVariable{}
-
-			switch ckey := k.(type) {
-			case float64:
-				switch cval := v.(type) {
-				case float64:
-					co.Key = uint64(ckey)
-					co.Value = uint64(cval)
-				case uint64:
-					co.Key = uint64(ckey)
-					co.Value = cval
-				case string:
-					co.Key = uint64(ckey)
-					co.Value = cval
-				default:
-					logger.Errorf("[GetAllSCIDVariableDetails] Value '%v' or Key '%v' is does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", uint64(ckey)))
-					continue
-				}
-			case uint64:
-				switch cval := v.(type) {
-				case float64:
-					co.Key = ckey
-					co.Value = uint64(cval)
-				case uint64:
-					co.Key = ckey
-					co.Value = cval
-				case string:
-					co.Key = ckey
-					co.Value = cval
-				default:
-					logger.Errorf("[GetAllSCIDVariableDetails] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", ckey))
-					continue
-				}
-			case string:
-				switch cval := v.(type) {
-				case float64:
-					co.Key = ckey
-					co.Value = uint64(cval)
-				case uint64:
-					co.Key = ckey
-					co.Value = cval
-				case string:
-					co.Key = ckey
-					co.Value = cval
-				default:
-					logger.Errorf("[GetAllSCIDVariableDetails] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", ckey))
-					continue
-				}
-			}
-
-			hVars = append(hVars, co)
-		}
+		hVars = getTypedVariables(heights, results)
 	}
 
 	return
@@ -815,62 +584,8 @@ func (ss *SqlStore) GetSCIDKeysByValue(scid string, val interface{}, height int6
 	variables := ss.GetSCIDVariableDetailsAtTopoheight(scid, interactionHeight)
 
 	// Switch against the value passed. If it's a uint64 or string
-	switch inpvar := val.(type) {
-	case uint64:
-		for _, v := range variables {
-			switch cval := v.Value.(type) {
-			case float64:
-				if inpvar == uint64(cval) {
-					switch ckey := v.Key.(type) {
-					case float64:
-						keysuint64 = append(keysuint64, uint64(ckey))
-					case uint64:
-						keysuint64 = append(keysuint64, ckey)
-					default:
-						// default just store as string. Keys should only ever be strings or uint64, however, but assume default to string
-						keysstring = append(keysstring, v.Key.(string))
-					}
-				}
-			case uint64:
-				if inpvar == cval {
-					switch ckey := v.Key.(type) {
-					case float64:
-						keysuint64 = append(keysuint64, uint64(ckey))
-					case uint64:
-						keysuint64 = append(keysuint64, ckey)
-					default:
-						// default just store as string. Keys should only ever be strings or uint64, however, but assume default to string
-						keysstring = append(keysstring, v.Key.(string))
-					}
-				}
-			default:
-				// Nothing - expect only string/uint64 for value types
-			}
-		}
-	case string:
-		for _, v := range variables {
-			switch cval := v.Value.(type) {
-			case string:
-				if inpvar == cval {
-					switch ckey := v.Key.(type) {
-					case float64:
-						keysuint64 = append(keysuint64, uint64(ckey))
-					case uint64:
-						keysuint64 = append(keysuint64, ckey)
-					default:
-						// default just store as string. Keys should only ever be strings or uint64, however, but assume default to string
-						keysstring = append(keysstring, v.Key.(string))
-					}
-				}
-			default:
-				// Nothing - expect only string/uint64 for value types
-			}
-		}
-	default:
-		// Nothing - expect only string/uint64 for value types
-	}
+	return getTyped(val, variables)
 
-	return keysstring, keysuint64
 }
 
 // Gets SC values by key at given topoheight who's key equates to a given interface{} (string/uint64)
@@ -883,67 +598,12 @@ func (ss *SqlStore) GetSCIDValuesByKey(scid string, key interface{}, height int6
 	variables := ss.GetSCIDVariableDetailsAtTopoheight(scid, interactionHeight)
 
 	// Switch against the value passed. If it's a uint64 or string
-	switch inpvar := key.(type) {
-	case uint64:
-		for _, v := range variables {
-			switch ckey := v.Key.(type) {
-			case float64:
-				if inpvar == uint64(ckey) {
-					switch cval := v.Value.(type) {
-					case float64:
-						valuesuint64 = append(valuesuint64, uint64(cval))
-					case uint64:
-						valuesuint64 = append(valuesuint64, cval)
-					default:
-						// default just store as string. Keys should only ever be strings or uint64, however, but assume default to string
-						valuesstring = append(valuesstring, v.Value.(string))
-					}
-				}
-			case uint64:
-				if inpvar == ckey {
-					switch cval := v.Value.(type) {
-					case float64:
-						valuesuint64 = append(valuesuint64, uint64(cval))
-					case uint64:
-						valuesuint64 = append(valuesuint64, cval)
-					default:
-						// default just store as string. Keys should only ever be strings or uint64, however, but assume default to string
-						valuesstring = append(valuesstring, v.Value.(string))
-					}
-				}
-			default:
-				// Nothing - expect only string/uint64 for value types
-			}
-		}
-	case string:
-		for _, v := range variables {
-			switch ckey := v.Key.(type) {
-			case string:
-				if inpvar == ckey {
-					switch cval := v.Value.(type) {
-					case float64:
-						valuesuint64 = append(valuesuint64, uint64(cval))
-					case uint64:
-						valuesuint64 = append(valuesuint64, cval)
-					default:
-						// default just store as string. Values should only ever be strings or uint64, however, but assume default to string
-						valuesstring = append(valuesstring, v.Value.(string))
-					}
-				}
-			default:
-				// Nothing - expect only string/uint64 for value types
-			}
-		}
-	default:
-		// Nothing - expect only string/uint64 for value types
-	}
-
-	return valuesstring, valuesuint64
+	return getTyped(key, variables)
 }
 
 // Stores SC interaction height and detail - height invoked upon and type (scinstall/scinvoke). This is separate tree & k/v since we can query it for other things at less data retrieval
 func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (changes bool, err error) {
-	ready(false)
+
 	var currSCIDInteractionHeight []byte
 	var interactionHeight []int64
 	var newInteractionHeight []byte
@@ -965,6 +625,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 				// Return nil if already exists in array.
 				// Clause for this is in event we pop backwards in time and already have this data stored.
 				// TODO: What if interaction happened on false-chain and pop to retain correct chain. Bad data may be stored here still, as it isn't removed. Need fix for this in future.
+
 				return
 			}
 		}
@@ -1019,7 +680,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 		}
 
 	}
-	ready(true)
+
 	return
 
 }
@@ -1062,6 +723,183 @@ func (ss *SqlStore) GetInteractionIndex(topoheight int64, heights []int64, rmax 
 	}
 
 	return height
+}
+
+// SC typing/value extraction fucntions
+func getTyped(entity interface{}, variables []*SCIDVariable) (strings []string, uint64s []uint64) {
+	switch inpvar := entity.(type) {
+	case uint64:
+		for _, v := range variables {
+			switch ckey := v.Key.(type) {
+			case float64:
+				if inpvar == uint64(ckey) {
+					switch cval := v.Value.(type) {
+					case float64:
+						uint64s = append(uint64s, uint64(cval))
+					case uint64:
+						uint64s = append(uint64s, cval)
+					default:
+						// default just store as string. Keys should only ever be strings or uint64, however, but assume default to string
+						strings = append(strings, v.Value.(string))
+					}
+				}
+			case uint64:
+				if inpvar == ckey {
+					switch cval := v.Value.(type) {
+					case float64:
+						uint64s = append(uint64s, uint64(cval))
+					case uint64:
+						uint64s = append(uint64s, cval)
+					default:
+						// default just store as string. Keys should only ever be strings or uint64, however, but assume default to string
+						strings = append(strings, v.Value.(string))
+					}
+				}
+			default:
+				// Nothing - expect only string/uint64 for value types
+			}
+		}
+	case string:
+		for _, v := range variables {
+			switch ckey := v.Key.(type) {
+			case string:
+				if inpvar == ckey {
+					switch cval := v.Value.(type) {
+					case float64:
+						uint64s = append(uint64s, uint64(cval))
+					case uint64:
+						uint64s = append(uint64s, cval)
+					default:
+						// default just store as string. Values should only ever be strings or uint64, however, but assume default to string
+						strings = append(strings, v.Value.(string))
+					}
+				}
+			default:
+				// Nothing - expect only string/uint64 for value types
+			}
+		}
+	default:
+		// Nothing - expect only string/uint64 for value types
+	}
+	return strings, uint64s
+}
+
+func getTypedVariables(heights []int64, results map[int64][]*SCIDVariable) (hVars []*SCIDVariable) {
+	var vs2k = make(map[interface{}]interface{})
+	for _, v := range heights {
+		for _, vs := range results[v] {
+			switch ckey := vs.Key.(type) {
+			case float64:
+				switch cval := vs.Value.(type) {
+				case float64:
+					vs2k[uint64(ckey)] = uint64(cval)
+				case uint64:
+					vs2k[uint64(ckey)] = cval
+				case string:
+					vs2k[uint64(ckey)] = cval
+				default:
+					if cval != nil {
+						logger.Errorf("[GetAllSCIDVariableDetails] Value '%v' does not match string, uint64 or float64.", cval)
+					} else {
+						vs2k[uint64(ckey)] = cval
+					}
+				}
+			case uint64:
+				switch cval := vs.Value.(type) {
+				case float64:
+					vs2k[ckey] = uint64(cval)
+				case uint64:
+					vs2k[ckey] = cval
+				case string:
+					vs2k[ckey] = cval
+				default:
+					if cval != nil {
+						logger.Errorf("[GetAllSCIDVariableDetails] Value '%v' does not match string, uint64 or float64.", cval)
+					} else {
+						vs2k[ckey] = cval
+					}
+				}
+			case string:
+				switch cval := vs.Value.(type) {
+				case float64:
+					vs2k[ckey] = uint64(cval)
+				case uint64:
+					vs2k[ckey] = cval
+				case string:
+					vs2k[ckey] = cval
+				default:
+					if cval != nil {
+						logger.Errorf("[GetAllSCIDVariableDetails] Value '%v' does not match string, uint64 or float64.", cval)
+					} else {
+						vs2k[ckey] = cval
+					}
+				}
+			default:
+				if ckey != nil {
+					logger.Errorf("[GetAllSCIDVariableDetails] Key '%v' does not match string, uint64 or float64.", ckey)
+				}
+			}
+		}
+	}
+	for k, v := range vs2k {
+		// If value is nil, no reason to add.
+		if v == nil || (reflect.ValueOf(v).Kind() == reflect.Ptr && reflect.ValueOf(v).IsNil()) || k == nil || (reflect.ValueOf(k).Kind() == reflect.Ptr && reflect.ValueOf(k).IsNil()) {
+			//logger.Debugf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' is nil. Continuing.", fmt.Sprintf("%v", v), fmt.Sprintf("%v", k))
+			continue
+		}
+		co := &SCIDVariable{}
+
+		switch ckey := k.(type) {
+		case float64:
+			switch cval := v.(type) {
+			case float64:
+				co.Key = uint64(ckey)
+				co.Value = uint64(cval)
+			case uint64:
+				co.Key = uint64(ckey)
+				co.Value = cval
+			case string:
+				co.Key = uint64(ckey)
+				co.Value = cval
+			default:
+				fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", uint64(ckey)))
+				continue
+			}
+		case uint64:
+			switch cval := v.(type) {
+			case float64:
+				co.Key = ckey
+				co.Value = uint64(cval)
+			case uint64:
+				co.Key = ckey
+				co.Value = cval
+			case string:
+				co.Key = ckey
+				co.Value = cval
+			default:
+				fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", ckey))
+				continue
+			}
+		case string:
+			switch cval := v.(type) {
+			case float64:
+				co.Key = ckey
+				co.Value = uint64(cval)
+			case uint64:
+				co.Key = ckey
+				co.Value = cval
+			case string:
+				co.Key = ckey
+				co.Value = cval
+			default:
+				fmt.Printf("[GetSCIDVariableDetailsAtTopoheight] Value '%v' or Key '%v' does not match string, uint64 or float64.", fmt.Sprintf("%v", cval), fmt.Sprintf("%v", ckey))
+				continue
+			}
+		}
+
+		hVars = append(hVars, co)
+	}
+	return hVars
 }
 
 /*
