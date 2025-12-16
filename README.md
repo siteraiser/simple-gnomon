@@ -1,3 +1,3 @@
-# simple-gnomon
+# simple-gnomon-lite
 
-this fork has been optimized for [simple-wallet](github.com/secretnamebasis/simple-wallet)
+An SQLITE implementation of the GNOMON smart contract indexer for DERO.

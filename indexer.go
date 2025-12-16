@@ -4,16 +4,38 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"regexp"
-
-	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 
 	"github.com/deroproject/derohe/cryptography/crypto"
 	"github.com/deroproject/derohe/rpc"
-	"github.com/sirupsen/logrus"
+	"github.com/deroproject/derohe/transaction"
 )
 
+type SCTXParse struct {
+	Txid       string
+	Scid       string
+	Scid_hex   []byte
+	Entrypoint string
+	Method     string
+	Sc_args    rpc.Arguments
+	Sender     string
+	Payloads   []transaction.AssetPayload
+	Fees       uint64
+	Height     int64
+}
+
+type SCIDVariable struct {
+	Key   any
+	Value any
+}
+
+type FastSyncImport struct {
+	Owner    string
+	Height   uint64
+	SCName   string
+	SCDesc   string
+	SCImgURL string
+}
 type SCIDToIndexStage struct {
 	Scid   string
 	Fsi    *FastSyncImport
@@ -31,31 +53,6 @@ type Indexer struct {
 	SSSBackend        *SqlStore
 	ValidatedSCs      []string
 	Status            string
-}
-
-var Connected bool = false
-
-// local logger
-var l *logrus.Entry
-
-func InitLog(args map[string]interface{}, console io.Writer) {
-	loglevel_console := logrus.InfoLevel
-
-	if args["--debug"] != nil && args["--debug"].(bool) {
-		loglevel_console = logrus.DebugLevel
-	}
-
-	Logger = logrus.Logger{
-		Out:   console,
-		Level: loglevel_console,
-		Formatter: &prefixed.TextFormatter{
-			ForceColors:     true,
-			DisableColors:   false,
-			TimestampFormat: "01/02/2006 15:04:05",
-			FullTimestamp:   true,
-			ForceFormatting: true,
-		},
-	}
 }
 
 func NewSQLIndexer(
