@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/civilware/tela/logger"
 	"github.com/mattn/go-sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -770,7 +769,7 @@ func getTypedVariables(heights []int64, results map[int64][]*SCIDVariable) (hVar
 					vs2k[uint64(ckey)] = cval
 				default:
 					if cval != nil {
-						logger.Errorf("[GetAllSCIDVariableDetails] Value '%v' does not match string, uint64 or float64.", cval)
+						fmt.Printf("[GetAllSCIDVariableDetails] Value '%v' does not match string, uint64 or float64.", cval)
 					} else {
 						vs2k[uint64(ckey)] = cval
 					}
@@ -785,7 +784,7 @@ func getTypedVariables(heights []int64, results map[int64][]*SCIDVariable) (hVar
 					vs2k[ckey] = cval
 				default:
 					if cval != nil {
-						logger.Errorf("[GetAllSCIDVariableDetails] Value '%v' does not match string, uint64 or float64.", cval)
+						fmt.Printf("[GetAllSCIDVariableDetails] Value '%v' does not match string, uint64 or float64.", cval)
 					} else {
 						vs2k[ckey] = cval
 					}
@@ -800,14 +799,14 @@ func getTypedVariables(heights []int64, results map[int64][]*SCIDVariable) (hVar
 					vs2k[ckey] = cval
 				default:
 					if cval != nil {
-						logger.Errorf("[GetAllSCIDVariableDetails] Value '%v' does not match string, uint64 or float64.", cval)
+						fmt.Printf("[GetAllSCIDVariableDetails] Value '%v' does not match string, uint64 or float64.", cval)
 					} else {
 						vs2k[ckey] = cval
 					}
 				}
 			default:
 				if ckey != nil {
-					logger.Errorf("[GetAllSCIDVariableDetails] Key '%v' does not match string, uint64 or float64.", ckey)
+					fmt.Printf("[GetAllSCIDVariableDetails] Key '%v' does not match string, uint64 or float64.", ckey)
 				}
 			}
 		}

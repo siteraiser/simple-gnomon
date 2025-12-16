@@ -2,32 +2,35 @@ module github.com/secretnamebasis/simple-gnomon
 
 go 1.24.0
 
-require (
-	github.com/blang/semver/v4 v4.0.0
-	github.com/civilware/tela v0.0.0-20250806221602-aa892d2ff8d4
-	github.com/creachadair/jrpc2 v0.35.4
-	github.com/deroproject/derohe v0.0.0-20250813215012-9b6a8b82c839
-	github.com/gorilla/websocket v1.5.0
-	github.com/sirupsen/logrus v1.9.3
-	github.com/x-cray/logrus-prefixed-formatter v0.5.2
-	go.etcd.io/bbolt v1.3.7
-)
+require github.com/deroproject/derohe v0.0.0-20250813215012-9b6a8b82c839
 
 require (
+	github.com/VictoriaMetrics/metrics v1.23.1 // indirect
+	github.com/beevik/ntp v1.2.0 // indirect
+	github.com/blang/semver/v4 v4.0.0 // indirect
+	github.com/cenkalti/hub v1.0.1 // indirect
+	github.com/cenkalti/rpc2 v0.0.0-20210604223624-c1acbc6ec984 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/coder/websocket v1.8.12 // indirect
+	github.com/creachadair/jrpc2 v0.35.4 // indirect
 	github.com/dchest/siphash v1.2.3 // indirect
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815 // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
+	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.6 // indirect
+	github.com/klauspost/reedsolomon v1.11.5 // indirect
+	github.com/lesismal/llib v1.1.10 // indirect
+	github.com/lesismal/nbio v1.3.9 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
+	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/segmentio/fasthash v1.0.3 // indirect
 	github.com/templexxx/xorsimd v0.4.3 // indirect
-	github.com/tjfoc/gmsm v1.4.1 // indirect
-	github.com/valyala/histogram v1.2.0 // indirect
+	github.com/xtaci/kcp-go/v5 v5.6.2 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
+	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 )
 
 require (
@@ -37,11 +40,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.4.0 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/zapr v1.2.3 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-sqlite3 v1.14.32
-	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
-	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.20.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
@@ -55,7 +54,6 @@ require (
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/term v0.29.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
