@@ -59,30 +59,30 @@ func main() {
 
 func start_gnomon_indexer() {
 
-	var lowest_height int64
-	height, err := sqlite.GetLastIndexHeight()
+	var last_height int64
+	last_height, err := sqlite.GetLastIndexHeight()
 	if err != nil {
-		height = startAt
+		last_height = startAt
 		fmt.Println("err: ", err)
 	}
-	lowest_height = height
+
 	if UseMem == false {
-		sqlite.PruneHeight(int(height))
+		sqlite.PruneHeight(int(last_height))
 	}
 
-	sqlindexer = NewSQLIndexer(sqlite, height, []string{MAINNET_GNOMON_SCID})
-	fmt.Println("SqlIndexer ", sqlindexer)
-	fmt.Println("topoheight ", api.Get_TopoHeight())
-	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
+	sqlindexer = NewSQLIndexer(sqlite, last_height, []string{MAINNET_GNOMON_SCID})
 
-	if TargetHeight < HighestKnownHeight-blockBatchSize && lowest_height+blockBatchSize < HighestKnownHeight {
-		TargetHeight = lowest_height + blockBatchSize
+	fmt.Println("Topo Height ", api.Get_TopoHeight())
+	fmt.Println("last height ", fmt.Sprint(last_height))
+
+	if TargetHeight < HighestKnownHeight-blockBatchSize && last_height+blockBatchSize < HighestKnownHeight {
+		TargetHeight = last_height + blockBatchSize
 	} else {
 		TargetHeight = HighestKnownHeight
 	}
 
 	var wg sync.WaitGroup
-	for bheight := lowest_height; bheight < TargetHeight; bheight++ {
+	for bheight := last_height; bheight < TargetHeight; bheight++ {
 		if !api.StatusOk {
 			break
 		}
