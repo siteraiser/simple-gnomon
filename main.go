@@ -41,11 +41,11 @@ func main() {
 	db_path := filepath.Join(wd, "gnomondb")
 	if UseMem {
 		batchSize = memBatchSize
-		api.Max_preferred_requests = memPreferredRequests
+		api.PreferredRequests = memPreferredRequests
 		sqlite, err = NewSqlDB(db_path, db_name)
 	} else {
 		batchSize = diskBatchSize
-		api.Max_preferred_requests = diskPreferredRequests
+		api.PreferredRequests = diskPreferredRequests
 		sqlite, err = NewDiskDB(db_path, db_name)
 		CreateTables(sqlite.DB)
 	}
@@ -402,7 +402,7 @@ func showBlockStatus(bheight int64) {
 	//o2 := int(api.Out2)
 	//Mutex.Unlock()
 	show := "Block:" + strconv.Itoa(int(bheight)) +
-		" Max En Route:" + strconv.Itoa(int(api.Max_preferred_requests)) +
+		" Max En Route:" + strconv.Itoa(int(api.PreferredRequests)) +
 		" En Route " + strconv.Itoa(int(api.Out1)) +
 		":" + strconv.Itoa(int(api.Out2)) +
 		" Speed:" + speedms + "ms" +

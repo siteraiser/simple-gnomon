@@ -30,12 +30,12 @@ func Ask() {
 	for {
 		time.Sleep(time.Millisecond)
 		Mutex.Lock() //might be removable
-		if Out1+Out2 < Max_preferred_requests*2 {
-			if Out1 < Max_preferred_requests {
+		if Out1+Out2 < PreferredRequests*2 {
+			if Out1 < PreferredRequests {
 				currentEndpoint = Endpoints[0]
 				Mutex.Unlock()
 				return
-			} else if Out2 < Max_preferred_requests {
+			} else if Out2 < PreferredRequests {
 				currentEndpoint = Endpoints[1]
 				Mutex.Unlock()
 				return
@@ -49,7 +49,7 @@ func Ask() {
 var Out1 = 0
 var Out2 = 0
 
-var Max_preferred_requests = int(8)
+var PreferredRequests = int(8)
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 
