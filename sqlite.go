@@ -330,7 +330,7 @@ func (ss *SqlStore) ViewTables() {
 
 	fmt.Println("Showing Interactions: ")
 
-	rows, err = hard.Query("SELECT count(*) FROM interactions", nil) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
+	rows, err = hard.Query("SELECT count(*) FROM interactions", nil)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -394,7 +394,6 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 		return
 	}
 	ready(false)
-	//	fmt.Println("INSERT INTO scs (owner,scid,headers,class,tags) VALUES (?,?,?,?,?,?,?)")
 	statement, err := ss.DB.Prepare("INSERT INTO scs (scid,owner,scname,scdescr,scimgurl,class,tags) VALUES (?,?,?,?,?,?,?)")
 	if err != nil {
 		log.Fatal(err)
@@ -427,7 +426,6 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 
 // Returns all of the deployed SCIDs with their corresponding owners (who deployed it)
 func (ss *SqlStore) GetAllOwnersAndSCIDs() map[string]string {
-	//	fmt.Println("SELECT scid, owner FROM scs")
 	results := make(map[string]string)
 	ready(false)
 	rows, _ := ss.DB.Query("SELECT scid, owner FROM scs", nil)
@@ -455,7 +453,6 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVaria
 		return changes, fmt.Errorf("[StoreSCIDVariableDetails] could not marshal getinfo info: %v", err)
 	}
 	ready(false)
-	//fmt.Println("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
 	statement, err := ss.DB.Prepare("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
 	if err != nil {
 		log.Fatal(err)
