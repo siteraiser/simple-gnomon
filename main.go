@@ -198,7 +198,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	var r mockRequest
 	//Go through the array of batches and collect the results
 	for i := range batch_count {
-		//var transaction_result rpc.GetTransaction_Result
 		end := batchSize * i
 		if i == batch_count-1 {
 			end = len(tx_str_list)
@@ -223,7 +222,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	for i, tx_hex := range r.Txs_as_hex {
-		//	Ask()
 		wg2.Add(1)
 		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
 	}
@@ -241,7 +239,6 @@ func storeHeight(bheight int64) {
 		fmt.Println("Error Saving LastIndexHeight: ", err)
 		if strings.Contains(err.Error(), "database is locked") {
 			api.StatusOk = false
-			//panic(err)
 		}
 
 		return
@@ -270,7 +267,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		panic(err)
 	}
 	//fmt.Println("\nTX Height: ", tx.Height)
-	//fmt.Println("\nReq: ", Processing-int64(bheight))
 
 	if tx.TransactionType != transaction.SC_TX {
 		return
@@ -397,10 +393,6 @@ func showBlockStatus(bheight int64) {
 		speedms = strconv.Itoa(s)
 		speedbph = strconv.Itoa((1000 / s) * 60 * 60)
 	}
-	//Mutex.Lock()
-	//o1 := int(api.Out1)
-	//o2 := int(api.Out2)
-	//Mutex.Unlock()
 	show := "Block:" + strconv.Itoa(int(bheight)) +
 		" Max En Route:" + strconv.Itoa(int(api.PreferredRequests)) +
 		" En Route " + strconv.Itoa(int(api.Out1)) +
