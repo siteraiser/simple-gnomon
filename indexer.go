@@ -36,6 +36,7 @@ type FastSyncImport struct {
 	SCDesc   string
 	SCImgURL string
 }
+
 type SCIDToIndexStage struct {
 	Scid   string
 	Fsi    *FastSyncImport
@@ -55,14 +56,7 @@ type Indexer struct {
 	Status            string
 }
 
-func NewSQLIndexer(
-	Sqls_backend *SqlStore,
-	last_indexedheight int64,
-	sfscidexclusion []string,
-) *Indexer {
-
-	//l = l.WithFields(logrus.Fields{})
-
+func NewSQLIndexer(Sqls_backend *SqlStore, last_indexedheight int64, sfscidexclusion []string) *Indexer {
 	return &Indexer{
 		LastIndexedHeight: last_indexedheight,
 		SFSCIDExclusion:   sfscidexclusion,
@@ -97,7 +91,6 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		if !changed {
 			return errors.New("did not store scid/vars")
 		}
-		//time.Sleep(writeWait)
 
 		changed, err = indexer.SSSBackend.StoreOwner(
 			scidstoadd.Scid,
@@ -116,7 +109,6 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 			return errors.New("did not store scid/owner")
 		}
 		if UseMem {
-			//fmt.Print("bb  [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllOwnersAndSCIDs())))
 			fmt.Print("sql [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.SSSBackend.GetAllOwnersAndSCIDs())))
 		}
 
@@ -134,12 +126,9 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 			return errors.New("did not store scid/interaction")
 		}
 		if UseMem {
-			//fmt.Print("bb  [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
 			fmt.Print("sql [AddSCIDToIndex] New updated disk: ", fmt.Sprint(len(indexer.SSSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
 		}
 	}
-
-	//	indexer.SSSBackend.Writing = false
 	return nil
 }
 

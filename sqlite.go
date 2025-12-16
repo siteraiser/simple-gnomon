@@ -315,7 +315,6 @@ func (ss *SqlStore) ViewTables() {
 		fmt.Println("owner - scid - scname - class - tags", owner+"--"+scid+"--"+scname+"--"+class+"--"+tags)
 	}
 
-	//INSERT INTO vars (height, scid, vars) VALUES (?,?,?)
 	fmt.Println("Showing Vars: ")
 	rows, err = hard.Query("SELECT height, scid FROM variables", nil)
 	if err != nil {
@@ -522,10 +521,7 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 func (ss *SqlStore) GetAllSCIDVariableDetails(scid string) (hVars []*SCIDVariable) {
 	results := make(map[int64][]*SCIDVariable)
 	var heights []int64
-
-	//bName := scid + "vars"
 	//fmt.Println("GetAllSCIDVariableDetails", bName)
-	//fmt.Println("SELECT height,vars FROM variables WHERE height=? AND scid =?")
 	ready(false)
 	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE scid =? ORDER BY height ASC",
 		scid,
@@ -620,7 +616,6 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 
 	//No record found, create one
 	if len(currSCIDInteractionHeight) == 0 {
-		//	fmt.Println("(sql, insert interaction) INSERT INTO interactions (heights, scid) VALUES (?,?)")
 		statement, err := ss.DB.Prepare("INSERT INTO interactions (heights, scid) VALUES (?,?)")
 		if err != nil {
 			log.Fatal(err)
@@ -641,7 +636,6 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 
 	} else {
 
-		//	fmt.Println("(sql, update interaction) UPDATE interactions SET heights=? WHERE scid=?;")
 		statement, err := ss.DB.Prepare("UPDATE interactions SET heights=? WHERE scid=?;")
 		if err != nil {
 			log.Fatal(err)
@@ -669,7 +663,6 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 // Gets SC interaction height and detail by a given SCID
 func (ss *SqlStore) GetSCIDInteractionHeight(scid string) (scidinteractions []int64) {
 	//	fmt.Println("GetSCIDInteractionHeight... ")
-	//	fmt.Println("SELECT heights FROM interactions WHERE scid=?")
 	heights := ""
 	ready(false)
 	ss.DB.QueryRow("SELECT heights FROM interactions WHERE scid=?", scid).Scan(&heights)
