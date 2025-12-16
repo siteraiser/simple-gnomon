@@ -214,7 +214,7 @@ func CreateTables(Db *sql.DB) {
 	if count == 0 {
 		fmt.Println("setting defaults")
 		//set defaults
-		statement, err := Db.Prepare("INSERT INTO state (name,value) VALUES('lastindexedheight'," + strconv.Itoa(int(startat)) + ");")
+		statement, err := Db.Prepare("INSERT INTO state (name,value) VALUES('lastindexedheight'," + strconv.Itoa(int(startAt)) + ");")
 		handleError(err)
 		statement.Exec()
 

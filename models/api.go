@@ -20,10 +20,10 @@ import (
 )
 
 var Mutex sync.Mutex
-var Status_ok = true
+var StatusOk = true
 
 var Endpoints = [2]string{"node.derofoundation.org:11012", "64.226.81.37:10102"}
-var current_endpoint = Endpoints[0]
+var currentEndpoint = Endpoints[0]
 
 func Ask() {
 
@@ -32,11 +32,11 @@ func Ask() {
 		Mutex.Lock() //might be removable
 		if Out1+Out2 < Max_preferred_requests*2 {
 			if Out1 < Max_preferred_requests {
-				current_endpoint = Endpoints[0]
+				currentEndpoint = Endpoints[0]
 				Mutex.Unlock()
 				return
 			} else if Out2 < Max_preferred_requests {
-				current_endpoint = Endpoints[1]
+				currentEndpoint = Endpoints[1]
 				Mutex.Unlock()
 				return
 			}
@@ -78,7 +78,7 @@ func getResult[T any](method string, params any) (T, error) {
 
 	Mutex.Lock()
 
-	endpoint = current_endpoint
+	endpoint = currentEndpoint
 	nodeaddr := "http://" + endpoint + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
 	if endpoint == Endpoints[0] {
@@ -114,7 +114,7 @@ func getResult[T any](method string, params any) (T, error) {
 		} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+nodeaddr+")") {
 			//maybe handle connection errors here with a cancel / rollback instead.
 			Mutex.Lock()
-			Status_ok = false
+			StatusOk = false
 			Mutex.Unlock()
 			fmt.Println(err)
 			//	log.Fatal(err)

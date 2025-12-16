@@ -17,21 +17,21 @@ import (
 	api "github.com/secretnamebasis/simple-gnomon/models"
 )
 
-var startat = int64(0)              // Start at Block Height
-var block_batch_size = int64(25000) // Batch size (how many to process before saving w/ mem mode)
-var UseMem = true                   // Use in-memory db
+var startAt = int64(0)            // Start at Block Height
+var blockBatchSize = int64(25000) // Batch size (how many to process before saving w/ mem mode)
+var UseMem = true                 // Use in-memory db
 // Optimized settings for mode db mode
-var mem_batch_size = 8
-var mem_preferred_requests = 10
-var disk_batch_size = 4
-var disk_preferred_requests = 8
+var memBatchSize = 8
+var memPreferredRequests = 10
+var diskBatchSize = 4
+var diskPreferredRequests = 8
 
 // Program vars
 var TargetHeight = int64(0)
 var HighestKnownHeight = api.Get_TopoHeight()
 var sqlite = &SqlStore{}
 var sqlindexer = &Indexer{}
-var batch_size = 0
+var batchSize = 0
 
 func main() {
 	fmt.Println("starting ....")
@@ -40,12 +40,12 @@ func main() {
 	wd := globals.GetDataDirectory()
 	db_path := filepath.Join(wd, "gnomondb")
 	if UseMem {
-		batch_size = mem_batch_size
-		api.Max_preferred_requests = mem_preferred_requests
+		batchSize = memBatchSize
+		api.Max_preferred_requests = memPreferredRequests
 		sqlite, err = NewSqlDB(db_path, db_name)
 	} else {
-		batch_size = disk_batch_size
-		api.Max_preferred_requests = disk_preferred_requests
+		batchSize = diskBatchSize
+		api.Max_preferred_requests = diskPreferredRequests
 		sqlite, err = NewDiskDB(db_path, db_name)
 		CreateTables(sqlite.DB)
 	}
@@ -62,7 +62,7 @@ func start_gnomon_indexer() {
 	var lowest_height int64
 	height, err := sqlite.GetLastIndexHeight()
 	if err != nil {
-		height = startat
+		height = startAt
 		fmt.Println("err: ", err)
 	}
 	lowest_height = height
@@ -75,15 +75,15 @@ func start_gnomon_indexer() {
 	fmt.Println("topoheight ", api.Get_TopoHeight())
 	fmt.Println("lowest_height ", fmt.Sprint(lowest_height))
 
-	if TargetHeight < HighestKnownHeight-block_batch_size && lowest_height+block_batch_size < HighestKnownHeight {
-		TargetHeight = lowest_height + block_batch_size
+	if TargetHeight < HighestKnownHeight-blockBatchSize && lowest_height+blockBatchSize < HighestKnownHeight {
+		TargetHeight = lowest_height + blockBatchSize
 	} else {
 		TargetHeight = HighestKnownHeight
 	}
 
 	var wg sync.WaitGroup
 	for bheight := lowest_height; bheight < TargetHeight; bheight++ {
-		if !api.Status_ok {
+		if !api.StatusOk {
 			break
 		}
 		//---- MAIN PRINTOUT
@@ -102,7 +102,7 @@ func start_gnomon_indexer() {
 	time.Sleep(w)
 
 	//check if there was a missing request
-	if !api.Status_ok { //Start over from last saved.
+	if !api.StatusOk { //Start over from last saved.
 		// Extract filename
 		filename := filepath.Base(sqlite.DBPath)
 		dir := filepath.Dir(sqlite.DBPath)
@@ -118,7 +118,7 @@ func start_gnomon_indexer() {
 			return
 		}
 
-		api.Status_ok = true
+		api.StatusOk = true
 		start_gnomon_indexer() //without saving
 		return
 	}
@@ -162,7 +162,7 @@ func start_gnomon_indexer() {
 
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
-	if !api.Status_ok {
+	if !api.StatusOk {
 		return
 	}
 	api.Ask() //smooth it over a bit
@@ -189,7 +189,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	var wg2 sync.WaitGroup
 
 	//Find total number of batches
-	batch_count := int(math.Ceil(float64(tx_count) / float64(batch_size)))
+	batch_count := int(math.Ceil(float64(tx_count) / float64(batchSize)))
 	//Make an array to hold the result sets
 	type mockRequest struct {
 		Txs_as_hex []string
@@ -199,20 +199,20 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	//Go through the array of batches and collect the results
 	for i := range batch_count {
 		//var transaction_result rpc.GetTransaction_Result
-		end := batch_size * i
+		end := batchSize * i
 		if i == batch_count-1 {
 			end = len(tx_str_list)
 		}
 		api.Ask()
 		tx := api.GetTransaction(rpc.GetTransaction_Params{
-			Tx_Hashes: tx_str_list[batch_size*i : end],
+			Tx_Hashes: tx_str_list[batchSize*i : end],
 		})
 		r.Txs = append(r.Txs, tx.Txs...)
 		r.Txs_as_hex = append(r.Txs_as_hex, tx.Txs_as_hex...)
 	}
 
 	//let the rest go unsaved if one request fails
-	if !api.Status_ok {
+	if !api.StatusOk {
 		return
 	}
 
@@ -229,7 +229,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	wg2.Wait()
-	if api.Status_ok {
+	if api.StatusOk {
 		storeHeight(bheight)
 	}
 
@@ -240,7 +240,7 @@ func storeHeight(bheight int64) {
 	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
 		fmt.Println("Error Saving LastIndexHeight: ", err)
 		if strings.Contains(err.Error(), "database is locked") {
-			api.Status_ok = false
+			api.StatusOk = false
 			//panic(err)
 		}
 
@@ -366,25 +366,25 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 /********************************/
 /*********** Helpers ************/
 /********************************/
-var LastTime = time.Now()
-var PriorTimes []int64
+var Last_time = time.Now()
+var Prior_times []int64
 
 func getSpeed() int {
 	t := time.Now()
 
-	if len(PriorTimes) > 1000 {
-		PriorTimes = PriorTimes[1000:]
+	if len(Prior_times) > 1000 {
+		Prior_times = Prior_times[1000:]
 	}
-	PriorTimes = append(PriorTimes, time.Since(LastTime).Milliseconds())
+	Prior_times = append(Prior_times, time.Since(Last_time).Milliseconds())
 	total := int64(0)
-	for _, ti := range PriorTimes {
+	for _, ti := range Prior_times {
 		total += ti
 	}
 
-	LastTime = t
+	Last_time = t
 	value := int64(0)
-	if len(PriorTimes) != 0 {
-		value = int64(total) / int64(len(PriorTimes))
+	if len(Prior_times) != 0 {
+		value = int64(total) / int64(len(Prior_times))
 	}
 	return int(value)
 }
