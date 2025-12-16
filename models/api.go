@@ -142,7 +142,7 @@ func GetTransaction(params rpc.GetTransaction_Params) rpc.GetTransaction_Result 
 
 func GetBlockInfo(params rpc.GetBlock_Params) rpc.GetBlock_Result {
 	validator := func(r rpc.GetBlock_Result) bool {
-		return r.Block_Header.Depth != 0
+		return r.Block_Header.Depth != 0 //false //
 	}
 	result := callRPC("DERO.GetBlock", params, validator)
 	return result

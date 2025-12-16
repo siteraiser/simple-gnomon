@@ -43,7 +43,6 @@ var Hardcoded_SCIDS = []string{"000000000000000000000000000000000000000000000000
 
 func main() {
 
-	fmt.Println("foundfirst ....")
 	fmt.Println("starting ....")
 	var err error
 	db_name := fmt.Sprintf("sql%s.db", "GNOMON")
@@ -371,13 +370,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 /********************************/
 /*********** Helpers ************/
 /********************************/
-func blockExists(block int64) bool {
-	result := api.GetBlockInfo(rpc.GetBlock_Params{Height: uint64(block)})
-	if result.Status == "OK" {
-		return true
-	}
-	return false
-}
 
 func findStart(start int64, top int64) (block int64) {
 
@@ -387,7 +379,7 @@ func findStart(start int64, top int64) (block int64) {
 	if top-start == 1 {
 		return top - 1
 	}
-	if blockExists(offset + start) {
+	if api.GetBlockInfo(rpc.GetBlock_Params{Height: uint64(block)}).Status == "OK" {
 		return findStart(start, offset+start)
 	} else {
 		return findStart(offset+start, top)
