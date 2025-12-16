@@ -28,7 +28,7 @@ var diskPreferredRequests = 8
 
 // Program vars
 var TargetHeight = int64(0)
-var HighestKnownHeight = api.Get_TopoHeight()
+var HighestKnownHeight = api.GetTopoHeight()
 var sqlite = &SqlStore{}
 var sqlindexer = &Indexer{}
 var batchSize = 0
@@ -84,7 +84,7 @@ func start_gnomon_indexer() {
 
 	sqlindexer = NewSQLIndexer(sqlite, last_height, []string{MAINNET_GNOMON_SCID})
 
-	fmt.Println("Topo Height ", api.Get_TopoHeight())
+	fmt.Println("Topo Height ", api.GetTopoHeight())
 	fmt.Println("last height ", fmt.Sprint(last_height))
 
 	if TargetHeight < HighestKnownHeight-blockBatchSize && last_height+blockBatchSize < HighestKnownHeight {
@@ -137,7 +137,7 @@ func start_gnomon_indexer() {
 
 	//Essentials...
 	last := HighestKnownHeight
-	HighestKnownHeight = api.Get_TopoHeight()
+	HighestKnownHeight = api.GetTopoHeight()
 
 	fmt.Println("last:", last)
 	fmt.Println("TargetHeight:", TargetHeight)
