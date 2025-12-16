@@ -73,7 +73,7 @@ func start_gnomon_indexer() {
 	last_height, err := sqlite.GetLastIndexHeight()
 	if err != nil {
 		if startAt == 0 {
-			last_height = findStart(1, HighestKnownHeight)
+			last_height = findStart(1, HighestKnownHeight) //if it isn't set then find it
 		}
 
 		fmt.Println("err: ", err)
@@ -388,10 +388,8 @@ func findStart(start int64, top int64) (block int64) {
 		return top - 1
 	}
 	if blockExists(offset + start) {
-		fmt.Println("true:", offset+start)
 		return findStart(start, offset+start)
 	} else {
-		fmt.Println("false:", offset+start)
 		return findStart(offset+start, top)
 	}
 
