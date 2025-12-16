@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"sync"
 
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 
@@ -29,12 +28,9 @@ type Indexer struct {
 	ChainHeight       int64
 	SearchFilter      []string
 	SFSCIDExclusion   []string
-	BBSBackend        *BboltStore
 	SSSBackend        *SqlStore
-	Closing           bool
 	ValidatedSCs      []string
 	Status            string
-	sync.RWMutex
 }
 
 var Connected bool = false
@@ -59,21 +55,6 @@ func InitLog(args map[string]interface{}, console io.Writer) {
 			FullTimestamp:   true,
 			ForceFormatting: true,
 		},
-	}
-}
-
-func NewIndexer(
-	Bbs_backend *BboltStore,
-	last_indexedheight int64,
-	sfscidexclusion []string,
-) *Indexer {
-
-	l = l.WithFields(logrus.Fields{})
-
-	return &Indexer{
-		LastIndexedHeight: last_indexedheight,
-		SFSCIDExclusion:   sfscidexclusion,
-		BBSBackend:        Bbs_backend,
 	}
 }
 

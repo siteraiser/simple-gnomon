@@ -29,7 +29,7 @@ func Ask() {
 
 	for {
 		time.Sleep(time.Millisecond)
-		Mutex.Lock() //might be removable
+		Mutex.Lock()
 		if Out1+Out2 < PreferredRequests*2 {
 			if Out1 < PreferredRequests {
 				currentEndpoint = Endpoints[0]

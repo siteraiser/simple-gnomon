@@ -25,11 +25,7 @@ var Mutex sync.Mutex
 type SqlStore struct {
 	DB      *sql.DB
 	db_path string
-	Writing bool
-	//Writer  string
 	Cancel  bool
-	Closing bool
-	//Buckets []string
 }
 
 var dbready = true
@@ -180,7 +176,6 @@ func CreateTables(Db *sql.DB) {
 		"class TEXT, " +
 		"tags TEXT) "
 
-		//scid + "vars"
 	startup[2] = "CREATE TABLE IF NOT EXISTS variables (" +
 		"v_id INTEGER PRIMARY KEY, " +
 		"height INTEGER NOT NULL, " +
@@ -201,10 +196,7 @@ func CreateTables(Db *sql.DB) {
 	startup[4] = "CREATE TABLE IF NOT EXISTS interactions (" +
 		"int_id INTEGER PRIMARY KEY, " +
 		"scid TEXT NOT NULL, " +
-		//	"signer TEXT NOT NULL, " +
 		"heights TEXT NOT NULL)"
-
-		//		startup[len(startup)] = "CREATE TABLE IF NOT EXISTS relations (" +
 
 	for _, create := range startup {
 		executeQuery(Db, create)
@@ -287,7 +279,6 @@ func (ss *SqlStore) ViewTables() {
 	}
 	defer hard.Close()
 	/// check tables
-	/*	*/
 	fmt.Println("\nShowing State: ")
 	rows, err := hard.Query("SELECT name, value FROM state WHERE name = 'lastindexedheight'", nil)
 	if err != nil {
@@ -520,11 +511,6 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 	}
 
 	if results != nil {
-		// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
-		sort.SliceStable(heights, func(i, j int) bool {
-			return heights[i] < heights[j]
-		})
-
 		hVars = getTypedVariables(heights, results)
 	}
 
@@ -562,11 +548,6 @@ func (ss *SqlStore) GetAllSCIDVariableDetails(scid string) (hVars []*SCIDVariabl
 	fmt.Println("results: ", results)
 
 	if results != nil {
-		// Sort heights so most recent is index 0 [if preferred reverse, just swap > with <]
-		sort.SliceStable(heights, func(i, j int) bool {
-			return heights[i] < heights[j]
-		})
-
 		hVars = getTypedVariables(heights, results)
 	}
 

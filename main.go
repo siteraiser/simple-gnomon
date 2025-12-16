@@ -366,25 +366,25 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 /********************************/
 /*********** Helpers ************/
 /********************************/
-var Last_time = time.Now()
-var Prior_times []int64
+var lastTime = time.Now()
+var priorTimes []int64
 
 func getSpeed() int {
 	t := time.Now()
 
-	if len(Prior_times) > 1000 {
-		Prior_times = Prior_times[1000:]
+	if len(priorTimes) > 1000 {
+		priorTimes = priorTimes[1000:]
 	}
-	Prior_times = append(Prior_times, time.Since(Last_time).Milliseconds())
+	priorTimes = append(priorTimes, time.Since(lastTime).Milliseconds())
 	total := int64(0)
-	for _, ti := range Prior_times {
+	for _, ti := range priorTimes {
 		total += ti
 	}
 
-	Last_time = t
+	lastTime = t
 	value := int64(0)
-	if len(Prior_times) != 0 {
-		value = int64(total) / int64(len(Prior_times))
+	if len(priorTimes) != 0 {
+		value = int64(total) / int64(len(priorTimes))
 	}
 	return int(value)
 }
