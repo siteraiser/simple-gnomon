@@ -104,8 +104,8 @@ func start_gnomon_indexer() {
 	//check if there was a missing request
 	if !api.StatusOk { //Start over from last saved.
 		// Extract filename
-		filename := filepath.Base(sqlite.DBPath)
-		dir := filepath.Dir(sqlite.DBPath)
+		filename := filepath.Base(sqlite.db_path)
+		dir := filepath.Dir(sqlite.db_path)
 		//start from last saved to disk to ensure integrity (play it safe for now)
 		if UseMem {
 			sqlite, err = NewSqlDB(dir, filename)
@@ -147,8 +147,8 @@ func start_gnomon_indexer() {
 		UseMem = false
 
 		// Extract filename
-		filename := filepath.Base(sqlite.DBPath)
-		dir := filepath.Dir(sqlite.DBPath)
+		filename := filepath.Base(sqlite.db_path)
+		dir := filepath.Dir(sqlite.db_path)
 		// Start disk mode
 		sqlite, err = NewDiskDB(dir, filename)
 	}

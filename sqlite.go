@@ -24,7 +24,7 @@ var Mutex sync.Mutex
 
 type SqlStore struct {
 	DB      *sql.DB
-	DBPath  string
+	db_path string
 	Writing bool
 	//Writer  string
 	Cancel  bool
@@ -57,7 +57,7 @@ func Ask() bool {
 func (ss *SqlStore) BackupToDisk() error {
 
 	// Open destination database
-	dest, err := sql.Open("sqlite3", ss.DBPath)
+	dest, err := sql.Open("sqlite3", ss.db_path)
 	if err != nil {
 		return fmt.Errorf("failed to open destination DB: %w", err)
 	}
@@ -112,42 +112,42 @@ func (ss *SqlStore) BackupToDisk() error {
 	return nil
 
 }
-func NewDiskDB(dbPath, dbName string) (*SqlStore, error) {
+func NewDiskDB(db_path, db_name string) (*SqlStore, error) {
 	var err error
 	var Sql_backend *SqlStore = &SqlStore{}
 
-	if err := os.MkdirAll(dbPath, 0700); err != nil {
-		return nil, fmt.Errorf("directory creation err %s - dirpath %s", err, dbPath)
+	if err := os.MkdirAll(db_path, 0700); err != nil {
+		return nil, fmt.Errorf("directory creation err %s - dirpath %s", err, db_path)
 	}
-	fullPath := filepath.Join(dbPath, dbName)
-	Sql_backend.DB, err = sql.Open("sqlite3", fullPath)
+	full_path := filepath.Join(db_path, db_name)
+	Sql_backend.DB, err = sql.Open("sqlite3", full_path)
 
-	Sql_backend.DBPath = fullPath
+	Sql_backend.db_path = full_path
 
 	return Sql_backend, err
 }
-func NewSqlDB(dbPath, dbName string) (*SqlStore, error) {
+func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 	var err error
-	var Sql_backend *SqlStore = &SqlStore{}
+	var SqlBackend *SqlStore = &SqlStore{}
 
-	if err := os.MkdirAll(dbPath, 0700); err != nil {
-		return nil, fmt.Errorf("directory creation err %s - dirpath %s", err, dbPath)
+	if err := os.MkdirAll(db_path, 0700); err != nil {
+		return nil, fmt.Errorf("directory creation err %s - dirpath %s", err, db_path)
 	}
-	fullPath := filepath.Join(dbPath, dbName)
-	hard, err := sql.Open("sqlite3", fullPath)
+	full_path := filepath.Join(db_path, db_name)
+	hard, err := sql.Open("sqlite3", full_path)
 	CreateTables(hard)
 	//fmt.Print("viewTables1...")
 	//	ViewTables(hard)
 	hard.Close()
 
-	Sql_backend.DB, err = sql.Open("sqlite3", "file:diskdb?mode=memory&cache=shared")
+	SqlBackend.DB, err = sql.Open("sqlite3", "file:diskdb?mode=memory&cache=shared")
 
 	// Load from disk into memory
-	_, err = Sql_backend.DB.Exec(fmt.Sprintf("ATTACH DATABASE '%s' AS diskdb", fullPath))
+	_, err = SqlBackend.DB.Exec(fmt.Sprintf("ATTACH DATABASE '%s' AS diskdb", full_path))
 	if err != nil {
 		log.Fatalf("attach disk DB: %v", err)
 	}
-	_, err = Sql_backend.DB.Exec(
+	_, err = SqlBackend.DB.Exec(
 		"CREATE TABLE IF NOT EXISTS main.state AS SELECT * FROM diskdb.state;" +
 			"CREATE TABLE IF NOT EXISTS main.scs AS SELECT * FROM diskdb.scs;" +
 			"CREATE TABLE IF NOT EXISTS main.variables AS SELECT * FROM diskdb.variables;" +
@@ -156,11 +156,11 @@ func NewSqlDB(dbPath, dbName string) (*SqlStore, error) {
 	if err != nil {
 		log.Printf("No existing table to copy: %v", err)
 	}
-	_, _ = Sql_backend.DB.Exec("DETACH DATABASE diskdb")
+	_, _ = SqlBackend.DB.Exec("DETACH DATABASE diskdb")
 
-	Sql_backend.DBPath = fullPath
+	SqlBackend.db_path = full_path
 
-	return Sql_backend, err
+	return SqlBackend, err
 }
 
 func CreateTables(Db *sql.DB) {
@@ -280,8 +280,8 @@ func (ss *SqlStore) PruneHeight(height int) {
 
 // --- extras...
 func (ss *SqlStore) ViewTables() {
-	fmt.Println("\nOpen: ", sqlite.DBPath)
-	hard, err := sql.Open("sqlite3", sqlite.DBPath)
+	fmt.Println("\nOpen: ", sqlite.db_path)
+	hard, err := sql.Open("sqlite3", sqlite.db_path)
 	if err != nil {
 		log.Fatal(err)
 	}
