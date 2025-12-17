@@ -70,12 +70,10 @@ type State struct {
 	Errors interface {
 		NewError(etype string, ename string)
 	}
-
 	sync.Mutex
 }
 
 var Status = &State{
-
 	ErrorType:   "",
 	ErrorName:   "",
 	DbOk:        true,

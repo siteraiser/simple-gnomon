@@ -193,8 +193,7 @@ func CreateTables(Db *sql.DB) {
 
 	//interactions at height
 	startup[4] = "CREATE TABLE IF NOT EXISTS interactions (" +
-		"int_id INTEGER PRIMARY KEY, " +
-		"scid TEXT NOT NULL, " +
+		"scid TEXT  PRIMARY KEY, " +
 		"heights TEXT NOT NULL)"
 
 	for _, create := range startup {
@@ -212,6 +211,7 @@ func CreateTables(Db *sql.DB) {
 		statement, err = Db.Prepare("CREATE INDEX height_index ON interactions(heights);")
 		handleError(err)
 		statement.Exec()
+
 	}
 
 }
@@ -580,16 +580,16 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 	var currSCIDInteractionHeight []byte
 	var interactionHeight []int64
 	var newInteractionHeight []byte
-	//fmt.Println("StoreSCIDInteractionHeight... ")
+	fmt.Println("StoreSCIDInteractionHeight... ", scid)
 	//fmt.Println("SELECT heights FROM interactions WHERE scid=?")
-
+	ready(false)
 	err = ss.DB.QueryRow("SELECT heights FROM interactions WHERE scid=?", scid).Scan(&currSCIDInteractionHeight)
 
-	//fmt.Println("currSCIDInteractionHeight:", currSCIDInteractionHeight)
-	//fmt.Println("currSCIDInteractionHeight err:", err)
-	if err == nil {
+	if err != nil {
+		fmt.Println("currSCIDInteractionHeight err:", err)
 		interactionHeight = append(interactionHeight, height)
 	} else {
+		fmt.Println("currSCIDInteractionHeight Found:", currSCIDInteractionHeight)
 		// Retrieve value and conovert to SCIDInteractionHeight, so that you can manipulate and update db
 		_ = json.Unmarshal(currSCIDInteractionHeight, &interactionHeight)
 
@@ -598,13 +598,14 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 				// Return nil if already exists in array.
 				// Clause for this is in event we pop backwards in time and already have this data stored.
 				// TODO: What if interaction happened on false-chain and pop to retain correct chain. Bad data may be stored here still, as it isn't removed. Need fix for this in future.
-
+				ready(true)
 				return
 			}
 		}
 
 		interactionHeight = append(interactionHeight, height)
 	}
+
 	newInteractionHeight, err = json.Marshal(interactionHeight)
 	if err != nil {
 		fmt.Printf("[SQLITE] StoreSCIDInteractionHeight could not marshal interactionHeight info: %v", err)
@@ -612,6 +613,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 
 	//No record found, create one
 	if len(currSCIDInteractionHeight) == 0 {
+		fmt.Println("INSERT INTO interactions:", newInteractionHeight)
 		statement, err := ss.DB.Prepare("INSERT INTO interactions (heights, scid) VALUES (?,?)")
 		if err != nil {
 			log.Fatal(err)
@@ -631,7 +633,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 		}
 
 	} else {
-
+		fmt.Println("UPDATE interactions:", newInteractionHeight)
 		statement, err := ss.DB.Prepare("UPDATE interactions SET heights=? WHERE scid=?;")
 		if err != nil {
 			log.Fatal(err)
@@ -651,7 +653,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 		}
 
 	}
-
+	ready(true)
 	return
 
 }
