@@ -42,6 +42,7 @@ type SCIDToIndexStage struct {
 	Fsi    *FastSyncImport
 	ScVars []*SCIDVariable
 	ScCode string
+	ScSCID string
 	Class  string
 	Tags   string
 }
@@ -115,7 +116,8 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 	} else {
 		//was not an install or a failed install
 		changed, err := indexer.SSSBackend.StoreSCIDInteractionHeight(
-			scidstoadd.Scid,
+			scidstoadd.Scid, //really the txid in this instance
+			scidstoadd.ScSCID,
 			int64(scidstoadd.Fsi.Height),
 		)
 		if err != nil {

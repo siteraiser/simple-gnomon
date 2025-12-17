@@ -147,7 +147,8 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 			"CREATE TABLE IF NOT EXISTS main.scs AS SELECT * FROM diskdb.scs;" +
 			"CREATE TABLE IF NOT EXISTS main.variables AS SELECT * FROM diskdb.variables;" +
 			"CREATE TABLE IF NOT EXISTS main.invokes AS SELECT * FROM diskdb.invokes;" +
-			"CREATE TABLE IF NOT EXISTS main.interactions AS SELECT * FROM diskdb.interactions;")
+			"CREATE TABLE IF NOT EXISTS main.interactions AS SELECT * FROM diskdb.interactions;" +
+			"CREATE TABLE IF NOT EXISTS main.interaction_heights AS SELECT * FROM diskdb.interaction_heights;")
 	if err != nil {
 		log.Printf("No existing table to copy: %v", err)
 	}
@@ -160,14 +161,14 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 
 func CreateTables(Db *sql.DB) {
 
-	var startup = [5]string{}
+	var startup = [6]string{}
 	startup[0] = "CREATE TABLE IF NOT EXISTS state (" +
 		"name  TEXT, " +
 		"value  INTEGER)"
 
 	startup[1] = "CREATE TABLE IF NOT EXISTS scs (" +
-		"scs_id INTEGER PRIMARY KEY, " +
-		"scid TEXT UNIQUE NOT NULL, " +
+		"scs_id INTEGER NOT NULL, " +
+		"scid TEXT PRIMARY KEY, " +
 		"owner TEXT NOT NULL, " +
 		"height INTEGER, " +
 		"scname TEXT, " +
@@ -195,13 +196,12 @@ func CreateTables(Db *sql.DB) {
 	//interactions at heightid INTEGER PRIMARY KEY
 	startup[4] = "CREATE TABLE IF NOT EXISTS interactions (" +
 		"height INTEGER NOT NULL, " +
-		"txid TEXT NOT NULL , " +
+		"txid TEXT UNIQUE NOT NULL , " +
 		"sc_id TEXT NOT NULL)"
 
 	for _, create := range startup {
 		executeQuery(Db, create)
 	}
-
 	var count int
 	Db.QueryRow("SELECT COUNT(*) FROM state").Scan(&count)
 	if count == 0 {
@@ -276,13 +276,11 @@ func (ss *SqlStore) PruneHeight(height int) {
 	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE scid IN(" + in + ");")
 	handleError(err)
 	statement.Exec()
+	//could delete scs with interaction heights as well
+	statement, err = ss.DB.Prepare("DELETE FROM interaction_heights WHERE height  > " + strconv.Itoa(height) + ";")
+	handleError(err)
+	statement.Exec()
 
-	/*
-		//could delete scs with interaction heights as well
-		statement, err = ss.DB.Prepare("DELETE FROM interaction_heights WHERE height  > " + strconv.Itoa(height) + ";")
-		handleError(err)
-		statement.Exec()
-	*/
 }
 
 // --- extras...
@@ -609,7 +607,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(txid string, scid string, height 
 
 	ready(false)
 	var scs_id int
-	scerr := ss.DB.QueryRow("SELECT scs_id FROM scs WHERE scid=?", scid).Scan(&scs_id)
+	scerr := ss.DB.QueryRow("SELECT scs_id FROM scs WHERE txid=?", scid).Scan(&scs_id)
 	if scerr != nil {
 		ready(true)
 		return

@@ -48,6 +48,7 @@ func main() {
 	var err error
 	db_name := fmt.Sprintf("sql%s.db", "GNOMON")
 	wd := globals.GetDataDirectory()
+
 	db_path := filepath.Join(wd, "gnomondb")
 	if UseMem {
 		batchSize = memBatchSize
@@ -360,6 +361,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		Fsi:    &FastSyncImport{Height: uint64(bheight), Owner: signer, SCName: scname, SCDesc: scdesc, SCImgURL: scimgurl}, //
 		ScVars: vars,
 		ScCode: sc.Code,
+		ScSCID: params.SCID,
 		Class:  class, //Class and tags are not in original gnomon
 		Tags:   tags,
 	}
