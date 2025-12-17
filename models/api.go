@@ -20,7 +20,67 @@ import (
 )
 
 var Mutex sync.Mutex
-var StatusOk = true
+
+// No Errors
+func OK() bool {
+	if Status.DbOk && Status.ApiOk {
+		return true
+	}
+	return false
+}
+
+// Error type and name
+func NewError(etype string, ename string) {
+	Status.Mutex.Lock()
+	switch etype {
+	case "database":
+		Status.DbOk = false
+	case "connection":
+		Status.ApiOk = false
+	}
+	Status.ErrorCount++
+	Status.ErrorType = etype
+	Status.ErrorType = ename
+	Status.Mutex.Unlock()
+}
+
+// Reset Errors
+func Reset() {
+	Status.ErrorCount = 0
+	Status.ErrorType = ""
+	Status.ErrorName = ""
+	Status.DbOk = true
+	Status.ApiOk = true
+}
+
+type Sys struct {
+}
+type State struct {
+	ErrorCount int64
+	ErrorType  string
+	ErrorName  string
+	DbOk       bool
+	ApiOk      bool
+	Sys        Sys
+	OK         interface {
+		OK() bool
+	}
+	Reset interface {
+		Reset()
+	}
+	Errors interface {
+		NewError(etype string, ename string)
+	}
+	sync.Mutex
+}
+
+var Status = &State{
+	ErrorCount: 0,
+	ErrorType:  "",
+	ErrorName:  "",
+	DbOk:       true,
+	ApiOk:      true,
+}
 
 var Endpoints = [2]string{"node.derofoundation.org:11012", "64.226.81.37:10102"}
 var currentEndpoint = Endpoints[0]
@@ -95,6 +155,7 @@ func getResult[T any](method string, params any) (T, error) {
 	}
 
 	Mutex.Lock()
+
 	if endpoint == Endpoints[0] {
 		Out1--
 	} else {
@@ -103,6 +164,7 @@ func getResult[T any](method string, params any) (T, error) {
 	Mutex.Unlock()
 
 	if err != nil {
+
 		if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "mismatch") { //Tx statement roothash mismatch ref blid... skip it
 			fmt.Println(err)
 
@@ -113,11 +175,11 @@ func getResult[T any](method string, params any) (T, error) {
 			log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
 		} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+nodeaddr+")") {
 			//maybe handle connection errors here with a cancel / rollback instead.
-			Mutex.Lock()
-			StatusOk = false
-			Mutex.Unlock()
+			NewError("connection", method)
 			fmt.Println(err)
 			//	log.Fatal(err)
+		} else {
+			NewError("rpc", method)
 		}
 	}
 

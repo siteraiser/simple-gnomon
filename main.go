@@ -78,8 +78,9 @@ func start_gnomon_indexer() {
 		fmt.Println("err: ", err)
 	}
 
-	if UseMem == false {
+	if api.Status.ErrorType != "" {
 		sqlite.PruneHeight(int(last_height))
+		api.Reset()
 	}
 
 	sqlindexer = NewSQLIndexer(sqlite, last_height, []string{MAINNET_GNOMON_SCID})
@@ -95,7 +96,7 @@ func start_gnomon_indexer() {
 
 	var wg sync.WaitGroup
 	for bheight := last_height; bheight < TargetHeight; bheight++ {
-		if !api.StatusOk {
+		if !api.OK() {
 			break
 		}
 		//---- MAIN PRINTOUT
@@ -114,23 +115,7 @@ func start_gnomon_indexer() {
 	time.Sleep(w)
 
 	//check if there was a missing request
-	if !api.StatusOk { //Start over from last saved.
-		// Extract filename
-		filename := filepath.Base(sqlite.db_path)
-		dir := filepath.Dir(sqlite.db_path)
-		//start from last saved to disk to ensure integrity (play it safe for now)
-		if UseMem {
-			sqlite, err = NewSqlDB(dir, filename)
-		} else {
-			sqlite, err = NewDiskDB(dir, filename)
-		}
-
-		if err != nil {
-			fmt.Println("[Main] Err creating sqlite:", err)
-			return
-		}
-
-		api.StatusOk = true
+	if !api.OK() { //Start over from last saved.
 		start_gnomon_indexer() //without saving
 		return
 	}
@@ -174,7 +159,7 @@ func start_gnomon_indexer() {
 
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
-	if !api.StatusOk {
+	if !api.OK() {
 		return
 	}
 	//api.Ask() smooth it over a bit
@@ -223,7 +208,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	//let the rest go unsaved if one request fails
-	if !api.StatusOk {
+	if !api.OK() {
 		return
 	}
 
@@ -239,7 +224,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	wg2.Wait()
-	if api.StatusOk {
+	if api.OK() {
 		storeHeight(bheight)
 	}
 
@@ -250,9 +235,8 @@ func storeHeight(bheight int64) {
 	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
 		fmt.Println("Error Saving LastIndexHeight: ", err)
 		if strings.Contains(err.Error(), "database is locked") {
-			api.StatusOk = false
+			api.NewError("database", "db lock")
 		}
-
 		return
 	}
 }
