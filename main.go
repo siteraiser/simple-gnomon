@@ -19,7 +19,7 @@ import (
 
 var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
 var blockBatchSize = int64(25000) // Batch size (how many to process before saving w/ mem mode)
-var UseMem = false                // Use in-memory db
+var UseMem = true                 // Use in-memory db
 // Optimized settings for mode db mode
 var memBatchSize = 8
 var memPreferredRequests = 10
@@ -75,13 +75,15 @@ func start_gnomon_indexer() {
 		if startAt == 0 {
 			last_height = findStart(1, HighestKnownHeight) //if it isn't set then find it
 		}
-
 		fmt.Println("err: ", err)
 	}
 
-	if UseMem == false && firstRun == true || api.Status.ErrorCount != int64(0) {
+	if firstRun == true || api.Status.ErrorCount != int64(0) {
 		firstRun = false
 		sqlite.PruneHeight(int(last_height))
+		if api.Status.ErrorCount != int64(0) {
+			fmt.Println("Index re-coordinated. Error Type:", api.Status.ErrorType+" Error Name:"+api.Status.ErrorName)
+		}
 		api.Reset()
 	}
 
