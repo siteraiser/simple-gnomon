@@ -78,7 +78,7 @@ func start_gnomon_indexer() {
 		fmt.Println("err: ", err)
 	}
 
-	if api.Status.ErrorType != "" {
+	if api.Status.ErrorCount != int64(0) {
 		sqlite.PruneHeight(int(last_height))
 		api.Reset()
 	}
@@ -114,12 +114,34 @@ func start_gnomon_indexer() {
 	w, _ := time.ParseDuration("1s")
 	time.Sleep(w)
 
-	//check if there was a missing request
+	//check if there was a missing request or a db error
 	if !api.OK() { //Start over from last saved.
-		start_gnomon_indexer() //without saving
+		start_gnomon_indexer() //without saving index height
 		return
 	}
+	/*
+	   //check if there was a missing request
+	   	if !api.StatusOk { //Start over from last saved.
+	   		// Extract filename
+	   		filename := filepath.Base(sqlite.db_path)
+	   		dir := filepath.Dir(sqlite.db_path)
+	   		//start from last saved to disk to ensure integrity (play it safe for now)
+	   		if UseMem {
+	   			sqlite, err = NewSqlDB(dir, filename)
+	   		} else {
+	   			sqlite, err = NewDiskDB(dir, filename)
+	   		}
 
+	   		if err != nil {
+	   			fmt.Println("[Main] Err creating sqlite:", err)
+	   			return
+	   		}
+
+	   		api.StatusOk = true
+	   		start_gnomon_indexer() //without saving
+	   		return
+	   	}
+	*/
 	//Essentials...
 	last := HighestKnownHeight
 	HighestKnownHeight = api.GetTopoHeight()
@@ -346,6 +368,9 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	ready(false)
 	if err := sqlindexer.AddSCIDToIndex(staged); err != nil {
 		fmt.Println(err, " ", staged.Scid, " ", staged.Fsi.Height)
+		if strings.Contains(err.Error(), "database is locked") {
+			api.NewError("database", "db lock")
+		}
 	}
 	ready(true)
 

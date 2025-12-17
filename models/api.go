@@ -35,7 +35,7 @@ func NewError(etype string, ename string) {
 	switch etype {
 	case "database":
 		Status.DbOk = false
-	case "connection":
+	case "connection", "rpc":
 		Status.ApiOk = false
 	}
 	Status.ErrorCount++
