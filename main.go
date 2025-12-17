@@ -21,17 +21,17 @@ var startAt = int64(0)            // Start at Block Height, will be auto-set whe
 var blockBatchSize = int64(25000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                 // Use in-memory db
 // Optimized settings for mode db mode
-var memBatchSize = 8
-var memPreferredRequests = 10
-var diskBatchSize = 4
-var diskPreferredRequests = 8
+var memBatchSize = int32(8)
+var memPreferredRequests = int32(10)
+var diskBatchSize = int32(4)
+var diskPreferredRequests = int32(8)
 
 // Program vars
 var TargetHeight = int64(0)
 var HighestKnownHeight = api.GetTopoHeight()
 var sqlite = &SqlStore{}
 var sqlindexer = &Indexer{}
-var batchSize = 0
+var batchSize = int32(0)
 var firstRun = true
 
 // Gnomon Index SCID
@@ -221,13 +221,13 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	var r mockRequest
 	//Go through the array of batches and collect the results
 	for i := range batch_count {
-		end := batchSize * i
+		end := int(batchSize) * i
 		if i == batch_count-1 {
 			end = len(tx_str_list)
 		}
 		api.Ask()
 		tx := api.GetTransaction(rpc.GetTransaction_Params{
-			Tx_Hashes: tx_str_list[batchSize*i : end],
+			Tx_Hashes: tx_str_list[int(batchSize)*i : end],
 		})
 		r.Txs = append(r.Txs, tx.Txs...)
 		r.Txs_as_hex = append(r.Txs_as_hex, tx.Txs_as_hex...)

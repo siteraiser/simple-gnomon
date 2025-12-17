@@ -108,10 +108,10 @@ func Ask() {
 	}
 }
 
-var Out1 = 0
-var Out2 = 0
+var Out1 = int32(0)
+var Out2 = int32(0)
 
-var PreferredRequests = int(0)
+var PreferredRequests = int32(0)
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 
