@@ -21,17 +21,17 @@ var startAt = int64(0)            // Start at Block Height, will be auto-set whe
 var blockBatchSize = int64(25000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                 // Use in-memory db
 // Optimized settings for mode db mode
-var memBatchSize = int32(8)
-var memPreferredRequests = int32(10)
-var diskBatchSize = int32(4)
-var diskPreferredRequests = int32(8)
+var memBatchSize = int16(8)
+var memPreferredRequests = int16(10)
+var diskBatchSize = int16(4)
+var diskPreferredRequests = int16(8)
 
 // Program vars
 var TargetHeight = int64(0)
 var HighestKnownHeight = api.GetTopoHeight()
 var sqlite = &SqlStore{}
 var sqlindexer = &Indexer{}
-var batchSize = int32(0)
+var batchSize = int16(0)
 var firstRun = true
 
 // Gnomon Index SCID
