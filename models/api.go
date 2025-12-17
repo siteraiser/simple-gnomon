@@ -40,7 +40,7 @@ func NewError(etype string, ename string) {
 	}
 	Status.ErrorCount++
 	Status.ErrorType = etype
-	Status.ErrorType = ename
+	Status.ErrorName = ename
 	Status.Mutex.Unlock()
 }
 
