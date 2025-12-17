@@ -32,6 +32,7 @@ var HighestKnownHeight = api.GetTopoHeight()
 var sqlite = &SqlStore{}
 var sqlindexer = &Indexer{}
 var batchSize = 0
+var firstRun = true
 
 // Gnomon Index SCID
 const MAINNET_GNOMON_SCID = "a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4"
@@ -78,7 +79,8 @@ func start_gnomon_indexer() {
 		fmt.Println("err: ", err)
 	}
 
-	if api.Status.ErrorCount != int64(0) {
+	if UseMem == false && firstRun == true || api.Status.ErrorCount != int64(0) {
+		firstRun = false
 		sqlite.PruneHeight(int(last_height))
 		api.Reset()
 	}
