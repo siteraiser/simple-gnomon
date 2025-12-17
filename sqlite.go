@@ -166,7 +166,7 @@ func CreateTables(Db *sql.DB) {
 		"value  INTEGER)"
 
 	startup[1] = "CREATE TABLE IF NOT EXISTS scs (" +
-		"scs_id INTEGER PRIMARY KEY, " +
+		"scs_id INTEGER PRIMARY KEY NOT NULL, " +
 		"scid TEXT UNIQUE NOT NULL, " +
 		"owner TEXT NOT NULL, " +
 		"height INTEGER, " +
