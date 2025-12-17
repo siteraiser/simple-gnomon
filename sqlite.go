@@ -357,6 +357,18 @@ func (ss *SqlStore) ViewTables() {
 		fmt.Println("count ", count)
 	}
 
+	/*
+		SELECT isc_id FROM interaction_heights
+		GROUP BY isc_id
+		HAVING COUNT(*) = (
+		                   SELECT MAX(Cnt)
+		                   FROM(
+		                         SELECT COUNT(*) as Cnt
+		                         FROM interaction_heights
+		                         GROUP BY isc_id
+		                        ) tmp
+		                    )
+	*/
 }
 
 //-----------------
@@ -613,7 +625,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 		if err == nil {
 			last_insert_id, _ := result.LastInsertId()
 			if last_insert_id >= 0 {
-				statement, err = ss.DB.Prepare("INSERT INTO interaction_heights (isc_id,height) VALUES (?,?);")
+				statement, err = ss.DB.Prepare("INSERT INTO interaction_heights (isc_id,height) VALUES (?,?)")
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -644,7 +656,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 			}
 		*/
 		//	interactionHeight = append(interactionHeight, height)
-		statement, err := ss.DB.Prepare("INSERT INTO interaction_heights (isc_id,height) VALUES (?,?);")
+		statement, err := ss.DB.Prepare("INSERT INTO interaction_heights (isc_id,height) VALUES (?,?) WHERE height NOT = ?;")
 		if err != nil {
 			log.Fatal(err)
 		}
