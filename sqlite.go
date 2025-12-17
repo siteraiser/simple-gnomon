@@ -594,14 +594,14 @@ func (ss *SqlStore) GetSCIDValuesByKey(scid string, key interface{}, height int6
 func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (changes bool, err error) {
 
 	fmt.Println("\nStoreSCIDInteractionHeight... " + scid + " H:" + strconv.Itoa(int(height)))
-	//fmt.Println("SELECT heights FROM interactions WHERE scid=?")
+
 	ready(false)
 
 	var scid_id int
 	err = ss.DB.QueryRow("SELECT i_id FROM interactions WHERE scid=?", scid).Scan(&scid_id)
 
 	if err != nil {
-		//interactionHeight = append(interactionHeight, height)
+
 		statement, err := ss.DB.Prepare("INSERT INTO interactions (scid) VALUES (?);")
 		if err != nil {
 			log.Fatal(err)
@@ -671,13 +671,26 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scid string, height int64) (chang
 // Gets SC interaction height and detail by a given SCID
 func (ss *SqlStore) GetSCIDInteractionHeight(scid string) (scidinteractions []int64) {
 	//	fmt.Println("GetSCIDInteractionHeight... ")
-	heights := ""
+
 	ready(false)
-	ss.DB.QueryRow("SELECT heights FROM interactions WHERE scid=?", scid).Scan(&heights)
-	ready(true)
-	if heights != "" {
-		_ = json.Unmarshal([]byte(heights), &scidinteractions)
+	rows, err := ss.DB.Query(
+		"SELECT interaction_heights.height FROM interactions INNER JOIN interactions.i_id ON interaction_heights WHERE scid=?",
+		scid)
+
+	if err != nil {
+		fmt.Println(err)
 	}
+	var (
+		height int
+	)
+	for rows.Next() {
+		rows.Scan(&height)
+		fmt.Println("height ", height)
+		scidinteractions = append(scidinteractions, int64(height))
+	}
+
+	ready(true)
+
 	return
 
 }
