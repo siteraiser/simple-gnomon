@@ -46,6 +46,7 @@ func NewError(etype string, ename string) {
 
 // Reset Errors
 func Reset() {
+	Status.TotalErrors += Status.ErrorCount
 	Status.ErrorCount = 0
 	Status.ErrorType = ""
 	Status.ErrorName = ""
@@ -53,16 +54,14 @@ func Reset() {
 	Status.ApiOk = true
 }
 
-type Sys struct {
-}
 type State struct {
-	ErrorCount int64
-	ErrorType  string
-	ErrorName  string
-	DbOk       bool
-	ApiOk      bool
-	Sys        Sys
-	OK         interface {
+	ErrorType   string
+	ErrorName   string
+	DbOk        bool
+	ApiOk       bool
+	ErrorCount  int64
+	TotalErrors int64
+	OK          interface {
 		OK() bool
 	}
 	Reset interface {
@@ -71,15 +70,18 @@ type State struct {
 	Errors interface {
 		NewError(etype string, ename string)
 	}
+
 	sync.Mutex
 }
 
 var Status = &State{
-	ErrorCount: 0,
-	ErrorType:  "",
-	ErrorName:  "",
-	DbOk:       true,
-	ApiOk:      true,
+
+	ErrorType:   "",
+	ErrorName:   "",
+	DbOk:        true,
+	ApiOk:       true,
+	ErrorCount:  0,
+	TotalErrors: 0,
 }
 
 var Endpoints = [2]string{"node.derofoundation.org:11012", "64.226.81.37:10102"}

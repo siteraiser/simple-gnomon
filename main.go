@@ -434,7 +434,8 @@ func showBlockStatus(bheight int64) {
 		" En Route " + strconv.Itoa(int(api.Out1)) +
 		":" + strconv.Itoa(int(api.Out2)) +
 		" Speed:" + speedms + "ms" +
-		" " + speedbph + "bph"
+		" " + speedbph + "bph" +
+		" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
 
 	fmt.Print("\r", show)
 }
