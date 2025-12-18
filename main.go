@@ -40,7 +40,28 @@ const TESTNET_GNOMON_SCID = "c9d23d2fc3aaa8e54e238a2218c0e5176a6e48780920fd8474f
 
 // Hardcoded Smart Contracts of DERO Network
 // TODO: Possibly in future we can pull this from derohe codebase
-var Hardcoded_SCIDS = []string{"0000000000000000000000000000000000000000000000000000000000000001"}
+var Hardcoded_SCIDS = []string{"0000000000000000000000000000000000000000000000000000000000000001", "a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4"}
+
+type action struct {
+	SCID string
+	Type string
+	Act  string
+}
+
+var CustomActions = []action{
+	{SCID: Hardcoded_SCIDS[0], Type: "SC", Act: "saveasinteraction"},
+	{SCID: Hardcoded_SCIDS[1], Type: "SC", Act: "disgard"},
+}
+
+func getActions(scid string) string {
+	//no name spams
+	for _, action := range CustomActions {
+		if scid == action.SCID {
+			return action.Act
+		}
+	}
+	return ""
+}
 
 func main() {
 
@@ -322,14 +343,13 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		params = rpc.GetSC_Params{
 			SCID:       scid.String(),
 			Code:       false,
-			Variables:  true,
+			Variables:  getActions(params.SCID) == "saveasinteraction", //no name spams
 			TopoHeight: bheight,
 		}
 	}
-	//no name spams
-	if params.SCID == Hardcoded_SCIDS[0] {
-		params.Variables = false
-	}
+
+	//
+
 	api.Ask()
 	sc := api.GetSC(params) //Variables: true,
 

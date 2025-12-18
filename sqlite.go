@@ -611,6 +611,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(txid string, scid string, height 
 	ready(false)
 	var scs_id int
 	if scid == txid {
+		//it is a SC install and already saved
 		ready(true)
 		return
 	}

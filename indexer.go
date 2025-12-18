@@ -116,7 +116,15 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 	if !ownerstored || len(scidstoadd.ScVars) == 0 {
 		txid := scidstoadd.Scid
 		scid := scidstoadd.ScSCID
+		//no name spams
+		if getActions(scid) == "saveasinteraction" {
+			//not saving the vars for the name contract
+			scid = scidstoadd.Scid
+			txid = scidstoadd.ScSCID
+		}
+
 		if scid == Hardcoded_SCIDS[0] {
+			//not saving the vars for the name contract
 			scid = scidstoadd.Scid
 			txid = scidstoadd.ScSCID
 		}
