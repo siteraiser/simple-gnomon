@@ -217,11 +217,11 @@ func CreateTables(Db *sql.DB) {
 		/*
 			fmt.Println("donesetting")
 		*/
-		/*set defaults
-		statement, err = Db.Prepare("INSERT INTO scs (scid,owner) VALUES('0000000000000000000000000000000000000000000000000000000000000001','Cap'n Crunch');")
+		/*set defaults	*/
+		statement, err = Db.Prepare(`INSERT INTO scs (scid,owner) VALUES('0000000000000000000000000000000000000000000000000000000000000001','Cap''n Crunch');`)
 		handleError(err)
 		statement.Exec()
-		*/
+
 	}
 
 }
@@ -614,7 +614,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(txid string, scid string, height 
 		ready(true)
 		return
 	}
-	scerr := ss.DB.QueryRow("SELECT scs_id FROM scs WHERE scid=? OR scid = ?", scid, txid).Scan(&scs_id) //don't add any installs as interactions too
+	scerr := ss.DB.QueryRow("SELECT scs_id FROM scs WHERE scid = ? OR scid = ?", scid, txid).Scan(&scs_id) //don't add any installs as interactions too
 	if scerr != nil {
 		ready(true)
 		return
