@@ -51,10 +51,12 @@ func main() {
 
 	db_path := filepath.Join(wd, "gnomondb")
 	if UseMem {
+		fmt.Println("loading db into memory ....")
 		batchSize = memBatchSize
 		api.PreferredRequests = memPreferredRequests
 		sqlite, err = NewSqlDB(db_path, db_name)
 	} else {
+		fmt.Println("loading db ....")
 		batchSize = diskBatchSize
 		api.PreferredRequests = diskPreferredRequests
 		sqlite, err = NewDiskDB(db_path, db_name)

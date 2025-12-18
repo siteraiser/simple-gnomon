@@ -76,11 +76,13 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		return errors.New("nothing to import")
 	}
 
+	changed := false
+	ownerstored := false
 	//	fmt.Printf("SCIDS TO ADD: %v...", scidstoadd.ScVars)
 	// By returning valid variables of a given Scid (GetSC --> parse vars), we can conclude it is a valid SCID. Otherwise, skip adding to validated scids
 	if len(scidstoadd.ScVars) != 0 {
 
-		changed, err := indexer.SSSBackend.StoreSCIDVariableDetails(
+		changed, err = indexer.SSSBackend.StoreSCIDVariableDetails(
 			scidstoadd.Scid,
 			scidstoadd.ScVars,
 			int64(scidstoadd.Fsi.Height),
@@ -92,30 +94,28 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		if !changed {
 			return errors.New("did not store scid/vars")
 		}
+		if scidstoadd.ScCode != "" {
+			ownerstored, err = indexer.SSSBackend.StoreOwner(
+				scidstoadd.Scid,
+				scidstoadd.Fsi.Owner,
+				scidstoadd.Fsi.SCName,
+				scidstoadd.Fsi.SCDesc,
+				scidstoadd.Fsi.SCImgURL,
+				scidstoadd.Class,
+				scidstoadd.Tags,
+			)
 
-		changed, err = indexer.SSSBackend.StoreOwner(
-			scidstoadd.Scid,
-			scidstoadd.Fsi.Owner,
-			scidstoadd.Fsi.SCName,
-			scidstoadd.Fsi.SCDesc,
-			scidstoadd.Fsi.SCImgURL,
-			scidstoadd.Class,
-			scidstoadd.Tags,
-		)
-		if err != nil {
-			fmt.Println("err StoreOwner: ", err)
-			return err
-		}
-		if !changed {
-			return errors.New("did not store scid/owner")
-		}
-		if UseMem {
-			fmt.Print("sql [AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.SSSBackend.GetAllOwnersAndSCIDs())))
+			if err != nil {
+				fmt.Println("err StoreOwner: ", err)
+				return err
+			}
 		}
 
-	} else {
+	}
+
+	if !ownerstored {
 		//was not an install or a failed install
-		changed, err := indexer.SSSBackend.StoreSCIDInteractionHeight(
+		changed, err = indexer.SSSBackend.StoreSCIDInteractionHeight(
 			scidstoadd.Scid, //really the txid in this instance
 			scidstoadd.ScSCID,
 			//	scidstoadd.ScCode,
@@ -131,7 +131,10 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		if UseMem {
 			fmt.Print("sql [AddSCIDToIndex] New updated disk: ", fmt.Sprint(len(indexer.SSSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
 		}
+
+		return
 	}
+
 	return nil
 }
 
