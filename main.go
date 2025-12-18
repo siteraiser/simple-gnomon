@@ -52,8 +52,8 @@ var CustomActions = map[string]action{}
 
 func main() {
 	//Add custom actions for scids
-	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "saveasinteraction"}
-	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "disgard"}
+	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard"} //saveasinteraction
+	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "discard"}
 
 	fmt.Println("starting ....")
 	var err error
@@ -343,7 +343,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	}
 
 	// Discard the discardable
-	if CustomActions[params.SCID].Act == "discard" {
+	if CustomActions[params.SCID].Act == "discard" && bheight <= 161296 {
 		return
 	}
 
