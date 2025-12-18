@@ -337,7 +337,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		params = rpc.GetSC_Params{
 			SCID:       scid.String(),
 			Code:       false,
-			Variables:  CustomActions[tx.GetHash().String()].Act == "saveasinteraction", //no name spams
+			Variables:  CustomActions[tx.GetHash().String()].Act != "saveasinteraction", //no name spams
 			TopoHeight: bheight,
 		}
 	}
@@ -354,13 +354,13 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	if err != nil { //might be worth investigating what errors could occur
 		return
 	}
-	//panic("ahh")
+
 	kv := sc.VariableStringKeys
 	//fmt.Println("key", kv)
 	scname := api.GetSCNameFromVars(kv)
 	scdesc := api.GetSCDescriptionFromVars(kv)
 	scimgurl := api.GetSCIDImageURLFromVars(kv)
-
+	//panic(vars)
 	//	fmt.Println("headers", headers)
 	tags := ""
 	class := ""

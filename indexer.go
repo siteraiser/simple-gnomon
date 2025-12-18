@@ -152,7 +152,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 // Gets SC variable details
 func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (variables []*SCIDVariable, err error) {
 	//balances = make(map[string]uint64)
-	fmt.Println(keysuint64)
+	//	fmt.Println(keysuint64)
 
 	isAlpha := regexp.MustCompile(`^[A-Za-z]+$`).MatchString
 

@@ -617,15 +617,15 @@ func (ss *SqlStore) GetSCIDValuesByKey(scid string, key interface{}, height int6
 // Stores SC interaction height and detail - height invoked upon and type (scinstall/scinvoke). This is separate tree & k/v since we can query it for other things at less data retrieval
 func (ss *SqlStore) StoreSCIDInvoke(scidstoadd SCIDToIndexStage, height int64) (changes bool, err error) {
 
-	fmt.Println("\nStoreSCIDInteractionHeight... TXHash " + scidstoadd.TXHash + " ParamsSCID " + scidstoadd.Params.SCID + " Height:" + strconv.Itoa(int(height)))
+	fmt.Println("\nStoreSCIDInvoke... TXHash " + scidstoadd.TXHash + " ParamsSCID " + scidstoadd.Params.SCID + " Height:" + strconv.Itoa(int(height)))
 
 	ready(false)
 	//var scs_id int
-	if scidstoadd.Type == "invoke" {
+	if scidstoadd.Type != "invoke" {
 		panic("why are we here?")
 		//then we not
-		ready(true)
-		return
+		//ready(true)
+		//return
 	}
 
 	var txid_id int
