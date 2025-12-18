@@ -17,9 +17,9 @@ import (
 	api "github.com/secretnamebasis/simple-gnomon/models"
 )
 
-var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
-var blockBatchSize = int64(25000) // Batch size (how many to process before saving w/ mem mode)
-var UseMem = true                 // Use in-memory db
+var startAt = int64(0)             // Start at Block Height, will be auto-set when using 0
+var blockBatchSize = int64(100000) // Batch size (how many to process before saving w/ mem mode)
+var UseMem = true                  // Use in-memory db
 // Optimized settings for mode db mode
 var memBatchSize = int16(8)
 var memPreferredRequests = int16(10)
