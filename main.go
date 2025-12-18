@@ -44,15 +44,16 @@ const MAINNET_NAME_SERVICE_SCID = "000000000000000000000000000000000000000000000
 var Hardcoded_SCIDS = []string{MAINNET_NAME_SERVICE_SCID, MAINNET_GNOMON_SCID}
 
 type action struct {
-	Type string
-	Act  string
+	Type  string
+	Act   string
+	Block int64
 }
 
 var CustomActions = map[string]action{}
 
 func main() {
 	//Add custom actions for scids
-	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard"} //saveasinteraction
+	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-after", Block: 161296} //saveasinteraction
 	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "discard"}
 
 	fmt.Println("starting ....")
@@ -343,7 +344,8 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	}
 
 	// Discard the discardable
-	if CustomActions[params.SCID].Act == "discard" && bheight <= 161296 {
+	if CustomActions[params.SCID].Act == "discard" ||
+		(CustomActions[params.SCID].Act == "discard-after" && CustomActions[params.SCID].Block >= bheight) {
 		return
 	}
 
