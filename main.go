@@ -37,33 +37,23 @@ var firstRun = true
 // Gnomon Index SCID
 const MAINNET_GNOMON_SCID = "a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4"
 const TESTNET_GNOMON_SCID = "c9d23d2fc3aaa8e54e238a2218c0e5176a6e48780920fd8474fac5b0576110a2"
+const MAINNET_NAME_SERVICE_SCID = "0000000000000000000000000000000000000000000000000000000000000001"
 
 // Hardcoded Smart Contracts of DERO Network
 // TODO: Possibly in future we can pull this from derohe codebase
-var Hardcoded_SCIDS = []string{"0000000000000000000000000000000000000000000000000000000000000001", "a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4"}
+var Hardcoded_SCIDS = []string{MAINNET_NAME_SERVICE_SCID, MAINNET_GNOMON_SCID}
 
 type action struct {
-	SCID string
 	Type string
 	Act  string
 }
 
-var CustomActions = []action{
-	{SCID: Hardcoded_SCIDS[0], Type: "SC", Act: "saveasinteraction"},
-	{SCID: Hardcoded_SCIDS[1], Type: "SC", Act: "disgard"},
-}
-
-func getActions(scid string) string {
-	//no name spams
-	for _, action := range CustomActions {
-		if scid == action.SCID {
-			return action.Act
-		}
-	}
-	return ""
-}
+var CustomActions = map[string]action{}
 
 func main() {
+	//Add custom actions for scids
+	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "saveasinteraction"}
+	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "disgard"}
 
 	fmt.Println("starting ....")
 	var err error
@@ -111,7 +101,7 @@ func start_gnomon_indexer() {
 		api.Reset()
 	}
 
-	sqlindexer = NewSQLIndexer(sqlite, last_height, []string{MAINNET_GNOMON_SCID})
+	sqlindexer = NewSQLIndexer(sqlite, last_height, CustomActions)
 
 	fmt.Println("Topo Height ", api.GetTopoHeight())
 	fmt.Println("last height ", fmt.Sprint(last_height))
@@ -343,12 +333,15 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		params = rpc.GetSC_Params{
 			SCID:       scid.String(),
 			Code:       false,
-			Variables:  getActions(params.SCID) == "saveasinteraction", //no name spams
+			Variables:  CustomActions[params.SCID].Act == "saveasinteraction", //no name spams
 			TopoHeight: bheight,
 		}
 	}
 
-	//
+	// Discard the discardable
+	if CustomActions[params.SCID].Act == "discard" {
+		return
+	}
 
 	api.Ask()
 	sc := api.GetSC(params) //Variables: true,

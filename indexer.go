@@ -51,16 +51,16 @@ type Indexer struct {
 	LastIndexedHeight int64
 	ChainHeight       int64
 	SearchFilter      []string
-	SFSCIDExclusion   []string
+	CustomActions     map[string]action
 	SSSBackend        *SqlStore
 	ValidatedSCs      []string
 	Status            string
 }
 
-func NewSQLIndexer(Sqls_backend *SqlStore, last_indexedheight int64, sfscidexclusion []string) *Indexer {
+func NewSQLIndexer(Sqls_backend *SqlStore, last_indexedheight int64, CustomActions map[string]action) *Indexer {
 	return &Indexer{
 		LastIndexedHeight: last_indexedheight,
-		SFSCIDExclusion:   sfscidexclusion,
+		CustomActions:     CustomActions,
 		SSSBackend:        Sqls_backend,
 	}
 }
@@ -117,7 +117,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		txid := scidstoadd.Scid
 		scid := scidstoadd.ScSCID
 		//no name spams
-		if getActions(scid) == "saveasinteraction" {
+		if indexer.CustomActions[scid].Act == "saveasinteraction" {
 			//not saving the vars for the name contract
 			scid = scidstoadd.Scid
 			txid = scidstoadd.ScSCID
