@@ -337,7 +337,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		params = rpc.GetSC_Params{
 			SCID:       scid.String(),
 			Code:       false,
-			Variables:  CustomActions[params.SCID].Act == "saveasinteraction", //no name spams
+			Variables:  CustomActions[tx.GetHash().String()].Act == "saveasinteraction", //no name spams
 			TopoHeight: bheight,
 		}
 	}
