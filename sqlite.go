@@ -210,12 +210,13 @@ func CreateTables(Db *sql.DB) {
 		statement, err := Db.Prepare("INSERT INTO state (name,value) VALUES('lastindexedheight'," + strconv.Itoa(int(startAt)) + ");")
 		handleError(err)
 		statement.Exec()
+
+		statement, err = Db.Prepare("CREATE INDEX height_index ON interactions(sc_id,txid);")
+		handleError(err)
+		statement.Exec()
 		/*
-			statement, err = Db.Prepare("CREATE INDEX height_index ON interaction_heights(isc_id);")
-			handleError(err)
-			statement.Exec()
+			fmt.Println("donesetting")
 		*/
-		fmt.Println("donesetting")
 		/*set defaults
 		statement, err = Db.Prepare("INSERT INTO scs (scid,owner) VALUES('0000000000000000000000000000000000000000000000000000000000000001','Cap'n Crunch');")
 		handleError(err)
@@ -242,7 +243,7 @@ func handleError(err error) {
 func (ss *SqlStore) PruneHeight(height int) {
 
 	var scids []string
-	rows, err := ss.DB.Query("SELECT scid FROM scs WHERE height > "+strconv.Itoa(height)+";", nil) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
+	rows, err := ss.DB.Query("SELECT scs_id FROM scs WHERE height > "+strconv.Itoa(height)+";", nil) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -273,7 +274,7 @@ func (ss *SqlStore) PruneHeight(height int) {
 	}
 	in = strings.TrimRight(in, ",")
 
-	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE scid IN(" + in + ");")
+	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE sc_id IN(" + in + ");")
 	handleError(err)
 	statement.Exec()
 
@@ -479,7 +480,7 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVaria
 	if err != nil {
 		return changes, fmt.Errorf("[StoreSCIDVariableDetails] could not marshal getinfo info: %v", err)
 	}
-	ready(false)
+	ready(false) //maybe look up the scid id
 	statement, err := ss.DB.Prepare("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
 	if err != nil {
 		log.Fatal(err)
@@ -609,14 +610,18 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(txid string, scid string, height 
 
 	ready(false)
 	var scs_id int
-	scerr := ss.DB.QueryRow("SELECT scs_id FROM scs WHERE scid=?", scid).Scan(&scs_id)
+	if scid == txid {
+		ready(true)
+		return
+	}
+	scerr := ss.DB.QueryRow("SELECT scs_id FROM scs WHERE scid=? OR scid = ?", scid, txid).Scan(&scs_id) //don't add any installs as interactions too
 	if scerr != nil {
 		ready(true)
 		return
 	}
 
 	var txid_id int
-	err = ss.DB.QueryRow("SELECT txid FROM interactions WHERE txid=?", txid).Scan(&txid_id)
+	err = ss.DB.QueryRow("SELECT txid FROM interactions WHERE txid=?", txid).Scan(&txid_id) //don't add the same interaction twice
 
 	if err != nil {
 

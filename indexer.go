@@ -118,6 +118,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		changed, err := indexer.SSSBackend.StoreSCIDInteractionHeight(
 			scidstoadd.Scid, //really the txid in this instance
 			scidstoadd.ScSCID,
+			//	scidstoadd.ScCode,
 			int64(scidstoadd.Fsi.Height),
 		)
 		if err != nil {
