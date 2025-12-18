@@ -171,7 +171,7 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 
 func CreateTables(Db *sql.DB) {
 
-	var startup = [5]string{}
+	var startup = [4]string{}
 	startup[0] = "CREATE TABLE IF NOT EXISTS state (" +
 		"name  TEXT, " +
 		"value  INTEGER)"
@@ -189,25 +189,25 @@ func CreateTables(Db *sql.DB) {
 
 	startup[2] = "CREATE TABLE IF NOT EXISTS variables (" +
 		"v_id INTEGER PRIMARY KEY, " +
-		"height INTEGER NOT NULL, " +
-		"scid TEXT NOT NULL, " +
-		"vars TEXT NOT NULL)"
+		"height INTEGER, " +
+		"scid TEXT, " +
+		"vars TEXT)"
 	//key := signer + ":" + invokedetails.Txid[0:3] + invokedetails.Txid[txidLen-3:txidLen] + ":" + strconv.FormatInt(topoheight, 10) + ":" + entrypoint
-
-	//invoke details: signer:txid:height:entrypoint
-	startup[3] = "CREATE TABLE IF NOT EXISTS invokes (" +
-		"inv_id INTEGER PRIMARY KEY, " +
-		"scid TEXT NOT NULL, " +
-		"signer TEXT NOT NULL, " +
-		"txid TEXT NOT NULL, " +
-		"height INTEGER NOT NULL, " +
-		"entrypoint TEXT NOT NULL)"
-
+	/*
+		//invoke details: signer:txid:height:entrypoint
+		startup[3] = "CREATE TABLE IF NOT EXISTS invokes (" +
+			"inv_id INTEGER PRIMARY KEY, " +
+			"scid TEXT, " +
+			"signer TEXT, " +
+			"txid TEXT, " +
+			"height INTEGER, " +
+			"entrypoint TEXT)"
+	*/
 	//interactions at heightid INTEGER PRIMARY KEY
-	startup[4] = "CREATE TABLE IF NOT EXISTS interactions (" +
-		"height INTEGER NOT NULL, " +
-		"txid TEXT NOT NULL , " +
-		"sc_id TEXT NOT NULL)"
+	startup[3] = "CREATE TABLE IF NOT EXISTS interactions (" +
+		"height INTEGER, " +
+		"txid TEXT, " +
+		"sc_id TEXT)"
 
 	for _, create := range startup {
 		executeQuery(Db, create)
