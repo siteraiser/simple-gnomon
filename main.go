@@ -53,7 +53,7 @@ var CustomActions = map[string]action{}
 
 func main() {
 	//Add custom actions for scids
-	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-after", Block: 161296} //saveasinteraction
+	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
 	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "discard"}
 
 	fmt.Println("starting ....")
@@ -345,7 +345,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 
 	// Discard the discardable
 	if CustomActions[params.SCID].Act == "discard" ||
-		(CustomActions[params.SCID].Act == "discard-after" && CustomActions[params.SCID].Block >= bheight) {
+		(CustomActions[params.SCID].Act == "discard-before" && CustomActions[params.SCID].Block >= bheight) {
 		return
 	}
 
