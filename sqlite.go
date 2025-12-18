@@ -157,7 +157,7 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 			"tags TEXT);" +
 			"INSERT INTO scs (scs_id,scid,owner,height,scname,scdescr,scimgurl,class,tags) SELECT * FROM diskdb.scs;" +
 			"CREATE TABLE IF NOT EXISTS main.variables AS SELECT * FROM diskdb.variables;" +
-			"CREATE TABLE IF NOT EXISTS main.invokes AS SELECT * FROM diskdb.invokes;" +
+			//	"CREATE TABLE IF NOT EXISTS main.invokes AS SELECT * FROM diskdb.invokes;" +
 			"CREATE TABLE IF NOT EXISTS main.interactions AS SELECT * FROM diskdb.interactions;")
 	if err != nil {
 		log.Printf("No existing table to copy: %v", err)
