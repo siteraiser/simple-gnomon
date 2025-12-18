@@ -19,7 +19,7 @@ import (
 
 var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
 var blockBatchSize = int64(25000) // Batch size (how many to process before saving w/ mem mode)
-var UseMem = false                // Use in-memory db
+var UseMem = true                 // Use in-memory db
 // Optimized settings for mode db mode
 var memBatchSize = int16(8)
 var memPreferredRequests = int16(10)
@@ -313,7 +313,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	params := rpc.GetSC_Params{}
 	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
 		tx_type = "install"
-		fmt.Println("install:", tx)
+		//	fmt.Println("install:", tx)
 
 		params = rpc.GetSC_Params{
 			SCID:       tx.GetHash().String(),
@@ -323,7 +323,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		}
 	} else if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
 		tx_type = "invoke"
-		fmt.Println("invoke:", tx)
+		//	fmt.Println("invoke:", tx)
 
 		scid, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
 
@@ -464,7 +464,6 @@ func showBlockStatus(bheight int64) {
 		speedbph = strconv.Itoa((1000 / s) * 60 * 60)
 	}
 	show := "Block:" + strconv.Itoa(int(bheight)) +
-		" Max En Route:" + strconv.Itoa(int(api.PreferredRequests)) +
 		" En Route " + strconv.Itoa(int(api.Out1)) +
 		":" + strconv.Itoa(int(api.Out2)) +
 		" Speed:" + speedms + "ms" +

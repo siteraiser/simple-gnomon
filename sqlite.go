@@ -343,16 +343,16 @@ func (ss *SqlStore) ViewTables() {
 	}
 
 	fmt.Println("Showing Vars: ")
-	rows, err = hard.Query("SELECT height, scid FROM variables", nil)
+	rows, err = hard.Query("SELECT count(*) FROM variables", nil)
 	if err != nil {
 		fmt.Println(err)
 	}
 	var (
-		height string
+		vcount int
 	)
 	for rows.Next() {
-		rows.Scan(&height, &scid)
-		fmt.Println("height - scid - vars (not shown) ", height+"--"+scid)
+		rows.Scan(&vcount)
+		fmt.Println("Count ", vcount)
 	}
 
 	fmt.Println("Showing Interactions: ")
