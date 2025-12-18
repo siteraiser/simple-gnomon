@@ -113,7 +113,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 
 	}
 
-	if !ownerstored {
+	if !ownerstored || len(scidstoadd.ScVars) == 0 {
 		//was not an install or a failed install
 		changed, err = indexer.SSSBackend.StoreSCIDInteractionHeight(
 			scidstoadd.Scid, //really the txid in this instance
