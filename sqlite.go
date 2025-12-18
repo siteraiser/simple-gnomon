@@ -314,7 +314,7 @@ func (ss *SqlStore) ViewTables() {
 	}
 
 	fmt.Println("Showing SCs / Owners: ")
-	rows, err = hard.Query("SELECT scid, owner, scname,class, tags FROM scs", nil)
+	rows, err = hard.Query("SELECT scid, owner, scname,class, tags FROM scs WHERE class !=''", nil)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -625,7 +625,6 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(txid string, scid string, height 
 	err = ss.DB.QueryRow("SELECT txid FROM interactions WHERE txid=?", txid).Scan(&txid_id) //don't add the same interaction twice
 
 	if err != nil {
-
 		statement, err := ss.DB.Prepare("INSERT INTO interactions (height,txid,sc_id) VALUES (?,?,?);")
 		if err != nil {
 			log.Fatal(err)
@@ -635,7 +634,6 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(txid string, scid string, height 
 			scid,
 			scs_id,
 		)
-
 		if err == nil {
 			last_insert_id, _ := result.LastInsertId()
 			if last_insert_id >= 0 {
@@ -643,7 +641,6 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(txid string, scid string, height 
 				changes = true
 			}
 		}
-
 	}
 	ready(true)
 	return
