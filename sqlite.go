@@ -358,14 +358,14 @@ func (ss *SqlStore) ViewTables() {
 	}
 
 	/*
-		SELECT isc_id FROM interaction_heights
-		GROUP BY isc_id
+		SELECT sc_id FROM interactions
+		GROUP BY sc_id
 		HAVING COUNT(*) = (
 		                   SELECT MAX(Cnt)
 		                   FROM(
 		                         SELECT COUNT(*) as Cnt
-		                         FROM interaction_heights
-		                         GROUP BY isc_id
+		                         FROM interactions
+		                         GROUP BY sc_id
 		                        ) tmp
 		                    )
 	*/
@@ -638,39 +638,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(txid string, scid string, height 
 			}
 		}
 
-	} //else {
-	//Shouldn't be possible now >>> other than for a chain pop...
-	/*
-			for _, v := range interactionHeight {
-				if v == height {
-					// Return nil if already exists in array.
-					// Clause for this is in event we pop backwards in time and already have this data stored.
-					// TODO: What if interaction happened on false-chain and pop to retain correct chain. Bad data may be stored here still, as it isn't removed. Need fix for this in future.
-					ready(true)
-					return
-				}
-			}
-
-		//	interactionHeight = append(interactionHeight, height)
-		statement, err := ss.DB.Prepare("INSERT INTO interaction_heights (isc_id,height) VALUES (?,?) WHERE height NOT = ?;")
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		result, err := statement.Exec(
-			scid_id,
-			height,
-		)
-
-		if err == nil {
-			last_insert_id, _ := result.LastInsertId()
-			if last_insert_id >= 0 {
-				fmt.Println("\n INSERTED NEW RECORD " + strconv.Itoa(int(last_insert_id)) + " H:" + strconv.Itoa(int(height)))
-				changes = true
-			}
-		}
-		//newInteractionHeight, err = json.Marshal(interactionHeight)
-	}	*/
+	}
 	ready(true)
 	return
 
@@ -678,11 +646,11 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(txid string, scid string, height 
 
 // Gets SC interaction height and detail by a given SCID
 func (ss *SqlStore) GetSCIDInteractionHeight(scid string) (scidinteractions []int64) {
-	//	fmt.Println("GetSCIDInteractionHeight... ")
+	//	fmt.Println("GetSCIDInteractionHeight... ")"SELECT interaction_heights.height FROM interactions INNER JOIN interactions.i_id ON interaction_heights WHERE scid=?"
 
 	ready(false)
 	rows, err := ss.DB.Query(
-		"SELECT interaction_heights.height FROM interactions INNER JOIN interactions.i_id ON interaction_heights WHERE scid=?",
+		"SELECT height FROM interactions WHERE txid=?",
 		scid)
 
 	if err != nil {
