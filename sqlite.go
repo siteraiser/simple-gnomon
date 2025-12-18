@@ -157,7 +157,7 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 			"tags TEXT);" +
 			"INSERT INTO scs (scs_id,scid,owner,height,scname,scdescr,scimgurl,class,tags) SELECT * FROM diskdb.scs;" +
 			"CREATE TABLE IF NOT EXISTS main.variables AS SELECT * FROM diskdb.variables;" +
-			//	"CREATE TABLE IF NOT EXISTS main.invokes AS SELECT * FROM diskdb.invokes;" +
+			"CREATE TABLE IF NOT EXISTS main.invokes AS SELECT * FROM diskdb.invokes;" +
 			"CREATE TABLE IF NOT EXISTS main.interactions AS SELECT * FROM diskdb.interactions;")
 	if err != nil {
 		log.Printf("No existing table to copy: %v", err)
@@ -171,7 +171,7 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 
 func CreateTables(Db *sql.DB) {
 
-	var startup = [4]string{}
+	var startup = [5]string{}
 	startup[0] = "CREATE TABLE IF NOT EXISTS state (" +
 		"name  TEXT, " +
 		"value  INTEGER)"
@@ -192,19 +192,19 @@ func CreateTables(Db *sql.DB) {
 		"height INTEGER, " +
 		"scid TEXT, " +
 		"vars TEXT)"
-	//key := signer + ":" + invokedetails.Txid[0:3] + invokedetails.Txid[txidLen-3:txidLen] + ":" + strconv.FormatInt(topoheight, 10) + ":" + entrypoint
-	/*
-		//invoke details: signer:txid:height:entrypoint
-		startup[3] = "CREATE TABLE IF NOT EXISTS invokes (" +
-			"inv_id INTEGER PRIMARY KEY, " +
-			"scid TEXT, " +
-			"signer TEXT, " +
-			"txid TEXT, " +
-			"height INTEGER, " +
-			"entrypoint TEXT)"
-	*/
+		//key := signer + ":" + invokedetails.Txid[0:3] + invokedetails.Txid[txidLen-3:txidLen] + ":" + strconv.FormatInt(topoheight, 10) + ":" + entrypoint
+		/*	*/
+	//invoke details: signer:txid:height:entrypoint
+	startup[3] = "CREATE TABLE IF NOT EXISTS invokes (" +
+		"inv_id INTEGER PRIMARY KEY, " +
+		"scid TEXT, " +
+		"signer TEXT, " +
+		"txid TEXT, " +
+		"height INTEGER, " +
+		"entrypoint TEXT)"
+
 	//interactions at heightid INTEGER PRIMARY KEY
-	startup[3] = "CREATE TABLE IF NOT EXISTS interactions (" +
+	startup[4] = "CREATE TABLE IF NOT EXISTS interactions (" +
 		"height INTEGER, " +
 		"txid TEXT, " +
 		"sc_id TEXT)"
@@ -274,11 +274,11 @@ func (ss *SqlStore) PruneHeight(height int) {
 	statement, err = ss.DB.Prepare("DELETE FROM variables WHERE height > " + strconv.Itoa(height) + ";")
 	handleError(err)
 	statement.Exec()
-	/*
-		statement, err = ss.DB.Prepare("DELETE FROM invokes WHERE height > " + strconv.Itoa(height) + ";")
-		handleError(err)
-		statement.Exec()
-	*/
+	/*	*/
+	statement, err = ss.DB.Prepare("DELETE FROM invokes WHERE height > " + strconv.Itoa(height) + ";")
+	handleError(err)
+	statement.Exec()
+
 	in := ""
 	for _, scid := range scids {
 		in = "'" + scid + "',"
@@ -615,25 +615,67 @@ func (ss *SqlStore) GetSCIDValuesByKey(scid string, key interface{}, height int6
 }
 
 // Stores SC interaction height and detail - height invoked upon and type (scinstall/scinvoke). This is separate tree & k/v since we can query it for other things at less data retrieval
-func (ss *SqlStore) StoreSCIDInteractionHeight(txid string, scid string, height int64) (changes bool, err error) {
+func (ss *SqlStore) StoreSCIDInvoke(scidstoadd SCIDToIndexStage, height int64) (changes bool, err error) {
 
-	fmt.Println("\nStoreSCIDInteractionHeight... " + scid + " H:" + strconv.Itoa(int(height)))
+	fmt.Println("\nStoreSCIDInteractionHeight... TXHash " + scidstoadd.TXHash + " ParamsSCID " + scidstoadd.Params.SCID + " Height:" + strconv.Itoa(int(height)))
+
+	ready(false)
+	//var scs_id int
+	if scidstoadd.Type == "invoke" {
+		panic("why are we here?")
+		//then we not
+		ready(true)
+		return
+	}
+
+	var txid_id int
+	err = ss.DB.QueryRow("SELECT txid FROM interactions WHERE txid=?", scidstoadd.TXHash).Scan(&txid_id) //don't add the same interaction twice
+
+	if err != nil {
+		statement, err := ss.DB.Prepare("INSERT INTO invokes (scid,signer,txid,height,entrypoint) VALUES (?,?,?,?,?);")
+		if err != nil {
+			log.Fatal(err)
+		}
+		result, err := statement.Exec(
+			scidstoadd.Params.SCID,
+			scidstoadd.Fsi.Signer,
+			scidstoadd.TXHash,
+			height,
+			"somewhere",
+		)
+		if err == nil {
+			last_insert_id, _ := result.LastInsertId()
+			if last_insert_id >= 0 {
+				fmt.Println("\n INSERTED NEW RECORD " + strconv.Itoa(int(last_insert_id)) + " H:" + strconv.Itoa(int(height)))
+				changes = true
+			}
+		}
+	}
+	ready(true)
+	return
+
+}
+
+// Stores SC interaction height and detail - height invoked upon and type (scinstall/scinvoke). This is separate tree & k/v since we can query it for other things at less data retrieval
+func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd SCIDToIndexStage, height int64) (changes bool, err error) {
+
+	fmt.Println("\nStoreSCIDInteractionHeight... TXHash " + scidstoadd.TXHash + " ParamsSCID " + scidstoadd.Params.SCID + " Height:" + strconv.Itoa(int(height)))
 
 	ready(false)
 	var scs_id int
-	if scid == txid {
+	if scidstoadd.Type == "install" {
 		//it is a SC install and already saved
 		ready(true)
 		return
 	}
-	scerr := ss.DB.QueryRow("SELECT scs_id FROM scs WHERE scid = ? OR scid = ?", scid, txid).Scan(&scs_id) //don't add any installs as interactions too
+	scerr := ss.DB.QueryRow("SELECT scs_id FROM scs WHERE scid = ? OR scid = ?", scidstoadd.TXHash, scidstoadd.Params.SCID).Scan(&scs_id) //don't add any installs as interactions too
 	if scerr != nil {
 		ready(true)
 		return
 	}
 
 	var txid_id int
-	err = ss.DB.QueryRow("SELECT txid FROM interactions WHERE txid=?", txid).Scan(&txid_id) //don't add the same interaction twice
+	err = ss.DB.QueryRow("SELECT txid FROM interactions WHERE txid=?", scidstoadd.TXHash).Scan(&txid_id) //don't add the same interaction twice
 
 	if err != nil {
 		statement, err := ss.DB.Prepare("INSERT INTO interactions (height,txid,sc_id) VALUES (?,?,?);")
@@ -642,7 +684,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(txid string, scid string, height 
 		}
 		result, err := statement.Exec(
 			height,
-			scid,
+			scidstoadd.TXHash,
 			scs_id,
 		)
 		if err == nil {

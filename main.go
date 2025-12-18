@@ -19,7 +19,7 @@ import (
 
 var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
 var blockBatchSize = int64(25000) // Batch size (how many to process before saving w/ mem mode)
-var UseMem = true                 // Use in-memory db
+var UseMem = false                // Use in-memory db
 // Optimized settings for mode db mode
 var memBatchSize = int16(8)
 var memPreferredRequests = int16(10)
@@ -308,9 +308,12 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		return
 	}
 
+	tx_type := ""
 	fmt.Print("scid found at height:", fmt.Sprint(bheight)+"\n")
 	params := rpc.GetSC_Params{}
 	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
+		tx_type = "install"
+		fmt.Println("install:", tx)
 
 		params = rpc.GetSC_Params{
 			SCID:       tx.GetHash().String(),
@@ -318,9 +321,10 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 			Variables:  true,
 			TopoHeight: bheight,
 		}
-	}
+	} else if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
+		tx_type = "invoke"
+		fmt.Println("invoke:", tx)
 
-	if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
 		scid, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
 
 		if !ok { // paranoia
@@ -350,7 +354,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	if err != nil { //might be worth investigating what errors could occur
 		return
 	}
-
+	//panic("ahh")
 	kv := sc.VariableStringKeys
 	//fmt.Println("key", kv)
 	scname := api.GetSCNameFromVars(kv)
@@ -375,15 +379,16 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 
 	}
 	staged := SCIDToIndexStage{
-		Scid:   tx.GetHash().String(),
-		Fsi:    &FastSyncImport{Height: uint64(bheight), Owner: signer, SCName: scname, SCDesc: scdesc, SCImgURL: scimgurl}, //
+		Type:   tx_type,
+		TXHash: tx.GetHash().String(),
+		Fsi:    &FastSyncImport{Height: uint64(bheight), Signer: signer, SCName: scname, SCDesc: scdesc, SCImgURL: scimgurl}, //
 		ScVars: vars,
 		ScCode: sc.Code,
-		ScSCID: params.SCID,
+		Params: params,
 		Class:  class, //Class and tags are not in original gnomon
 		Tags:   tags,
 	}
-	fmt.Println("staged scid:", staged.Scid, ":", fmt.Sprint(staged.Fsi.Height))
+	fmt.Println("staged scid:", staged.TXHash, ":", fmt.Sprint(staged.Fsi.Height))
 	fmt.Println("staged params.scid:", params.SCID, ":", fmt.Sprint(staged.Fsi.Height))
 
 	// now add the scid to the index
@@ -391,7 +396,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	// if the contract already exists, record the interaction
 	ready(false)
 	if err := sqlindexer.AddSCIDToIndex(staged); err != nil {
-		fmt.Println(err, " ", staged.Scid, " ", staged.Fsi.Height)
+		fmt.Println(err, " ", staged.TXHash, " ", staged.Fsi.Height)
 		if strings.Contains(err.Error(), "database is locked") {
 			api.NewError("database", "db lock")
 		}

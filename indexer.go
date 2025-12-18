@@ -30,7 +30,7 @@ type SCIDVariable struct {
 }
 
 type FastSyncImport struct {
-	Owner    string
+	Signer   string
 	Height   uint64
 	SCName   string
 	SCDesc   string
@@ -38,11 +38,12 @@ type FastSyncImport struct {
 }
 
 type SCIDToIndexStage struct {
-	Scid   string
+	Type   string
+	TXHash string
 	Fsi    *FastSyncImport
 	ScVars []*SCIDVariable
 	ScCode string
-	ScSCID string
+	Params rpc.GetSC_Params
 	Class  string
 	Tags   string
 }
@@ -68,7 +69,7 @@ func NewSQLIndexer(Sqls_backend *SqlStore, last_indexedheight int64, CustomActio
 // Manually add/inject a SCID to be indexed. Checks validity and then stores within owner tree (no signer addr) and stores a set of current variables.
 func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) {
 	//	fmt.Println("Adding to Index: ", scidstoadd)
-	if scidstoadd.Scid == "" {
+	if scidstoadd.TXHash == "" {
 		return errors.New("no scid")
 	}
 
@@ -80,10 +81,10 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 	ownerstored := false
 	//	fmt.Printf("SCIDS TO ADD: %v...", scidstoadd.ScVars)
 	// By returning valid variables of a given Scid (GetSC --> parse vars), we can conclude it is a valid SCID. Otherwise, skip adding to validated scids
-	if len(scidstoadd.ScVars) != 0 {
+	if len(scidstoadd.ScVars) != 0 && indexer.CustomActions[scidstoadd.Params.SCID].Act != "saveasinteraction" {
 
 		changed, err = indexer.SSSBackend.StoreSCIDVariableDetails(
-			scidstoadd.Scid,
+			scidstoadd.TXHash,
 			scidstoadd.ScVars,
 			int64(scidstoadd.Fsi.Height),
 		)
@@ -94,10 +95,11 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		if !changed {
 			return errors.New("did not store scid/vars")
 		}
-		if scidstoadd.ScCode != "" {
+
+		if scidstoadd.ScCode != "" && scidstoadd.Type == "install" { //or custom add maybe...
 			ownerstored, err = indexer.SSSBackend.StoreOwner(
-				scidstoadd.Scid,
-				scidstoadd.Fsi.Owner,
+				scidstoadd.TXHash,
+				scidstoadd.Fsi.Signer,
 				scidstoadd.Fsi.SCName,
 				scidstoadd.Fsi.SCDesc,
 				scidstoadd.Fsi.SCImgURL,
@@ -109,30 +111,26 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 				fmt.Println("err StoreOwner: ", err)
 				return err
 			}
+
+		} else if scidstoadd.Type == "invoke" {
+			//it is an invoke
+			//was not an install or a failed install
+			changed, err = indexer.SSSBackend.StoreSCIDInvoke(
+				scidstoadd,
+				int64(scidstoadd.Fsi.Height),
+			)
+			if err != nil {
+				return err
+			}
 		}
 
 	}
 
 	if !ownerstored || len(scidstoadd.ScVars) == 0 {
-		txid := scidstoadd.Scid
-		scid := scidstoadd.ScSCID
-		//no name spams
-		if indexer.CustomActions[scid].Act == "saveasinteraction" {
-			//not saving the vars for the name contract
-			scid = scidstoadd.Scid
-			txid = scidstoadd.ScSCID
-		}
 
-		if scid == Hardcoded_SCIDS[0] {
-			//not saving the vars for the name contract
-			scid = scidstoadd.Scid
-			txid = scidstoadd.ScSCID
-		}
 		//was not an install or a failed install
 		changed, err = indexer.SSSBackend.StoreSCIDInteractionHeight(
-			txid, //really the txid in this instance
-			scid,
-			//	scidstoadd.ScCode,
+			scidstoadd,
 			int64(scidstoadd.Fsi.Height),
 		)
 		if err != nil {
@@ -143,12 +141,11 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 			return errors.New("did not store scid/interaction")
 		}
 		if UseMem {
-			fmt.Print("sql [AddSCIDToIndex] New updated disk: ", fmt.Sprint(len(indexer.SSSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
+			fmt.Print("sql [AddSCIDToIndex] New updated disk: ", fmt.Sprint(len(indexer.SSSBackend.GetSCIDInteractionHeight(scidstoadd.TXHash))))
 		}
 
 		return
 	}
-
 	return nil
 }
 
