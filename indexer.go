@@ -38,14 +38,15 @@ type FastSyncImport struct {
 }
 
 type SCIDToIndexStage struct {
-	Type   string
-	TXHash string
-	Fsi    *FastSyncImport
-	ScVars []*SCIDVariable
-	ScCode string
-	Params rpc.GetSC_Params
-	Class  string
-	Tags   string
+	Type       string
+	TXHash     string
+	Fsi        *FastSyncImport
+	ScVars     []*SCIDVariable
+	ScCode     string
+	Params     rpc.GetSC_Params
+	Entrypoint string
+	Class      string
+	Tags       string
 }
 
 type Indexer struct {

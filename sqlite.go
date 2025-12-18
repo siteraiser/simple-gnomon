@@ -641,7 +641,7 @@ func (ss *SqlStore) StoreSCIDInvoke(scidstoadd SCIDToIndexStage, height int64) (
 			scidstoadd.Fsi.Signer,
 			scidstoadd.TXHash,
 			height,
-			"somewhere",
+			scidstoadd.Entrypoint,
 		)
 		if err == nil {
 			last_insert_id, _ := result.LastInsertId()

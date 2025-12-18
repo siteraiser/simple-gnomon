@@ -378,15 +378,22 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		}
 
 	}
+
+	entrypoint := ""
+	if tx.SCDATA.HasValue("entrypoint", rpc.DataString) {
+		entrypoint = tx.SCDATA.Value("entrypoint", rpc.DataString).(string)
+	}
+
 	staged := SCIDToIndexStage{
-		Type:   tx_type,
-		TXHash: tx.GetHash().String(),
-		Fsi:    &FastSyncImport{Height: uint64(bheight), Signer: signer, SCName: scname, SCDesc: scdesc, SCImgURL: scimgurl}, //
-		ScVars: vars,
-		ScCode: sc.Code,
-		Params: params,
-		Class:  class, //Class and tags are not in original gnomon
-		Tags:   tags,
+		Type:       tx_type,
+		TXHash:     tx.GetHash().String(),
+		Fsi:        &FastSyncImport{Height: uint64(bheight), Signer: signer, SCName: scname, SCDesc: scdesc, SCImgURL: scimgurl}, //
+		ScVars:     vars,
+		ScCode:     sc.Code,
+		Params:     params,
+		Entrypoint: entrypoint,
+		Class:      class, //Class and tags are not in original gnomon
+		Tags:       tags,
 	}
 	fmt.Println("staged scid:", staged.TXHash, ":", fmt.Sprint(staged.Fsi.Height))
 	fmt.Println("staged params.scid:", params.SCID, ":", fmt.Sprint(staged.Fsi.Height))
