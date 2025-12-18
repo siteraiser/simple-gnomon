@@ -274,11 +274,11 @@ func (ss *SqlStore) PruneHeight(height int) {
 	statement, err = ss.DB.Prepare("DELETE FROM variables WHERE height > " + strconv.Itoa(height) + ";")
 	handleError(err)
 	statement.Exec()
-
-	statement, err = ss.DB.Prepare("DELETE FROM invokes WHERE height > " + strconv.Itoa(height) + ";")
-	handleError(err)
-	statement.Exec()
-
+	/*
+		statement, err = ss.DB.Prepare("DELETE FROM invokes WHERE height > " + strconv.Itoa(height) + ";")
+		handleError(err)
+		statement.Exec()
+	*/
 	in := ""
 	for _, scid := range scids {
 		in = "'" + scid + "',"
