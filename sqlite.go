@@ -43,7 +43,7 @@ func Ask() bool {
 		return true
 	}
 	for {
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Microsecond)
 		if dbready {
 			return true
 		}
@@ -143,8 +143,19 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 		log.Fatalf("attach disk DB: %v", err)
 	}
 	_, err = SqlBackend.DB.Exec(
+
 		"CREATE TABLE IF NOT EXISTS main.state AS SELECT * FROM diskdb.state;" +
-			"CREATE TABLE IF NOT EXISTS main.scs AS SELECT * FROM diskdb.scs;" +
+			"CREATE TABLE main.scs (" +
+			"scs_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+			"scid TEXT UNIQUE NOT NULL, " +
+			"owner TEXT NOT NULL, " +
+			"height INTEGER, " +
+			"scname TEXT, " +
+			"scdescr TEXT, " +
+			"scimgurl TEXT, " +
+			"class TEXT, " +
+			"tags TEXT);" +
+			"INSERT INTO scs (scs_id,scid,owner,height,scname,scdescr,scimgurl,class,tags) SELECT * FROM diskdb.scs;" +
 			"CREATE TABLE IF NOT EXISTS main.variables AS SELECT * FROM diskdb.variables;" +
 			"CREATE TABLE IF NOT EXISTS main.invokes AS SELECT * FROM diskdb.invokes;" +
 			"CREATE TABLE IF NOT EXISTS main.interactions AS SELECT * FROM diskdb.interactions;")
@@ -166,7 +177,7 @@ func CreateTables(Db *sql.DB) {
 		"value  INTEGER)"
 
 	startup[1] = "CREATE TABLE IF NOT EXISTS scs (" +
-		"scs_id INTEGER PRIMARY KEY NOT NULL, " +
+		"scs_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
 		"scid TEXT UNIQUE NOT NULL, " +
 		"owner TEXT NOT NULL, " +
 		"height INTEGER, " +
