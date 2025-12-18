@@ -320,7 +320,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		params = rpc.GetSC_Params{
 			SCID:       scid.String(),
 			Code:       false,
-			Variables:  false,
+			Variables:  true,
 			TopoHeight: bheight,
 		}
 	}
