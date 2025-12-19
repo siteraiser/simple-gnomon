@@ -297,6 +297,48 @@ func (ss *SqlStore) PruneHeight(height int) {
 	*/
 }
 
+var Spammers []string
+
+func (ss *SqlStore) RidSpam() {
+
+	rows, err := ss.DB.Query(`
+	SELECT DISTINCT signer
+	FROM invokes
+	WHERE signer IN (
+		SELECT signer
+		FROM invokes
+		GROUP BY signer	
+		HAVING COUNT(signer) > 100	AND	invokes.scid = '0000000000000000000000000000000000000000000000000000000000000001'
+		ORDER BY COUNT(signer) DESC
+	)`, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	var (
+		spammeraddress string
+	)
+
+	for rows.Next() {
+		rows.Scan(&spammeraddress)
+		Spammers = append(Spammers, spammeraddress)
+	}
+
+	in := ""
+	for _, spammer := range Spammers {
+
+		in = "'" + spammer + "',"
+	}
+	in = strings.TrimRight(in, ",")
+
+	fmt.Println("deleting:", in)
+	_, err = ss.DB.Exec("DELETE FROM invokes WHERE signer IN (" + in + ");")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+}
+
 // --- extras...
 func (ss *SqlStore) ViewTables() {
 	fmt.Println("\nOpen: ", sqlite.db_path)

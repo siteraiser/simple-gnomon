@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -74,7 +75,7 @@ func main() {
 		sqlite, err = NewDiskDB(db_path, db_name)
 		CreateTables(sqlite.DB)
 	}
-
+	sqlite.RidSpam()
 	if err != nil {
 		fmt.Println("[Main] Err creating sqlite:", err)
 		return
@@ -260,6 +261,9 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	for i, tx_hex := range r.Txs_as_hex {
+		if slices.Contains(Spammers, r.Txs[i].Signer) {
+			continue
+		}
 		wg2.Add(1)
 		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
 	}
