@@ -669,19 +669,8 @@ func (ss *SqlStore) StoreSCIDInvoke(scidstoadd SCIDToIndexStage, height int64) (
 	fmt.Println("\nStoreSCIDInvoke... TXHash " + scidstoadd.TXHash + " ParamsSCID " + scidstoadd.Params.SCID + " Height:" + strconv.Itoa(int(height)))
 
 	ready(false)
-	//var scs_id int
-	if scidstoadd.Type != "invoke" {
-		panic("why are we here?")
-		//then we not
-		//ready(true)
-		//return
-	}
-
-	var txid_id int
-	err = ss.DB.QueryRow("SELECT txid FROM invokes WHERE txid=?", scidstoadd.TXHash).Scan(&txid_id) //don't add the same invoke twice
-
 	if err != nil {
-		statement, err := ss.DB.Prepare("INSERT INTO invokes (scid,signer,txid,height,entrypoint) VALUES (?,?,?,?,?);")
+		statement, err := ss.DB.Prepare("INSERT INTO invokes (scid,signer,txid,height,entrypoint) VALUES (?,?,?,?,?) WHERE txid != ? ;")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -691,6 +680,7 @@ func (ss *SqlStore) StoreSCIDInvoke(scidstoadd SCIDToIndexStage, height int64) (
 			scidstoadd.TXHash,
 			height,
 			scidstoadd.Entrypoint,
+			scidstoadd.TXHash,
 		)
 		if err == nil {
 			last_insert_id, _ := result.LastInsertId()
