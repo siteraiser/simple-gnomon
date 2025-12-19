@@ -102,7 +102,7 @@ func start_gnomon_indexer() {
 		firstRun = false
 		sqlite.PruneHeight(int(last_height))
 		if api.Status.ErrorCount != int64(0) {
-			fmt.Println("Errors detected: Error Type:", api.Status.ErrorType+" Error Name:"+api.Status.ErrorName)
+			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Errors detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
 		api.Reset()
 	}
@@ -284,7 +284,7 @@ func storeHeight(bheight int64) {
 	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
 		fmt.Println("Error Saving LastIndexHeight: ", err)
 		if strings.Contains(err.Error(), "database is locked") {
-			api.NewError("database", "db lock")
+			api.NewError("database", "db lock", "Storing last index")
 		}
 		return
 	}
@@ -418,7 +418,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	if err := sqlindexer.AddSCIDToIndex(staged); err != nil {
 		fmt.Println(err, " ", staged.TXHash, " ", staged.Fsi.Height)
 		if strings.Contains(err.Error(), "database is locked") {
-			api.NewError("database", "db lock")
+			api.NewError("database", "db lock", "Adding index")
 		}
 	}
 	ready(true)

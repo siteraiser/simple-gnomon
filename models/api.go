@@ -29,18 +29,23 @@ func OK() bool {
 	return false
 }
 
-// Error type and name
-func NewError(etype string, ename string) {
+// Error type, name, details
+func NewError(einfo ...string) {
 	Status.Mutex.Lock()
-	switch etype {
+
+	switch einfo[0] {
 	case "database":
 		Status.DbOk = false
 	case "connection", "rpc":
 		Status.ApiOk = false
 	}
 	Status.ErrorCount++
-	Status.ErrorType = etype
-	Status.ErrorName = ename
+	Status.ErrorType = einfo[0]
+	Status.ErrorName = einfo[1]
+	if len(einfo) == 3 {
+		Status.ErrorDetail = einfo[2]
+	}
+
 	Status.Mutex.Unlock()
 }
 
@@ -50,6 +55,7 @@ func Reset() {
 	Status.ErrorCount = 0
 	Status.ErrorType = ""
 	Status.ErrorName = ""
+	Status.ErrorDetail = ""
 	Status.DbOk = true
 	Status.ApiOk = true
 }
@@ -57,6 +63,7 @@ func Reset() {
 type State struct {
 	ErrorType   string
 	ErrorName   string
+	ErrorDetail string
 	DbOk        bool
 	ApiOk       bool
 	ErrorCount  int64
@@ -76,6 +83,7 @@ type State struct {
 var Status = &State{
 	ErrorType:   "",
 	ErrorName:   "",
+	ErrorDetail: "",
 	DbOk:        true,
 	ApiOk:       true,
 	ErrorCount:  0,
@@ -175,11 +183,12 @@ func getResult[T any](method string, params any) (T, error) {
 			log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
 		} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+nodeaddr+")") {
 			//maybe handle connection errors here with a cancel / rollback instead.
-			NewError("connection", method)
+			NewError("connection", method, "")
 			fmt.Println(err)
 			//	log.Fatal(err)
 		} else {
-			NewError("rpc", method)
+			fmt.Println(endpoint)
+			NewError("rpc", method, endpoint)
 		}
 	}
 
