@@ -332,7 +332,7 @@ func (ss *SqlStore) RidSpam() {
 	in = strings.TrimRight(in, ",")
 
 	fmt.Println("deleting:", in)
-	_, err = ss.DB.Exec("DELETE FROM invokes WHERE signer IN (" + in + ");")
+	_, err = ss.DB.Exec("DELETE FROM invokes WHERE signer IN (" + in + ") AND scid = '0000000000000000000000000000000000000000000000000000000000000001';")
 	if err != nil {
 		log.Fatal(err)
 	}
