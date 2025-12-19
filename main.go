@@ -20,7 +20,7 @@ import (
 
 var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
 var blockBatchSize = int64(50000) // Batch size (how many to process before saving w/ mem mode)
-var UseMem = true                 // Use in-memory db
+var UseMem = false                // Use in-memory db
 // Optimized settings for mode db mode
 var memBatchSize = int16(8)
 var memPreferredRequests = int16(10)
@@ -90,19 +90,19 @@ func main() {
 }
 
 func start_gnomon_indexer() {
-
-	var last_height int64
-	last_height, err := sqlite.GetLastIndexHeight()
+	var starting_height int64
+	starting_height, err := sqlite.GetLastIndexHeight()
+	starting_height++
 	if err != nil {
 		if startAt == 0 {
-			last_height = findStart(1, HighestKnownHeight) //if it isn't set then find it
+			starting_height = findStart(1, HighestKnownHeight) //if it isn't set then find it
 		}
 		fmt.Println("err: ", err)
 	}
 
 	if firstRun == true || api.Status.ErrorCount != int64(0) {
 		firstRun = false
-		sqlite.PruneHeight(int(last_height))
+		sqlite.PruneHeight(int(starting_height))
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
@@ -111,19 +111,19 @@ func start_gnomon_indexer() {
 	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
 	//		return
 	//	}
-	sqlindexer = NewSQLIndexer(sqlite, last_height, CustomActions)
+	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
 
 	fmt.Println("Topo Height ", api.GetTopoHeight())
-	fmt.Println("last height ", fmt.Sprint(last_height))
+	fmt.Println("last height ", fmt.Sprint(starting_height))
 
-	if TargetHeight < HighestKnownHeight-blockBatchSize && last_height+blockBatchSize < HighestKnownHeight {
-		TargetHeight = last_height + blockBatchSize
+	if TargetHeight < HighestKnownHeight-blockBatchSize && starting_height+blockBatchSize < HighestKnownHeight {
+		TargetHeight = starting_height + blockBatchSize
 	} else {
 		TargetHeight = HighestKnownHeight
 	}
 
 	var wg sync.WaitGroup
-	for bheight := last_height; bheight < TargetHeight; bheight++ {
+	for bheight := starting_height; bheight < TargetHeight; bheight++ {
 		if !api.OK() {
 			break
 		}
