@@ -127,8 +127,7 @@ func checkOuts() int {
 var PreferredRequests = int16(0)
 
 func AssignConnections(iserror bool) {
-	params := rpc.GetBlock_Params{}
-	params.Height = 420
+	params := rpc.GetInfo_Params{}
 	if iserror {
 		Outs = Outs[0:0]
 		EndpointAssignments = make(map[string]int16)
@@ -142,7 +141,7 @@ func AssignConnections(iserror bool) {
 		var rpcClient jsonrpc.RPCClient
 		nodeaddr := "http://" + endpoint + "/json_rpc"
 		rpcClient = jsonrpc.NewClient(nodeaddr)
-		err := rpcClient.CallFor(&result, "DERO.GetBlock", params) // no params argument
+		err := rpcClient.CallFor(&result, "DERO.GetInfo", params) // no params argument
 		if err != nil {
 			EndpointAssignments[endpoint] = int16(i)
 			Outs = append(Outs, 0)
