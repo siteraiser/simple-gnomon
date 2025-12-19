@@ -225,6 +225,10 @@ func CreateTables(Db *sql.DB) {
 		statement, err = Db.Prepare("CREATE INDEX height_index ON interactions(sc_id,txid);")
 		handleError(err)
 		statement.Exec()
+
+		statement, err = Db.Prepare("CREATE INDEX invokes_height_index ON invokes(txid);")
+		handleError(err)
+		statement.Exec()
 		/*
 			fmt.Println("donesetting")
 		*/
@@ -674,7 +678,7 @@ func (ss *SqlStore) StoreSCIDInvoke(scidstoadd SCIDToIndexStage, height int64) (
 	}
 
 	var txid_id int
-	err = ss.DB.QueryRow("SELECT txid FROM interactions WHERE txid=?", scidstoadd.TXHash).Scan(&txid_id) //don't add the same interaction twice
+	err = ss.DB.QueryRow("SELECT txid FROM invokes WHERE txid=?", scidstoadd.TXHash).Scan(&txid_id) //don't add the same invoke twice
 
 	if err != nil {
 		statement, err := ss.DB.Prepare("INSERT INTO invokes (scid,signer,txid,height,entrypoint) VALUES (?,?,?,?,?);")

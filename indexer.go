@@ -115,7 +115,6 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 
 		} else if scidstoadd.Type == "invoke" {
 			//it is an invoke
-			//was not an install or a failed install
 			changed, err = indexer.SSSBackend.StoreSCIDInvoke(
 				scidstoadd,
 				int64(scidstoadd.Fsi.Height),
