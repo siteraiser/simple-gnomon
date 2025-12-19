@@ -90,7 +90,7 @@ var Status = &State{
 	TotalErrors: 0,
 }
 
-var Endpoints = [2]string{"node.derofoundation.org:11012", "64.226.81.37:10102"}
+var Endpoints = [2]string{"64.226.81.37:10102", "node.derofoundation.org:11012"} //"64.226.81.37:10102"
 var currentEndpoint = Endpoints[0]
 
 func Ask() {
@@ -98,26 +98,50 @@ func Ask() {
 	for {
 		time.Sleep(time.Millisecond)
 		Mutex.Lock()
-		if Out1+Out2 < PreferredRequests*2 {
-			if Out1 < PreferredRequests {
-				currentEndpoint = Endpoints[0]
-				Mutex.Unlock()
-				return
-			} else if Out2 < PreferredRequests {
-				currentEndpoint = Endpoints[1]
+		noofouts := int16(len(Outs))
+		if noofouts < PreferredRequests*2 {
+			ready := checkOuts()
+			if ready != -1 {
+				currentEndpoint = Endpoints[ready]
 				Mutex.Unlock()
 				return
 			}
-
 		}
 		Mutex.Unlock()
 	}
 }
 
-var Out1 = int16(0)
-var Out2 = int16(0)
+var Outs []int16
+
+var EndpointAssignments = make(map[string]int16)
+
+func checkOuts() int {
+	for i, out := range Outs {
+		if out < PreferredRequests {
+			return i
+		}
+	}
+	return -1
+}
 
 var PreferredRequests = int16(0)
+
+func AssignConnections() {
+	params := rpc.GetBlock_Params{}
+	params.Height = 420
+	Outs = Outs[0:0]
+	for i, endpoint := range Endpoints {
+		var result any
+		var rpcClient jsonrpc.RPCClient
+		nodeaddr := "http://" + endpoint + "/json_rpc"
+		rpcClient = jsonrpc.NewClient(nodeaddr)
+		err := rpcClient.CallFor(&result, "DERO.GetBlock", params) // no params argument
+		if err != nil {
+			EndpointAssignments[endpoint] = int16(i)
+			Outs = append(Outs, 0)
+		}
+	}
+}
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 
@@ -149,11 +173,8 @@ func getResult[T any](method string, params any) (T, error) {
 	endpoint = currentEndpoint
 	nodeaddr := "http://" + endpoint + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
-	if endpoint == Endpoints[0] {
-		Out1++
-	} else {
-		Out2++
-	}
+
+	Outs[EndpointAssignments[endpoint]]++
 	Mutex.Unlock()
 
 	if params == nil {
@@ -164,11 +185,7 @@ func getResult[T any](method string, params any) (T, error) {
 
 	Mutex.Lock()
 
-	if endpoint == Endpoints[0] {
-		Out1--
-	} else {
-		Out2--
-	}
+	Outs[EndpointAssignments[endpoint]]--
 	Mutex.Unlock()
 
 	if err != nil {

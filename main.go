@@ -53,11 +53,13 @@ type action struct {
 var CustomActions = map[string]action{}
 
 func main() {
+
 	//Add custom actions for scids
 	//	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
 	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "discard"}
 
 	fmt.Println("starting ....")
+	api.AssignConnections()
 	HighestKnownHeight = api.GetTopoHeight()
 	if HighestKnownHeight < 1 {
 		fmt.Println("Error getting height ....", HighestKnownHeight)
@@ -103,6 +105,7 @@ func start_gnomon_indexer() {
 		sqlite.PruneHeight(int(last_height))
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
+			api.AssignConnections()
 		}
 		api.Reset()
 	}
@@ -477,8 +480,8 @@ func showBlockStatus(bheight int64) {
 		speedbph = strconv.Itoa((1000 / s) * 60 * 60)
 	}
 	show := "Block:" + strconv.Itoa(int(bheight)) +
-		" En Route " + strconv.Itoa(int(api.Out1)) +
-		":" + strconv.Itoa(int(api.Out2)) +
+		" Connections " + strconv.Itoa(int(len(api.Outs))) +
+		" En Route " + strconv.Itoa(int(api.Outs[0])) +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph" +
 		" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
