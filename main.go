@@ -105,12 +105,12 @@ func start_gnomon_indexer() {
 		sqlite.PruneHeight(int(last_height))
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
-			api.AssignConnections()
-			start_gnomon_indexer()
-			return
 		}
 	}
-
+	//	if api.Status.ErrorCount != int64(0) || last_height % 1000 == 0 {
+	api.AssignConnections() //might as well chheck/retry new connections here
+	//		return
+	//	}
 	sqlindexer = NewSQLIndexer(sqlite, last_height, CustomActions)
 
 	fmt.Println("Topo Height ", api.GetTopoHeight())

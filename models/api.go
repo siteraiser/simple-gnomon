@@ -130,6 +130,8 @@ func AssignConnections() {
 	params := rpc.GetBlock_Params{}
 	params.Height = 420
 	Outs = Outs[0:0]
+	EndpointAssignments = make(map[string]int16)
+
 	for i, endpoint := range Endpoints {
 		var result any
 		var rpcClient jsonrpc.RPCClient
