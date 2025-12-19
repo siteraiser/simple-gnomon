@@ -106,7 +106,6 @@ func start_gnomon_indexer() {
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 			api.AssignConnections()
-			api.Reset()
 			start_gnomon_indexer()
 			return
 		}

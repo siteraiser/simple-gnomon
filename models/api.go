@@ -141,6 +141,7 @@ func AssignConnections() {
 			Outs = append(Outs, 0)
 		}
 	}
+	Reset()
 }
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
