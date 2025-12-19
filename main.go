@@ -29,7 +29,7 @@ var diskPreferredRequests = int16(8)
 
 // Program vars
 var TargetHeight = int64(0)
-var HighestKnownHeight = api.GetTopoHeight()
+var HighestKnownHeight = int64(0)
 var sqlite = &SqlStore{}
 var sqlindexer = &Indexer{}
 var batchSize = int16(0)
@@ -58,6 +58,10 @@ func main() {
 	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "discard"}
 
 	fmt.Println("starting ....")
+	HighestKnownHeight = api.GetTopoHeight()
+	if HighestKnownHeight < 1 {
+		fmt.Println("Error getting height ....", HighestKnownHeight)
+	}
 	var err error
 	db_name := fmt.Sprintf("sql%s.db", "GNOMON")
 	wd := globals.GetDataDirectory()
@@ -98,7 +102,7 @@ func start_gnomon_indexer() {
 		firstRun = false
 		sqlite.PruneHeight(int(last_height))
 		if api.Status.ErrorCount != int64(0) {
-			fmt.Println("Index re-coordinated. Error Type:", api.Status.ErrorType+" Error Name:"+api.Status.ErrorName)
+			fmt.Println("Errors detected: Error Type:", api.Status.ErrorType+" Error Name:"+api.Status.ErrorName)
 		}
 		api.Reset()
 	}
@@ -168,7 +172,7 @@ func start_gnomon_indexer() {
 
 	fmt.Println("last:", last)
 	fmt.Println("TargetHeight:", TargetHeight)
-
+	//maybe skip when caught up
 	fmt.Println("Purging spam:", Spammers)
 	sqlite.RidSpam()
 

@@ -252,7 +252,10 @@ func handleError(err error) {
 }
 
 func (ss *SqlStore) PruneHeight(height int) {
-
+	if height == 0 {
+		return
+	}
+	fmt.Println("Trimming loose ends from:", height)
 	var scids []string
 	rows, err := ss.DB.Query("SELECT scs_id FROM scs WHERE height > "+strconv.Itoa(height)+";", nil) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
 	if err != nil {
