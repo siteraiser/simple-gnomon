@@ -18,9 +18,9 @@ import (
 	api "github.com/secretnamebasis/simple-gnomon/models"
 )
 
-var startAt = int64(0)             // Start at Block Height, will be auto-set when using 0
-var blockBatchSize = int64(100000) // Batch size (how many to process before saving w/ mem mode)
-var UseMem = true                  // Use in-memory db
+var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
+var blockBatchSize = int64(50000) // Batch size (how many to process before saving w/ mem mode)
+var UseMem = true                 // Use in-memory db
 // Optimized settings for mode db mode
 var memBatchSize = int16(8)
 var memPreferredRequests = int16(10)
@@ -75,7 +75,7 @@ func main() {
 		sqlite, err = NewDiskDB(db_path, db_name)
 		CreateTables(sqlite.DB)
 	}
-	sqlite.RidSpam()
+
 	if err != nil {
 		fmt.Println("[Main] Err creating sqlite:", err)
 		return
@@ -168,6 +168,9 @@ func start_gnomon_indexer() {
 
 	fmt.Println("last:", last)
 	fmt.Println("TargetHeight:", TargetHeight)
+
+	fmt.Println("Purging spam:", Spammers)
+	sqlite.RidSpam()
 
 	if UseMem {
 		fmt.Println("Saving Batch.............................................................")
