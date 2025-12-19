@@ -43,7 +43,7 @@ func Ask() bool {
 		return true
 	}
 	for {
-		time.Sleep(time.Microsecond)
+		time.Sleep(time.Microsecond * 100)
 		if dbready {
 			return true
 		}
@@ -437,15 +437,7 @@ func (ss *SqlStore) ViewTables() {
 // Stores bbolt's last indexed height - this is for stateful stores on close and reference on open
 func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool, err error) {
 	ready(false)
-	statement, err := ss.DB.Prepare("UPDATE state SET value = ? WHERE name = ?;")
-	if err != nil {
-		panic(err)
-	}
-
-	result, err := statement.Exec(
-		last_indexedheight,
-		"lastindexedheight",
-	)
+	result, err := ss.DB.Exec("UPDATE state SET value = '" + strconv.Itoa(int(last_indexedheight)) + "' WHERE name = 'lastindexedheight';")
 	ready(true)
 	if err == nil {
 		affected_rows, _ := result.RowsAffected()
@@ -540,12 +532,12 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVaria
 	if err != nil {
 		return changes, fmt.Errorf("[StoreSCIDVariableDetails] could not marshal getinfo info: %v", err)
 	}
-	ready(false) //maybe look up the scid id
 	statement, err := ss.DB.Prepare("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
+
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	ready(false) //maybe look up the scid id
 	result, err := statement.Exec(
 		int(topoheight),
 		scid,
@@ -668,12 +660,12 @@ func (ss *SqlStore) StoreSCIDInvoke(scidstoadd SCIDToIndexStage, height int64) (
 
 	fmt.Println("\nStoreSCIDInvoke... TXHash " + scidstoadd.TXHash + " ParamsSCID " + scidstoadd.Params.SCID + " Height:" + strconv.Itoa(int(height)))
 
-	ready(false)
 	if err != nil {
 		statement, err := ss.DB.Prepare("INSERT INTO invokes (scid,signer,txid,height,entrypoint) VALUES (?,?,?,?,?) WHERE txid != ? ;")
 		if err != nil {
 			log.Fatal(err)
 		}
+		ready(false)
 		result, err := statement.Exec(
 			scidstoadd.Params.SCID,
 			scidstoadd.Fsi.Signer,
@@ -682,6 +674,7 @@ func (ss *SqlStore) StoreSCIDInvoke(scidstoadd SCIDToIndexStage, height int64) (
 			scidstoadd.Entrypoint,
 			scidstoadd.TXHash,
 		)
+		ready(true)
 		if err == nil {
 			last_insert_id, _ := result.LastInsertId()
 			if last_insert_id >= 0 {
@@ -690,7 +683,7 @@ func (ss *SqlStore) StoreSCIDInvoke(scidstoadd SCIDToIndexStage, height int64) (
 			}
 		}
 	}
-	ready(true)
+
 	return
 
 }
@@ -707,12 +700,13 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd SCIDToIndexStage, heig
 		ready(true)
 		return
 	}
-	scerr := ss.DB.QueryRow("SELECT scs_id FROM scs WHERE scid = ? OR scid = ?", scidstoadd.TXHash, scidstoadd.Params.SCID).Scan(&scs_id) //don't add any installs as interactions too
-	if scerr != nil {
-		ready(true)
-		return
-	}
-
+	/*	hopefully not needed
+		scerr := ss.DB.QueryRow("SELECT scs_id FROM scs WHERE scid = ? OR scid = ?", scidstoadd.TXHash, scidstoadd.Params.SCID).Scan(&scs_id) //don't add any installs as interactions too
+			if scerr != nil {
+				ready(true)
+				return
+			}
+	*/
 	var txid_id int
 	err = ss.DB.QueryRow("SELECT txid FROM interactions WHERE txid=?", scidstoadd.TXHash).Scan(&txid_id) //don't add the same interaction twice
 
@@ -726,6 +720,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd SCIDToIndexStage, heig
 			scidstoadd.TXHash,
 			scs_id,
 		)
+		ready(true)
 		if err == nil {
 			last_insert_id, _ := result.LastInsertId()
 			if last_insert_id >= 0 {
@@ -734,7 +729,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd SCIDToIndexStage, heig
 			}
 		}
 	}
-	ready(true)
+
 	return
 
 }
