@@ -53,6 +53,18 @@ type action struct {
 var CustomActions = map[string]action{}
 
 func main() {
+	var err error
+	var text string
+	fmt.Print("Enter 1 to use in-memory mode (requires enough ram): ")
+	_, err = fmt.Scanln(&text)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	if text == "1" {
+		UseMem = true
+		fmt.Println("In-Memory mode Enabled")
+	}
 
 	//Add custom actions for scids
 	//	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
@@ -64,7 +76,7 @@ func main() {
 	if HighestKnownHeight < 1 {
 		fmt.Println("Error getting height ....", HighestKnownHeight)
 	}
-	var err error
+
 	db_name := fmt.Sprintf("sql%s.db", "GNOMON")
 	wd := globals.GetDataDirectory()
 
