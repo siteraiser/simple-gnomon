@@ -257,7 +257,7 @@ func (ss *SqlStore) PruneHeight(height int) {
 	}
 	fmt.Println("Trimming loose ends from:", height)
 	var scids []string
-	rows, err := ss.DB.Query("SELECT scs_id FROM scs WHERE height > "+strconv.Itoa(height)+";", nil) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
+	rows, err := ss.DB.Query("SELECT scs_id FROM scs WHERE height >= "+strconv.Itoa(height)+";", nil) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -270,15 +270,15 @@ func (ss *SqlStore) PruneHeight(height int) {
 		fmt.Println("scid ", scid)
 	}
 	//double check if it should be gt or gtore
-	statement, err := ss.DB.Prepare("DELETE FROM scs WHERE height > " + strconv.Itoa(height) + ";")
+	statement, err := ss.DB.Prepare("DELETE FROM scs WHERE height >= " + strconv.Itoa(height) + ";")
 	handleError(err)
 	statement.Exec()
 
-	statement, err = ss.DB.Prepare("DELETE FROM variables WHERE height > " + strconv.Itoa(height) + ";")
+	statement, err = ss.DB.Prepare("DELETE FROM variables WHERE height >= " + strconv.Itoa(height) + ";")
 	handleError(err)
 	statement.Exec()
 	/*	*/
-	statement, err = ss.DB.Prepare("DELETE FROM invokes WHERE height > " + strconv.Itoa(height) + ";")
+	statement, err = ss.DB.Prepare("DELETE FROM invokes WHERE height >= " + strconv.Itoa(height) + ";")
 	handleError(err)
 	statement.Exec()
 

@@ -108,7 +108,7 @@ func start_gnomon_indexer() {
 		}
 	}
 	//	if api.Status.ErrorCount != int64(0) || last_height % 1000 == 0 {
-	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well chheck/retry new connections here
+	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
 	//		return
 	//	}
 	sqlindexer = NewSQLIndexer(sqlite, last_height, CustomActions)
