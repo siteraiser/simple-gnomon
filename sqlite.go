@@ -729,7 +729,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd SCIDToIndexStage, heig
 			}
 		}
 	}
-
+	ready(true)
 	return
 
 }
