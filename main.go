@@ -110,7 +110,6 @@ func start_gnomon_indexer() {
 			start_gnomon_indexer()
 			return
 		}
-		api.Reset()
 	}
 
 	sqlindexer = NewSQLIndexer(sqlite, last_height, CustomActions)
