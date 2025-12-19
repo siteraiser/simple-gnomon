@@ -59,7 +59,7 @@ func main() {
 	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "discard"}
 
 	fmt.Println("starting ....")
-	api.AssignConnections()
+	api.AssignConnections(false)
 	HighestKnownHeight = api.GetTopoHeight()
 	if HighestKnownHeight < 1 {
 		fmt.Println("Error getting height ....", HighestKnownHeight)
@@ -108,7 +108,7 @@ func start_gnomon_indexer() {
 		}
 	}
 	//	if api.Status.ErrorCount != int64(0) || last_height % 1000 == 0 {
-	api.AssignConnections() //might as well chheck/retry new connections here
+	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well chheck/retry new connections here
 	//		return
 	//	}
 	sqlindexer = NewSQLIndexer(sqlite, last_height, CustomActions)

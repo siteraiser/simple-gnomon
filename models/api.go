@@ -126,13 +126,18 @@ func checkOuts() int {
 
 var PreferredRequests = int16(0)
 
-func AssignConnections() {
+func AssignConnections(iserror bool) {
 	params := rpc.GetBlock_Params{}
 	params.Height = 420
-	Outs = Outs[0:0]
-	EndpointAssignments = make(map[string]int16)
+	if iserror {
+		Outs = Outs[0:0]
+		EndpointAssignments = make(map[string]int16)
+	}
 
 	for i, endpoint := range Endpoints {
+		if _, ok := EndpointAssignments[endpoint]; ok {
+			continue
+		}
 		var result any
 		var rpcClient jsonrpc.RPCClient
 		nodeaddr := "http://" + endpoint + "/json_rpc"
