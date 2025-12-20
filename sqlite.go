@@ -145,8 +145,8 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 	_, err = SqlBackend.DB.Exec(
 
 		"CREATE TABLE IF NOT EXISTS main.state AS SELECT * FROM diskdb.state;" +
-			"CREATE TABLE main.scs (" +
-			"scs_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+			"CREATE TABLE IF NOT EXISTS main.scs (" +
+			"scs_id INTEGER PRIMARY KEY, " +
 			"scid TEXT UNIQUE NOT NULL, " +
 			"owner TEXT NOT NULL, " +
 			"height INTEGER, " +
@@ -158,13 +158,17 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 			"INSERT INTO scs (scs_id,scid,owner,height,scname,scdescr,scimgurl,class,tags) SELECT * FROM diskdb.scs;" +
 			"CREATE TABLE IF NOT EXISTS main.variables AS SELECT * FROM diskdb.variables;" +
 			"CREATE TABLE IF NOT EXISTS main.invokes (" +
-			"inv_id INTEGER PRIMARY KEY, " +
 			"scid TEXT, " +
 			"signer TEXT, " +
 			"txid TEXT UNIQUE, " +
 			"height INTEGER, " +
 			"entrypoint TEXT); " +
-			"CREATE TABLE IF NOT EXISTS main.interactions AS SELECT * FROM diskdb.interactions;")
+			"INSERT INTO invokes (scid,signer,txid,height,entrypoint) SELECT * FROM diskdb.invokes;" +
+			"CREATE TABLE IF NOT EXISTS main.interactions (" +
+			"height INTEGER, " +
+			"txid TEXT UNIQUE, " +
+			"sc_id TEXT);" +
+			"INSERT INTO interactions (height,txid,sc_id) SELECT * FROM diskdb.interactions;")
 	if err != nil {
 		log.Printf("No existing table to copy: %v", err)
 	}
@@ -183,7 +187,7 @@ func CreateTables(Db *sql.DB) {
 		"value  INTEGER)"
 
 	startup[1] = "CREATE TABLE IF NOT EXISTS scs (" +
-		"scs_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+		"scs_id INTEGER PRIMARY KEY, " +
 		"scid TEXT UNIQUE NOT NULL, " +
 		"owner TEXT NOT NULL, " +
 		"height INTEGER, " +
@@ -202,7 +206,6 @@ func CreateTables(Db *sql.DB) {
 		/*	*/
 	//invoke details: signer:txid:height:entrypoint
 	startup[3] = "CREATE TABLE IF NOT EXISTS invokes (" +
-		"inv_id INTEGER PRIMARY KEY, " +
 		"scid TEXT, " +
 		"signer TEXT, " +
 		"txid TEXT UNIQUE, " +
@@ -212,7 +215,7 @@ func CreateTables(Db *sql.DB) {
 	//interactions at heightid INTEGER PRIMARY KEY
 	startup[4] = "CREATE TABLE IF NOT EXISTS interactions (" +
 		"height INTEGER, " +
-		"txid TEXT, " +
+		"txid TEXT UNIQUE, " +
 		"sc_id TEXT)"
 
 	for _, create := range startup {
@@ -324,7 +327,7 @@ func (ss *SqlStore) RidSpam() {
 		SELECT signer
 		FROM invokes
 		GROUP BY signer	
-		HAVING COUNT(signer) > 100	AND	invokes.scid = '0000000000000000000000000000000000000000000000000000000000000001'
+		HAVING COUNT(signer) > `+strconv.Itoa(SpamLevel)+` AND invokes.scid = '0000000000000000000000000000000000000000000000000000000000000001'
 		ORDER BY COUNT(signer) DESC
 	)`, nil)
 	if err != nil {
@@ -685,28 +688,25 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd SCIDToIndexStage, heig
 				return
 			}
 	*/
-	var txid_id int
-	err = ss.DB.QueryRow("SELECT txid FROM interactions WHERE txid=?", scidstoadd.TXHash).Scan(&txid_id) //don't add the same interaction twice
 
+	statement, err := ss.DB.Prepare("INSERT INTO interactions (height,txid,sc_id) VALUES (?,?,?);")
 	if err != nil {
-		statement, err := ss.DB.Prepare("INSERT INTO interactions (height,txid,sc_id) VALUES (?,?,?);")
-		if err != nil {
-			log.Fatal(err)
-		}
-		result, err := statement.Exec(
-			height,
-			scidstoadd.TXHash,
-			scs_id,
-		)
-		ready(true)
-		if err == nil {
-			last_insert_id, _ := result.LastInsertId()
-			if last_insert_id >= 0 {
-				fmt.Println("\n INSERTED NEW RECORD " + strconv.Itoa(int(last_insert_id)) + " H:" + strconv.Itoa(int(height)))
-				changes = true
-			}
+		log.Fatal(err)
+	}
+	result, err := statement.Exec(
+		height,
+		scidstoadd.TXHash,
+		scs_id,
+	)
+	ready(true)
+	if err == nil {
+		last_insert_id, _ := result.LastInsertId()
+		if last_insert_id >= 0 {
+			fmt.Println("\n INSERTED NEW RECORD " + strconv.Itoa(int(last_insert_id)) + " H:" + strconv.Itoa(int(height)))
+			changes = true
 		}
 	}
+
 	ready(true)
 	return
 

@@ -21,6 +21,8 @@ import (
 var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
 var blockBatchSize = int64(50000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = false                // Use in-memory db
+var SpamLevel = 50
+
 // Optimized settings for mode db mode
 var memBatchSize = int16(8)
 var memPreferredRequests = int16(10)
@@ -65,6 +67,11 @@ func main() {
 		UseMem = true
 		fmt.Println("In-Memory mode Enabled")
 	}
+	fmt.Println("SC spam threshold 50-100 recommended")
+	fmt.Print("Enter number of name registrations allowed per wallet: ")
+	_, err = fmt.Scanln(&text)
+	SpamLevel := text
+	fmt.Println("Set to ", SpamLevel)
 
 	//Add custom actions for scids
 	//	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
