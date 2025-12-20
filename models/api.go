@@ -97,52 +97,19 @@ var Processing []int64
 func Ask() {
 
 	for {
-
 		Mutex.Lock()
 		noofouts := int16(len(EndpointAssignments))
 		maxr := PreferredRequests * noofouts
-
-		if int16(len(Processing)) >= maxr {
-			ratio := float64(maxr) / float64(len(Processing))
-			if ratio != float64(1) {
-				Speed = int(float64(Speed) / float64(ratio))
-			}
-			time.Sleep(time.Millisecond * time.Duration(int(Speed)))
-		}
-
-		if noofouts < PreferredRequests*noofouts {
+		if noofouts < PreferredRequests*noofouts && int16(len(Processing)) < maxr {
 			ready := checkOuts()
 			if ready != -1 {
 				currentEndpoint = Endpoints[ready]
 				Mutex.Unlock()
-				getRSpeed()
 				return
 			}
 		}
 		Mutex.Unlock()
 	}
-}
-
-var lt = time.Now()
-var pt []int64
-var Speed = 10
-
-func getRSpeed() {
-	t := time.Now()
-	if len(pt) > 100 {
-		pt = pt[100:]
-	}
-	pt = append(pt, time.Since(lt).Milliseconds())
-	total := int64(0)
-	for _, ti := range pt {
-		total += ti
-	}
-	lt = t
-	value := int64(0)
-	if len(pt) != 0 {
-		value = int64(total) / int64(len(pt))
-	}
-	Speed = int(value)
 }
 
 var Outs []int16
