@@ -504,9 +504,13 @@ func showBlockStatus(bheight int64) {
 		speedms = strconv.Itoa(s)
 		speedbph = strconv.Itoa((1000 / s) * 60 * 60)
 	}
+	insert := ""
+	if int(api.Outs[0]) < 10 {
+		insert = " "
+	}
 	show := "Block:" + strconv.Itoa(int(bheight)) +
 		" Connections " + strconv.Itoa(int(len(api.Outs))) +
-		" En Route " + strconv.Itoa(int(api.Outs[0])) +
+		" En Route " + strconv.Itoa(int(api.Outs[0])) + insert +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph" +
 		" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
