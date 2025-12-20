@@ -239,6 +239,13 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		manageProcessing(bheight)
 		return
 	}
+
+	spammy := false
+	if tx_count > 500 {
+		spammy = true
+		fmt.Println("SPAMMY BLOCK...")
+	}
+
 	var wg2 sync.WaitGroup
 
 	//Find total number of batches
@@ -278,7 +285,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	for i, tx_hex := range r.Txs_as_hex {
 		wg2.Add(1)
-		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight)
+		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight, spammy)
 	}
 
 	wg2.Wait()
@@ -303,7 +310,7 @@ func storeHeight(bheight int64) {
 
 /********************************/
 /********************************/
-func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int64) {
+func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int64, spammy bool) {
 	defer wg2.Done()
 
 	indexes := map[string][]string{
@@ -367,7 +374,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		(CustomActions[params.SCID].Act == "discard-before" && CustomActions[params.SCID].Block >= bheight) {
 		return
 	}
-	if slices.Contains(Spammers, signer) && params.SCID == Hardcoded_SCIDS[0] {
+	if (slices.Contains(Spammers, signer)) && params.SCID == Hardcoded_SCIDS[0] { //|| spammy == true
 		return
 	}
 
@@ -386,23 +393,28 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	scimgurl := api.GetSCIDImageURLFromVars(kv)
 	//panic(vars)
 	//	fmt.Println("headers", headers)
+
+	skipchecks := false
+	if spammy == true && params.SCID == Hardcoded_SCIDS[0] {
+		skipchecks = true
+	}
 	tags := ""
 	class := ""
-
-	for key, name := range indexes {
-		for _, filter := range name {
-			if !strings.Contains(sc.Code, filter) { //fmt.Sprintf("%.1000s",)
-				continue
+	if !skipchecks {
+		for key, name := range indexes {
+			for _, filter := range name {
+				if !strings.Contains(sc.Code, filter) { //fmt.Sprintf("%.1000s",)
+					continue
+				}
+				class = key
+				tags = tags + "," + filter
 			}
-			class = key
-			tags = tags + "," + filter
-		}
-		if tags != "" && tags[0:1] == "," {
-			tags = tags[1:]
-		}
+			if tags != "" && tags[0:1] == "," {
+				tags = tags[1:]
+			}
 
+		}
 	}
-
 	entrypoint := ""
 	if tx.SCDATA.HasValue("entrypoint", rpc.DataString) {
 		entrypoint = tx.SCDATA.Value("entrypoint", rpc.DataString).(string)

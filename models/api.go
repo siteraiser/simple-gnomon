@@ -90,7 +90,7 @@ var Status = &State{
 	TotalErrors: 0,
 }
 
-var Endpoints = [2]string{"64.226.81.37:10102", "node.derofoundation.org:11012"} //"64.226.81.37:10102"
+var Endpoints = [3]string{"64.226.81.37:10102", "node.derofoundation.org:11012", "dero-node-ch4k1pu.mysrv.cloud"} //"64.226.81.37:10102"
 var currentEndpoint = Endpoints[0]
 var Processing []int64
 
@@ -99,10 +99,9 @@ func Ask() {
 	for {
 		//	time.Sleep(time.Microsecond)
 		Mutex.Lock()
-		noofouts := int16(len(EndpointAssignments))
-		maxr := PreferredRequests * noofouts
-		totalmadness := int16(len(Outs)) * int16(len(Processing))
-		if totalmadness < maxr*2 {
+		noofconns := int16(len(EndpointAssignments))
+		maxr := PreferredRequests * noofconns
+		if len(Processing) < int(maxr) {
 			ready := checkOuts()
 			if ready != -1 {
 				currentEndpoint = Endpoints[ready]
