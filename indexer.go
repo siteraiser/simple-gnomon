@@ -79,7 +79,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 	}
 
 	changed := false
-	ownerstored := false
+	//ownerstored := false
 	//	fmt.Printf("SCIDS TO ADD: %v...", scidstoadd.ScVars)
 	// By returning valid variables of a given Scid (GetSC --> parse vars), we can conclude it is a valid SCID. Otherwise, skip adding to validated scids
 	if len(scidstoadd.ScVars) != 0 && indexer.CustomActions[scidstoadd.Params.SCID].Act != "saveasinteraction" {
@@ -98,7 +98,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		}
 
 		if scidstoadd.ScCode != "" && scidstoadd.Type == "install" { //or custom add maybe...
-			ownerstored, err = indexer.SSSBackend.StoreOwner(
+			changed, err = indexer.SSSBackend.StoreOwner(
 				scidstoadd.TXHash,
 				scidstoadd.Fsi.Signer,
 				int(scidstoadd.Fsi.Height),
@@ -127,7 +127,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 
 	}
 
-	if !ownerstored || len(scidstoadd.ScVars) == 0 {
+	if !changed || len(scidstoadd.ScVars) == 0 {
 
 		//was not an install or a failed install
 		changed, err = indexer.SSSBackend.StoreSCIDInteractionHeight(

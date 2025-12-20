@@ -96,7 +96,7 @@ var currentEndpoint = Endpoints[0]
 func Ask() {
 
 	for {
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Microsecond)
 		Mutex.Lock()
 		noofouts := int16(len(Outs))
 		if noofouts < PreferredRequests*2 {

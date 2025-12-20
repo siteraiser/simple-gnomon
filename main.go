@@ -408,7 +408,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 
 	for key, name := range indexes {
 		for _, filter := range name {
-			if !strings.Contains(sc.Code, filter) {
+			if !strings.Contains(fmt.Sprintf("%.1000s", sc.Code), filter) {
 				continue
 			}
 			class = key
