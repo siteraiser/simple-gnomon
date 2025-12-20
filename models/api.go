@@ -99,7 +99,7 @@ func Ask() {
 	for {
 
 		Mutex.Lock()
-		noofouts := int16(len(Outs))
+		noofouts := int16(len(EndpointAssignments))
 		maxr := PreferredRequests * noofouts
 
 		if int16(len(Processing)) >= maxr {
