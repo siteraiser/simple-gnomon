@@ -345,7 +345,7 @@ func (ss *SqlStore) RidSpam() {
 
 	in := ""
 	for _, spammer := range Spammers {
-		in = "'" + spammer + "',"
+		in += "'" + spammer + "',"
 	}
 	in = strings.TrimRight(in, ",")
 
