@@ -100,7 +100,7 @@ func Ask() {
 		Mutex.Lock()
 		noofouts := int16(len(EndpointAssignments))
 		maxr := PreferredRequests * noofouts
-		if noofouts < PreferredRequests*noofouts && int16(len(Processing)) < maxr {
+		if noofouts < maxr && int16(len(Processing)) < maxr {
 			ready := checkOuts()
 			if ready != -1 {
 				currentEndpoint = Endpoints[ready]
