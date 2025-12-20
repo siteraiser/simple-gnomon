@@ -500,7 +500,6 @@ func getSpeed() int {
 	if len(priorTimes) != 0 {
 		value = int64(total) / int64(len(priorTimes))
 	}
-	api.Speed = int(value)
 	return int(value)
 }
 

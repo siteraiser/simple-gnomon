@@ -93,7 +93,6 @@ var Status = &State{
 var Endpoints = [2]string{"64.226.81.37:10102", "node.derofoundation.org:11012"} //"64.226.81.37:10102"
 var currentEndpoint = Endpoints[0]
 var Processing []int64
-var Speed = 10
 
 func Ask() {
 
@@ -116,11 +115,34 @@ func Ask() {
 			if ready != -1 {
 				currentEndpoint = Endpoints[ready]
 				Mutex.Unlock()
+				getRSpeed()
 				return
 			}
 		}
 		Mutex.Unlock()
 	}
+}
+
+var lt = time.Now()
+var pt []int64
+var Speed = 10
+
+func getRSpeed() {
+	t := time.Now()
+	if len(pt) > 100 {
+		pt = pt[100:]
+	}
+	pt = append(pt, time.Since(lt).Milliseconds())
+	total := int64(0)
+	for _, ti := range pt {
+		total += ti
+	}
+	lt = t
+	value := int64(0)
+	if len(pt) != 0 {
+		value = int64(total) / int64(len(pt))
+	}
+	Speed = int(value)
 }
 
 var Outs []int16
