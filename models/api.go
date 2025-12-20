@@ -97,10 +97,12 @@ var Processing []int64
 func Ask() {
 
 	for {
+		//	time.Sleep(time.Microsecond)
 		Mutex.Lock()
 		noofouts := int16(len(EndpointAssignments))
 		maxr := PreferredRequests * noofouts
-		if int16(len(Outs)) < maxr && int16(len(Processing)) < maxr {
+		totalmadness := int16(len(Outs)) * int16(len(Processing))
+		if totalmadness < maxr*2 {
 			ready := checkOuts()
 			if ready != -1 {
 				currentEndpoint = Endpoints[ready]
