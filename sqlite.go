@@ -261,46 +261,47 @@ func handleError(err error) {
 	}
 }
 
-func (ss *SqlStore) PruneHeight(height int) {
-	if height == 0 {
-		return
-	}
-	fmt.Println("Trimming loose ends from:", height)
-	var scids []string
-	rows, err := ss.DB.Query("SELECT scs_id FROM scs WHERE height >= "+strconv.Itoa(height)+";", nil) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
+func (ss *SqlStore) TrimHeight() int64 {
+
+	var maxscs int
+	err := ss.DB.QueryRow("SELECT max(height) as maxscs FROM scs;").Scan(&maxscs) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
 	if err != nil {
 		fmt.Println(err)
 	}
-	var (
-		scid string
-	)
-	for rows.Next() {
-		rows.Scan(&scid)
-		scids = append(scids, scid)
-		fmt.Println("scid ", scid)
+	var maxvariables int
+	err = ss.DB.QueryRow("SELECT max(height) as maxvariables FROM variables;").Scan(&maxvariables)
+	if err != nil {
+		fmt.Println(err)
 	}
-	//double check if it should be gt or gtore
+	var maxinvokes int
+	err = ss.DB.QueryRow("SELECT max(height) as maxinvokes FROM variables;").Scan(&maxinvokes)
+	if err != nil {
+		fmt.Println(err)
+	}
+	var maxinteractions int
+	err = ss.DB.QueryRow("SELECT max(height) as maxinteractions FROM variables;").Scan(&maxinteractions)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	height := min(maxscs, maxvariables, maxinvokes, maxinteractions)
+
+	fmt.Println("Trimming loose ends from:", height)
+
 	statement, err := ss.DB.Prepare("DELETE FROM scs WHERE height >= " + strconv.Itoa(height) + ";")
 	handleError(err)
 	statement.Exec()
-
 	statement, err = ss.DB.Prepare("DELETE FROM variables WHERE height >= " + strconv.Itoa(height) + ";")
 	handleError(err)
 	statement.Exec()
-	/*	*/
 	statement, err = ss.DB.Prepare("DELETE FROM invokes WHERE height >= " + strconv.Itoa(height) + ";")
 	handleError(err)
 	statement.Exec()
-
-	in := ""
-	for _, scid := range scids {
-		in = "'" + scid + "',"
-	}
-	in = strings.TrimRight(in, ",")
-
-	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE sc_id IN(" + in + ");")
+	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE height >= " + strconv.Itoa(height) + ";")
 	handleError(err)
 	statement.Exec()
+
+	ss.StoreLastIndexHeight(int64(height))
 
 	/*
 		//could delete scs with interaction heights as well
@@ -308,6 +309,8 @@ func (ss *SqlStore) PruneHeight(height int) {
 		handleError(err)
 		statement.Exec()
 	*/
+
+	return int64(height)
 }
 
 var Spammers []string

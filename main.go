@@ -103,18 +103,23 @@ func main() {
 
 func start_gnomon_indexer() {
 	var starting_height int64
+	var starting_pruned = false
 	starting_height, err := sqlite.GetLastIndexHeight()
 	starting_height++
 	if err != nil {
 		if startAt == 0 {
 			starting_height = findStart(1, HighestKnownHeight) //if it isn't set then find it
+			starting_pruned = true
 		}
 		fmt.Println("err: ", err)
 	}
 
 	if firstRun == true || api.Status.ErrorCount != int64(0) {
 		firstRun = false
-		sqlite.PruneHeight(int(starting_height))
+		if starting_pruned == false { //can't use trimmed db value when starting with a found height
+			starting_height = sqlite.TrimHeight()
+		}
+
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
