@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"image"
 	"log"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
@@ -151,11 +150,19 @@ var Outs []int16
 var EndpointAssignments = make(map[string]int16)
 
 func checkOuts() int {
-	for i := range rand.Intn(len(EndpointAssignments) + 1) {
-		if Outs[i] < PreferredRequests {
-			return i
+
+	lowest := int16(100)
+	lowest_id := 0
+	for _, id := range EndpointAssignments {
+		if Outs[id] < lowest {
+			lowest_id = int(id)
 		}
 	}
+
+	if Outs[lowest_id] < PreferredRequests {
+		return lowest_id
+	}
+
 	return -1
 }
 
