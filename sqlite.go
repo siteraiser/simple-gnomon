@@ -477,12 +477,12 @@ func (ss *SqlStore) GetLastIndexHeight() (topoheight int64, err error) {
 }
 
 // Stores the owner (who deployed it) of a given scid
-func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr string, scimgurl string, class string, tags string) (changes bool, err error) {
+func (ss *SqlStore) StoreOwner(scid string, owner string, height int, scname string, scdescr string, scimgurl string, class string, tags string) (changes bool, err error) {
 	if ss.Cancel {
 		return
 	}
 	ready(false)
-	statement, err := ss.DB.Prepare("INSERT INTO scs (scid,owner,scname,scdescr,scimgurl,class,tags) VALUES (?,?,?,?,?,?,?)")
+	statement, err := ss.DB.Prepare("INSERT INTO scs (scid,owner,height,scname,scdescr,scimgurl,class,tags) VALUES (?,?,?,?,?,?,?,?)")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -490,6 +490,7 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, scname string, scdescr
 	result, err := statement.Exec(
 		scid,
 		owner,
+		height,
 		scname,
 		scdescr,
 		scimgurl,

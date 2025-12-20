@@ -101,6 +101,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 			ownerstored, err = indexer.SSSBackend.StoreOwner(
 				scidstoadd.TXHash,
 				scidstoadd.Fsi.Signer,
+				int(scidstoadd.Fsi.Height),
 				scidstoadd.Fsi.SCName,
 				scidstoadd.Fsi.SCDesc,
 				scidstoadd.Fsi.SCImgURL,
