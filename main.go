@@ -240,10 +240,10 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		return
 	}
 
-	spammy := false
+	large := false
 	if tx_count > 500 {
-		spammy = true
-		fmt.Println("SPAMMY BLOCK...")
+		large = true
+		fmt.Println("LARGE BLOCK...")
 	}
 
 	var wg2 sync.WaitGroup
@@ -285,7 +285,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	for i, tx_hex := range r.Txs_as_hex {
 		wg2.Add(1)
-		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight, spammy)
+		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight, large)
 	}
 
 	wg2.Wait()
@@ -310,7 +310,7 @@ func storeHeight(bheight int64) {
 
 /********************************/
 /********************************/
-func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int64, spammy bool) {
+func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int64, large bool) {
 	defer wg2.Done()
 
 	indexes := map[string][]string{
@@ -331,7 +331,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	}
 	//fmt.Println("\nTX Height: ", tx.Height)
 
-	if tx.TransactionType != transaction.SC_TX {
+	if tx.TransactionType != transaction.SC_TX || (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION)) {
 		return
 	}
 
@@ -395,7 +395,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	//	fmt.Println("headers", headers)
 
 	skipchecks := false
-	if spammy == true && params.SCID == Hardcoded_SCIDS[0] {
+	if large == true && params.SCID == Hardcoded_SCIDS[0] {
 		skipchecks = true
 	}
 	tags := ""
