@@ -24,10 +24,10 @@ var UseMem = false                // Use in-memory db
 var SpamLevel = 50
 
 // Optimized settings for mode db mode
-var memBatchSize = int16(8)
-var memPreferredRequests = int16(10)
-var diskBatchSize = int16(4)
-var diskPreferredRequests = int16(8)
+var memBatchSize = int16(10)
+var memPreferredRequests = int16(20)
+var diskBatchSize = int16(8)
+var diskPreferredRequests = int16(16)
 
 // Program vars
 var TargetHeight = int64(0)
@@ -110,23 +110,18 @@ func main() {
 
 func start_gnomon_indexer() {
 	var starting_height int64
-	var starting_pruned = false
 	starting_height, err := sqlite.GetLastIndexHeight()
 	starting_height++
 	if err != nil {
 		if startAt == 0 {
 			starting_height = findStart(1, HighestKnownHeight) //if it isn't set then find it
-			starting_pruned = true
 		}
 		fmt.Println("err: ", err)
 	}
 
 	if firstRun == true || api.Status.ErrorCount != int64(0) {
 		firstRun = false
-		if starting_pruned == false { //can't use trimmed db value when starting with a found height
-			starting_height = sqlite.TrimHeight()
-		}
-
+		sqlite.TrimHeight(starting_height)
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
@@ -155,6 +150,9 @@ func start_gnomon_indexer() {
 		showBlockStatus(bheight)
 		api.Ask()
 		wg.Add(1)
+		Mutex.Lock()
+		api.Processing = append(api.Processing, bheight)
+		Mutex.Unlock()
 		go ProcessBlock(&wg, bheight)
 
 	}
@@ -171,29 +169,7 @@ func start_gnomon_indexer() {
 		start_gnomon_indexer() //without saving index height
 		return
 	}
-	/*
-	   //check if there was a missing request
-	   	if !api.StatusOk { //Start over from last saved.
-	   		// Extract filename
-	   		filename := filepath.Base(sqlite.db_path)
-	   		dir := filepath.Dir(sqlite.db_path)
-	   		//start from last saved to disk to ensure integrity (play it safe for now)
-	   		if UseMem {
-	   			sqlite, err = NewSqlDB(dir, filename)
-	   		} else {
-	   			sqlite, err = NewDiskDB(dir, filename)
-	   		}
 
-	   		if err != nil {
-	   			fmt.Println("[Main] Err creating sqlite:", err)
-	   			return
-	   		}
-
-	   		api.StatusOk = true
-	   		start_gnomon_indexer() //without saving
-	   		return
-	   	}
-	*/
 	//Essentials...
 	last := HighestKnownHeight
 	HighestKnownHeight = api.GetTopoHeight()
@@ -237,6 +213,7 @@ func start_gnomon_indexer() {
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
 	if !api.OK() {
+		manageProcessing(bheight)
 		return
 	}
 
@@ -248,6 +225,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	bl := api.GetBlockDeserialized(result.Blob)
 
 	if len(bl.Tx_hashes) < 1 {
+		manageProcessing(bheight)
 		return
 	}
 	var tx_str_list []string
@@ -258,6 +236,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	tx_count := len(tx_str_list)
 
 	if tx_count == 0 {
+		manageProcessing(bheight)
 		return
 	}
 	var wg2 sync.WaitGroup
@@ -286,12 +265,14 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	//let the rest go unsaved if one request fails
 	if !api.OK() {
+		manageProcessing(bheight)
 		return
 	}
 
 	//likely an error
 	if len(r.Txs_as_hex) == 0 {
 		//	fmt.Println("-------r.Txs_as_hex", transaction_result)
+		manageProcessing(bheight)
 		return
 	}
 
@@ -302,10 +283,12 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	wg2.Wait()
 	if api.OK() {
-		storeHeight(bheight)
+		manageProcessing(bheight)
+		return
 	}
 
 }
+
 func storeHeight(bheight int64) {
 	Ask()
 	//--maybe replace by using add owner and add a height to there...
@@ -473,6 +456,30 @@ func findStart(start int64, top int64) (block int64) {
 
 }
 
+func manageProcessing(bheight int64) {
+	i := -1
+	i = GetIndex(bheight)
+	lastfirst := api.Processing[0]
+	Mutex.Lock()
+
+	if i != -1 && i < len(api.Processing) {
+		api.Processing = append(api.Processing[:i], api.Processing[i+1:]...)
+	}
+	Mutex.Unlock()
+	if lastfirst != api.Processing[0] {
+		storeHeight(api.Processing[0])
+	}
+}
+
+func GetIndex(number int64) int {
+	for i, v := range api.Processing {
+		if v == number {
+			return i
+		}
+	}
+	return -1 // Not found
+}
+
 var lastTime = time.Now()
 var priorTimes []int64
 
@@ -493,6 +500,7 @@ func getSpeed() int {
 	if len(priorTimes) != 0 {
 		value = int64(total) / int64(len(priorTimes))
 	}
+	api.Speed = int(value)
 	return int(value)
 }
 
@@ -504,16 +512,25 @@ func showBlockStatus(bheight int64) {
 		speedms = strconv.Itoa(s)
 		speedbph = strconv.Itoa((1000 / s) * 60 * 60)
 	}
-	insert := ""
-	if int(api.Outs[0]) < 10 {
-		insert = " "
-	}
+
 	show := "Block:" + strconv.Itoa(int(bheight)) +
 		" Connections " + strconv.Itoa(int(len(api.Outs))) +
-		" En Route " + strconv.Itoa(int(api.Outs[0])) + insert +
+		getOutCounts() +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph" +
+		" Blocks Processing " + strconv.Itoa(len(api.Processing)) +
 		" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
 
 	fmt.Print("\r", show)
+}
+func getOutCounts() string {
+	text := ""
+	for i, out := range api.Outs {
+		insert := ""
+		if int(api.Outs[i]) < 10 {
+			insert = " "
+		}
+		text += " Conn " + strconv.Itoa(i+1) + " En-Route:" + insert + strconv.Itoa(int(out))
+	}
+	return text
 }

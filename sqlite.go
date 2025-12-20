@@ -43,7 +43,7 @@ func Ask() bool {
 		return true
 	}
 	for {
-		time.Sleep(time.Microsecond * 100)
+		time.Sleep(time.Microsecond)
 		if dbready {
 			return true
 		}
@@ -218,6 +218,13 @@ func CreateTables(Db *sql.DB) {
 		"txid TEXT UNIQUE, " +
 		"sc_id TEXT)"
 
+		/*
+				//interactions at heightid INTEGER PRIMARY KEY
+			startup[5] = "CREATE TABLE IF NOT EXISTS interactions (" +
+				"height INTEGER, " +
+				"txid TEXT UNIQUE, " +
+				"sc_id TEXT)"
+		*/
 	for _, create := range startup {
 		executeQuery(Db, create)
 	}
@@ -264,47 +271,47 @@ func handleError(err error) {
 	}
 }
 
-func (ss *SqlStore) TrimHeight() int64 {
+func (ss *SqlStore) TrimHeight(height int64) int64 {
+	/*
+		var maxscs int
+		err := ss.DB.QueryRow("SELECT max(height) as maxscs FROM scs;").Scan(&maxscs) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
+		if err != nil {
+			fmt.Println(err)
+		}
+		var maxvariables int
+		err = ss.DB.QueryRow("SELECT max(height) as maxvariables FROM variables;").Scan(&maxvariables)
+		if err != nil {
+			fmt.Println(err)
+		}
+		var maxinvokes int
+		err = ss.DB.QueryRow("SELECT max(height) as maxinvokes FROM variables;").Scan(&maxinvokes)
+		if err != nil {
+			fmt.Println(err)
+		}
+		var maxinteractions int
+		err = ss.DB.QueryRow("SELECT max(height) as maxinteractions FROM variables;").Scan(&maxinteractions)
+		if err != nil {
+			fmt.Println(err)
+		}
 
-	var maxscs int
-	err := ss.DB.QueryRow("SELECT max(height) as maxscs FROM scs;").Scan(&maxscs) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
-	if err != nil {
-		fmt.Println(err)
-	}
-	var maxvariables int
-	err = ss.DB.QueryRow("SELECT max(height) as maxvariables FROM variables;").Scan(&maxvariables)
-	if err != nil {
-		fmt.Println(err)
-	}
-	var maxinvokes int
-	err = ss.DB.QueryRow("SELECT max(height) as maxinvokes FROM variables;").Scan(&maxinvokes)
-	if err != nil {
-		fmt.Println(err)
-	}
-	var maxinteractions int
-	err = ss.DB.QueryRow("SELECT max(height) as maxinteractions FROM variables;").Scan(&maxinteractions)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	height := min(maxscs, maxvariables, maxinvokes, maxinteractions)
-
+		height := min(maxscs, maxvariables, maxinvokes, maxinteractions)
+	*/
 	fmt.Println("Trimming loose ends from:", height)
 
-	statement, err := ss.DB.Prepare("DELETE FROM scs WHERE height >= " + strconv.Itoa(height) + ";")
+	statement, err := ss.DB.Prepare("DELETE FROM scs WHERE height >= " + strconv.Itoa(int(height)) + ";")
 	handleError(err)
 	statement.Exec()
-	statement, err = ss.DB.Prepare("DELETE FROM variables WHERE height >= " + strconv.Itoa(height) + ";")
+	statement, err = ss.DB.Prepare("DELETE FROM variables WHERE height >= " + strconv.Itoa(int(height)) + ";")
 	handleError(err)
 	statement.Exec()
-	statement, err = ss.DB.Prepare("DELETE FROM invokes WHERE height >= " + strconv.Itoa(height) + ";")
+	statement, err = ss.DB.Prepare("DELETE FROM invokes WHERE height >= " + strconv.Itoa(int(height)) + ";")
 	handleError(err)
 	statement.Exec()
-	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE height >= " + strconv.Itoa(height) + ";")
+	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE height >= " + strconv.Itoa(int(height)) + ";")
 	handleError(err)
 	statement.Exec()
 
-	ss.StoreLastIndexHeight(int64(height))
+	//ss.StoreLastIndexHeight(int64(height))
 
 	/*
 		//could delete scs with interaction heights as well

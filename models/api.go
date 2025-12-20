@@ -92,14 +92,26 @@ var Status = &State{
 
 var Endpoints = [2]string{"64.226.81.37:10102", "node.derofoundation.org:11012"} //"64.226.81.37:10102"
 var currentEndpoint = Endpoints[0]
+var Processing []int64
+var Speed = 10
 
 func Ask() {
 
 	for {
-		time.Sleep(time.Microsecond)
+
 		Mutex.Lock()
 		noofouts := int16(len(Outs))
-		if noofouts < PreferredRequests*2 {
+		maxr := PreferredRequests * noofouts
+
+		if int16(len(Processing)) >= maxr {
+			ratio := float64(maxr) / float64(len(Processing))
+			if ratio != float64(1) {
+				Speed = int(float64(Speed) / float64(ratio))
+			}
+			time.Sleep(time.Millisecond * time.Duration(int(Speed)))
+		}
+
+		if noofouts < PreferredRequests*noofouts {
 			ready := checkOuts()
 			if ready != -1 {
 				currentEndpoint = Endpoints[ready]
