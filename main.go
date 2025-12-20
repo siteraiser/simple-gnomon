@@ -526,7 +526,7 @@ func showBlockStatus(bheight int64) {
 
 	show := "Block:" + strconv.Itoa(int(bheight)) +
 		" Connections " + strconv.Itoa(int(len(api.Outs))) +
-		getOutCounts() +
+		" " + getOutCounts() +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph" +
 		" Blocks Processing " + strconv.Itoa(len(api.Processing)) +
@@ -541,7 +541,8 @@ func getOutCounts() string {
 		if int(api.Outs[i]) < 10 {
 			insert = " "
 		}
-		text += " Conn " + strconv.Itoa(i+1) + " En-Route:" + insert + strconv.Itoa(int(out))
+		text += ":" + insert + strconv.Itoa(int(out))
 	}
-	return text
+
+	return text[1:]
 }
