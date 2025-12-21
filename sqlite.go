@@ -340,16 +340,15 @@ func (ss *SqlStore) RidSpam() {
 	if err != nil {
 		fmt.Println(err)
 	}
-
+	// Just filter for the latest spammers
+	Spammers := Spammers[0:0]
 	var (
 		spammeraddress string
 	)
-
 	for rows.Next() {
 		rows.Scan(&spammeraddress)
 		Spammers = append(Spammers, spammeraddress)
 	}
-
 	in := ""
 	for _, spammer := range Spammers {
 		in += "'" + spammer + "',"
@@ -361,7 +360,6 @@ func (ss *SqlStore) RidSpam() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }
 
 // --- extras...
