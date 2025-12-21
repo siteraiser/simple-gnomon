@@ -229,13 +229,17 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		return
 	}
 	var tx_str_list []string
+	var regcount = 0
 	for _, hash := range bl.Tx_hashes {
+		if hash.String()[:5] == "00000" {
+			regcount++
+		}
 		tx_str_list = append(tx_str_list, hash.String())
 	}
 
 	tx_count := len(tx_str_list)
 
-	if tx_count == 0 {
+	if tx_count == 0 || regcount > 10 {
 		manageProcessing(bheight)
 		return
 	}
@@ -331,7 +335,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	}
 	//fmt.Println("\nTX Height: ", tx.Height)
 
-	if tx.TransactionType != transaction.SC_TX || (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION)) {
+	if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
 		return
 	}
 
