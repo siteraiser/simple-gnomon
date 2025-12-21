@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -37,6 +38,8 @@ var sqlindexer = &Indexer{}
 var batchSize = int16(0)
 var firstRun = true
 
+var RamSizeMB = int(0)
+
 // Gnomon Index SCID
 const MAINNET_GNOMON_SCID = "a05395bb0cf77adc850928b0db00eb5ca7a9ccbafd9a38d021c8d299ad5ce1a4"
 const TESTNET_GNOMON_SCID = "c9d23d2fc3aaa8e54e238a2218c0e5176a6e48780920fd8474fac5b0576110a2"
@@ -57,16 +60,15 @@ var CustomActions = map[string]action{}
 func main() {
 	var err error
 	var text string
-	fmt.Print("Enter 1 to use in-memory mode (requires enough ram): ")
+	fmt.Print("Enter system ram size in GB(8,16,...): ")
 	_, err = fmt.Scanln(&text)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
-	if text == "1" {
-		UseMem = true
-		fmt.Println("In-Memory mode Enabled")
-	}
+
+	RamSizeMB, _ = strconv.Atoi(text)
+	RamSizeMB *= int(1000)
 	fmt.Println("SC spam threshold 50-100 recommended")
 	fmt.Print("Enter number of name registrations allowed per wallet: ")
 	_, err = fmt.Scanln(&text)
@@ -89,11 +91,21 @@ func main() {
 
 	db_path := filepath.Join(wd, "gnomondb")
 	if UseMem {
-		fmt.Println("loading db into memory ....")
-		batchSize = memBatchSize
-		api.PreferredRequests = memPreferredRequests
-		sqlite, err = NewSqlDB(db_path, db_name)
-	} else {
+
+		filetoobig := RamSizeMB < int(fileSizeMB(filepath.Join(db_path, db_name)))
+		if !filetoobig {
+			fmt.Println("loading db into memory ....")
+			batchSize = memBatchSize
+			api.PreferredRequests = memPreferredRequests
+			sqlite, err = NewSqlDB(db_path, db_name)
+		}
+
+		if filetoobig {
+			fmt.Println("not enough ram switching disk mode ....")
+			UseMem = false
+		}
+	}
+	if !UseMem { //|| memModeSelect(false)
 		fmt.Println("loading db ....")
 		batchSize = diskBatchSize
 		api.PreferredRequests = diskPreferredRequests
@@ -107,8 +119,6 @@ func main() {
 	}
 	start_gnomon_indexer()
 }
-
-var emptyc = 0
 
 func start_gnomon_indexer() {
 	var starting_height int64
@@ -184,12 +194,18 @@ func start_gnomon_indexer() {
 	fmt.Println("Purging spam:", Spammers)
 	sqlite.RidSpam()
 
+	var switching = false
 	if UseMem {
 		fmt.Println("Saving Batch.............................................................")
 		sqlite.StoreLastIndexHeight(TargetHeight)
 		sqlite.BackupToDisk()
+		//Check size
+		if 15000 < int64(fileSizeMB(sqlite.db_path)) {
+			UseMem = false
+		}
 	}
-	if TargetHeight == last {
+
+	if TargetHeight == last || switching {
 		if UseMem == false {
 			fmt.Println("Saving after batch")
 			sqlite.StoreLastIndexHeight(TargetHeight)
@@ -199,7 +215,6 @@ func start_gnomon_indexer() {
 		t, _ := time.ParseDuration("5s")
 		time.Sleep(t)
 		UseMem = false
-
 		// Extract filename
 		filename := filepath.Base(sqlite.db_path)
 		dir := filepath.Dir(sqlite.db_path)
@@ -565,4 +580,34 @@ func getOutCounts() (int, string) {
 	}
 
 	return tot, text[1:]
+}
+
+// Supply true to boot from disk, returns true if memory is nearly full
+/*func memModeSelect(boot bool) bool {
+	if mbFree() < 1000 {
+		if boot {
+			UseMem = false
+			// Extract filename
+			filename := filepath.Base(sqlite.db_path)
+			dir := filepath.Dir(sqlite.db_path)
+			// Start disk mode
+			sqlite, _ = NewDiskDB(dir, filename)
+		}
+		return true
+	}
+	return false
+}
+
+// Supply true to boot from disk, returns true if memory is nearly full
+
+func mbFree() int64 {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	return int64(memStats.HeapIdle-memStats.HeapSys) / 1024 / 1024
+}
+*/
+func fileSizeMB(filePath string) int64 {
+	fileInfo, _ := os.Stat(filePath)
+	sizeBytes := fileInfo.Size()
+	return int64(float64(sizeBytes) / (1024 * 1024))
 }
