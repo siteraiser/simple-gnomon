@@ -99,7 +99,6 @@ func Ask() {
 	for {
 		//	time.Sleep(time.Microsecond)
 		Mutex.Lock()
-
 		ready := checkOuts()
 		if ready != -1 {
 			currentEndpoint = Endpoints[ready]
