@@ -21,7 +21,7 @@ import (
 
 var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
 var blockBatchSize = int64(50000) // Batch size (how many to process before saving w/ mem mode)
-var UseMem = false                // Use in-memory db
+var UseMem = true                 // Use in-memory db
 var SpamLevel = 50
 
 // Optimized settings for mode db mode
@@ -60,7 +60,7 @@ var CustomActions = map[string]action{}
 func main() {
 	var err error
 	var text string
-	fmt.Print("Enter system ram size in GB(8,16,...): ")
+	fmt.Print("Enter system memory to use in GB(8,16,...): ")
 	_, err = fmt.Scanln(&text)
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -91,8 +91,8 @@ func main() {
 
 	db_path := filepath.Join(wd, "gnomondb")
 	if UseMem {
-
-		filetoobig := RamSizeMB < int(fileSizeMB(filepath.Join(db_path, db_name)))
+		filesize := int(fileSizeMB(filepath.Join(db_path, db_name)))
+		filetoobig := RamSizeMB < filesize
 		if !filetoobig {
 			fmt.Println("loading db into memory ....")
 			batchSize = memBatchSize
@@ -607,7 +607,10 @@ func mbFree() int64 {
 }
 */
 func fileSizeMB(filePath string) int64 {
-	fileInfo, _ := os.Stat(filePath)
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return 0
+	}
 	sizeBytes := fileInfo.Size()
 	return int64(float64(sizeBytes) / (1024 * 1024))
 }
