@@ -99,16 +99,14 @@ func Ask() {
 	for {
 		//	time.Sleep(time.Microsecond)
 		Mutex.Lock()
-		noofconns := int16(len(EndpointAssignments))
-		maxr := PreferredRequests * noofconns
-		if len(Processing) < int(maxr) {
-			ready := checkOuts()
-			if ready != -1 {
-				currentEndpoint = Endpoints[ready]
-				Mutex.Unlock()
-				return
-			}
+
+		ready := checkOuts()
+		if ready != -1 {
+			currentEndpoint = Endpoints[ready]
+			Mutex.Unlock()
+			return
 		}
+
 		Mutex.Unlock()
 	}
 }
