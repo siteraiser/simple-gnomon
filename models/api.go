@@ -104,13 +104,20 @@ func Ask() {
 			}
 		}
 		Mutex.Lock()
-		ready := checkOuts()
-		if ready != -1 {
-			currentEndpoint = Endpoints[ready]
-			Mutex.Unlock()
-			return
+		noofouts := int16(len(EndpointAssignments))
+		maxr := PreferredRequests * noofouts
+		tot := int16(0)
+		for _, out := range Outs {
+			tot += out
 		}
-
+		if tot < maxr {
+			ready := checkOuts()
+			if ready != -1 {
+				currentEndpoint = Endpoints[ready]
+				Mutex.Unlock()
+				return
+			}
+		}
 		Mutex.Unlock()
 	}
 }
