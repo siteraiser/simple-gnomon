@@ -108,6 +108,8 @@ func main() {
 	start_gnomon_indexer()
 }
 
+var emptyc = 0
+
 func start_gnomon_indexer() {
 	var starting_height int64
 	starting_height, err := sqlite.GetLastIndexHeight()
@@ -159,7 +161,7 @@ func start_gnomon_indexer() {
 	}
 	// Wait for all requests to finish
 	fmt.Println("Batch completed, count:", blockBatchSize)
-	fmt.Println("Processing:", api.Processing)
+
 	wg.Wait()
 
 	//Take a breather
@@ -480,15 +482,15 @@ func findStart(start int64, top int64) (block int64) {
 
 func manageProcessing(bheight int64) {
 	i := -1
+
+	api.Mutex.Lock()
 	i = GetIndex(bheight)
 	lastfirst := api.Processing[0]
-	Mutex.Lock()
-
 	if i != -1 && i < len(api.Processing) {
 		api.Processing = append(api.Processing[:i], api.Processing[i+1:]...)
 	}
 	tostore := api.Processing[0]
-	Mutex.Unlock()
+	api.Mutex.Unlock()
 	if lastfirst != tostore {
 		storeHeight(tostore)
 	}
