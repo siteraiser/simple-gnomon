@@ -482,7 +482,6 @@ func findStart(start int64, top int64) (block int64) {
 
 func manageProcessing(bheight int64) {
 	i := -1
-
 	api.Mutex.Lock()
 	i = GetIndex(bheight)
 	lastfirst := api.Processing[0]
@@ -494,7 +493,7 @@ func manageProcessing(bheight int64) {
 		tostore = api.Processing[0]
 	}
 	api.Mutex.Unlock()
-	if lastfirst != tostore {
+	if lastfirst != tostore && tostore > 0 {
 		storeHeight(tostore)
 	}
 }
