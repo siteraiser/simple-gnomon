@@ -159,6 +159,7 @@ func start_gnomon_indexer() {
 	}
 	// Wait for all requests to finish
 	fmt.Println("Batch completed, count:", blockBatchSize)
+	fmt.Println("Processing:", api.Processing)
 	wg.Wait()
 
 	//Take a breather
@@ -333,7 +334,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	var tx transaction.Transaction
 	if err := tx.Deserialize(b); err != nil {
 		fmt.Println("\nTX Height: ", tx.Height)
-		if err.Error() == "Invalid Version in Transaction" {
+		if strings.Contains(err.Error(), "Invalid Version in Transaction") {
 			return
 		}
 		panic(err)
