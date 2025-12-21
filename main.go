@@ -489,7 +489,10 @@ func manageProcessing(bheight int64) {
 	if i != -1 && i < len(api.Processing) {
 		api.Processing = append(api.Processing[:i], api.Processing[i+1:]...)
 	}
-	tostore := api.Processing[0]
+	tostore := int64(-1)
+	if len(api.Processing) != 0 {
+		tostore = api.Processing[0]
+	}
 	api.Mutex.Unlock()
 	if lastfirst != tostore {
 		storeHeight(tostore)
