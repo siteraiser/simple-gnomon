@@ -97,6 +97,7 @@ var Processing []int64
 func Ask() {
 
 	for {
+		time.Sleep(time.Microsecond)
 		if len(Processing) > 1000 {
 			time.Sleep(time.Millisecond)
 			if len(Processing) > 5000 {
