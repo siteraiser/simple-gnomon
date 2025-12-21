@@ -231,8 +231,9 @@ func getResult[T any](method string, params any) (T, error) {
 			fmt.Println(err)
 			//	log.Fatal(err)
 		} else {
-			fmt.Println(endpoint)
-			NewError("rpc", method, endpoint)
+			if !strings.Contains(err.Error(), "200") {
+				NewError("rpc", method, endpoint+err.Error())
+			}
 		}
 	}
 
@@ -248,7 +249,9 @@ func GetTopoHeight() int64 {
 
 func GetTransaction(params rpc.GetTransaction_Params) rpc.GetTransaction_Result {
 	validator := func(r rpc.GetTransaction_Result) bool {
-
+		if r.Status == "" {
+			fmt.Println(r)
+		}
 		return r.Status != ""
 	}
 	result := callRPC("DERO.GetTransaction", params, validator)

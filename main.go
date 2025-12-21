@@ -24,7 +24,7 @@ var UseMem = false                // Use in-memory db
 var SpamLevel = 50
 
 // Optimized settings for mode db mode
-var memBatchSize = int16(10)
+var memBatchSize = int16(8)
 var memPreferredRequests = int16(20)
 var diskBatchSize = int16(8)
 var diskPreferredRequests = int16(16)
@@ -238,7 +238,10 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		if hash.String()[:5] == "00000" {
 			regcount++
 		}
-		tx_str_list = append(tx_str_list, hash.String())
+		if hash.String() != "" {
+			tx_str_list = append(tx_str_list, hash.String())
+		}
+
 	}
 
 	tx_count := len(tx_str_list)
