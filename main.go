@@ -122,6 +122,7 @@ func start_gnomon_indexer() {
 	if firstRun == true || api.Status.ErrorCount != int64(0) {
 		firstRun = false
 		sqlite.TrimHeight(starting_height)
+		api.Processing = api.Processing[0:0]
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
@@ -157,7 +158,7 @@ func start_gnomon_indexer() {
 
 	}
 	// Wait for all requests to finish
-	fmt.Println("indexed")
+	fmt.Println("Batch completed, count:", blockBatchSize)
 	wg.Wait()
 
 	//Take a breather
@@ -331,9 +332,13 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 
 	var tx transaction.Transaction
 	if err := tx.Deserialize(b); err != nil {
+		fmt.Println("\nTX Height: ", tx.Height)
+		if err.Error() == "Invalid Version in Transaction" {
+			return
+		}
 		panic(err)
 	}
-	//fmt.Println("\nTX Height: ", tx.Height)
+	//
 
 	if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
 		return
@@ -481,9 +486,10 @@ func manageProcessing(bheight int64) {
 	if i != -1 && i < len(api.Processing) {
 		api.Processing = append(api.Processing[:i], api.Processing[i+1:]...)
 	}
+	tostore := api.Processing[0]
 	Mutex.Unlock()
-	if lastfirst != api.Processing[0] {
-		storeHeight(api.Processing[0])
+	if lastfirst != tostore {
+		storeHeight(tostore)
 	}
 }
 
