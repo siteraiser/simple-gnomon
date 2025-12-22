@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -95,9 +96,8 @@ var currentEndpoint = Endpoints[0]
 var Processing []int64
 
 func Ask() {
-
+	avgspeed := getSpeed()
 	for {
-		//time.Sleep(time.Nanosecond)
 		if len(Processing) > 1000 {
 			time.Sleep(time.Millisecond)
 			if len(Processing) > 5000 {
@@ -106,7 +106,6 @@ func Ask() {
 		}
 
 		Mutex.Lock()
-
 		lowest := uint8(255)
 		lowest_id := uint8(255)
 
@@ -122,6 +121,12 @@ func Ask() {
 		}
 
 		if lowest < PreferredRequests && !cancel {
+			micros := avgspeed - 10
+			if micros > 11 && micros < 10000 {
+				t, _ := time.ParseDuration(strconv.Itoa(micros) + "us")
+				time.Sleep(t)
+			}
+
 			currentEndpoint = Endpoints[lowest_id]
 			Mutex.Unlock()
 			return
@@ -159,6 +164,29 @@ func AssignConnections(iserror bool) {
 		}
 	}
 	Reset()
+}
+
+var priorTimes []int64
+var lastTime = time.Now()
+
+func getSpeed() int {
+	t := time.Now()
+
+	if len(priorTimes) > 100 {
+		priorTimes = priorTimes[100:]
+	}
+	priorTimes = append(priorTimes, time.Since(lastTime).Microseconds())
+	total := int64(0)
+	for _, ti := range priorTimes {
+		total += ti
+	}
+
+	lastTime = t
+	value := int64(0)
+	if len(priorTimes) != 0 {
+		value = int64(total) / int64(len(priorTimes))
+	}
+	return int(value)
 }
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
