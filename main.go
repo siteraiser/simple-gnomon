@@ -123,10 +123,9 @@ func main() {
 func start_gnomon_indexer() {
 	var starting_height int64
 	starting_height, err := sqlite.GetLastIndexHeight()
-	starting_height++
 	if err != nil {
 		if startAt == 0 {
-			starting_height = findStart(1, HighestKnownHeight) //if it isn't set then find it
+			starting_height = findStart(0, HighestKnownHeight) //if it isn't set then find it
 		}
 		fmt.Println("err: ", err)
 	}
