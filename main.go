@@ -185,6 +185,7 @@ func start_gnomon_indexer() {
 	}
 
 	//Essentials...
+	sqlite.StoreLastIndexHeight(TargetHeight)
 	last := HighestKnownHeight
 	HighestKnownHeight = api.GetTopoHeight()
 
@@ -197,7 +198,6 @@ func start_gnomon_indexer() {
 	var switching = false
 	if UseMem {
 		fmt.Println("Saving Batch.............................................................")
-		sqlite.StoreLastIndexHeight(TargetHeight)
 		sqlite.BackupToDisk()
 		//Check size
 		if int64(RamSizeMB) <= fileSizeMB(sqlite.db_path) {
@@ -207,10 +207,6 @@ func start_gnomon_indexer() {
 	}
 
 	if TargetHeight == last || switching {
-		if UseMem == false {
-			fmt.Println("Saving after batch")
-			sqlite.StoreLastIndexHeight(TargetHeight)
-		}
 
 		if !switching {
 			fmt.Println("All caught up..............................", TargetHeight)
