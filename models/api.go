@@ -97,6 +97,7 @@ var Processing []int64
 func Ask() {
 
 	for {
+		time.Sleep(time.Microsecond)
 		if len(Processing) > 1000 {
 			time.Sleep(time.Millisecond)
 			if len(Processing) > 5000 {
@@ -105,22 +106,33 @@ func Ask() {
 		}
 
 		Mutex.Lock()
-		lowest := uint8(255)
-		lowest_id := uint8(255)
-		for id, out := range Outs {
-			if out < lowest {
-				lowest = out
-				lowest_id = uint8(id)
-			}
-			if out >= PreferredRequests {
-				lowest = uint8(255)
-				break
-			}
+		noofouts := uint8(len(EndpointAssignments))
+		maxr := PreferredRequests * noofouts
+		tot := uint8(0)
+		for _, out := range Outs {
+			tot += out
 		}
-		if lowest < PreferredRequests {
-			currentEndpoint = Endpoints[lowest_id]
-			Mutex.Unlock()
-			return
+		if tot < maxr {
+
+			lowest := uint8(255)
+			lowest_id := uint8(255)
+
+			cancel := false
+			for id, out := range Outs {
+				if out < lowest && out < PreferredRequests {
+					lowest = out
+					lowest_id = uint8(id)
+				} else if out >= PreferredRequests {
+					cancel = true
+				}
+
+			}
+
+			if lowest < PreferredRequests && !cancel {
+				currentEndpoint = Endpoints[lowest_id]
+				Mutex.Unlock()
+				return
+			}
 		}
 		Mutex.Unlock()
 	}
