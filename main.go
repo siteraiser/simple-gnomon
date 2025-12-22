@@ -25,9 +25,9 @@ var UseMem = true                 // Use in-memory db
 var SpamLevel = 50
 
 // Optimized settings for mode db mode
-var memBatchSize = int16(10)
+var memBatchSize = int16(100)
 var memPreferredRequests = int16(10)
-var diskBatchSize = int16(10)
+var diskBatchSize = int16(100)
 var diskPreferredRequests = int16(10)
 
 // Program vars
@@ -92,7 +92,7 @@ func main() {
 	db_path := filepath.Join(wd, "gnomondb")
 	if UseMem {
 		filesize := int(fileSizeMB(filepath.Join(db_path, db_name)))
-		filetoobig := RamSizeMB < filesize
+		filetoobig := RamSizeMB <= filesize
 		if !filetoobig {
 			fmt.Println("loading db into memory ....")
 			batchSize = memBatchSize
@@ -200,7 +200,7 @@ func start_gnomon_indexer() {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 		sqlite.BackupToDisk()
 		//Check size
-		if int64(RamSizeMB) < fileSizeMB(sqlite.db_path) {
+		if int64(RamSizeMB) <= fileSizeMB(sqlite.db_path) {
 			switching = true
 			fmt.Println("Switching to disk mode..............................", TargetHeight)
 		}
