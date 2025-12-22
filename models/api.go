@@ -108,14 +108,12 @@ func Ask() {
 		lowest := uint8(255)
 		lowest_id := uint8(255)
 		conns := uint8(len(EndpointAssignments))
-
 		for id := range conns {
 			if Outs[id] < uint8(lowest) {
 				lowest = uint8(Outs[id])
 				lowest_id = id
 			}
 		}
-
 		if Outs[lowest_id] < PreferredRequests {
 			currentEndpoint = Endpoints[lowest_id]
 			Mutex.Unlock()
