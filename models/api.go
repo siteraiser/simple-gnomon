@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -121,12 +120,12 @@ func Ask() {
 		}
 
 		if lowest < PreferredRequests && !cancel {
-			micros := avgspeed - 25
-			if micros > 26 && micros < 10000 {
-				t, _ := time.ParseDuration(strconv.Itoa(micros) + "us")
-				time.Sleep(t)
-			}
 
+			ratio := float64(PreferredRequests/2) / float64(lowest)
+			if ratio != float64(1) {
+				avgspeed = int(float64(avgspeed) / float64(ratio))
+			}
+			time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
 			currentEndpoint = Endpoints[lowest_id]
 			Mutex.Unlock()
 			return
