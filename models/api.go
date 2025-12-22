@@ -105,9 +105,9 @@ func Ask() {
 			}
 		}
 		Mutex.Lock()
-		noofouts := int16(len(EndpointAssignments))
+		noofouts := uint16(len(EndpointAssignments))
 		maxr := PreferredRequests * noofouts
-		tot := int16(0)
+		tot := uint16(0)
 		for _, out := range Outs {
 			tot += out
 		}
@@ -123,13 +123,13 @@ func Ask() {
 	}
 }
 
-var Outs []int16
+var Outs []uint16
 
 var EndpointAssignments = make(map[string]int16)
 
 func checkOuts() int {
 
-	lowest := int16(100)
+	lowest := uint16(100)
 	lowest_id := 0
 	for _, id := range EndpointAssignments {
 		if Outs[id] < lowest {
@@ -144,7 +144,7 @@ func checkOuts() int {
 	return -1
 }
 
-var PreferredRequests = int16(0)
+var PreferredRequests = uint16(0)
 
 func AssignConnections(iserror bool) {
 	params := rpc.GetInfo_Params{}
