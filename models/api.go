@@ -121,7 +121,7 @@ func Ask() {
 		}
 
 		if lowest < PreferredRequests && !cancel {
-			micros := avgspeed - 10
+			micros := avgspeed - 25
 			if micros > 11 && micros < 10000 {
 				t, _ := time.ParseDuration(strconv.Itoa(micros) + "us")
 				time.Sleep(t)
