@@ -127,13 +127,13 @@ var Outs []uint8
 
 var EndpointAssignments = make(map[string]int16)
 
-func checkOuts() int {
+func checkOuts() int8 {
 
 	lowest := uint8(100)
-	lowest_id := 0
+	lowest_id := int8(0)
 	for _, id := range EndpointAssignments {
 		if Outs[id] < lowest {
-			lowest_id = int(id)
+			lowest_id = int8(id)
 		}
 	}
 
