@@ -203,6 +203,7 @@ func start_gnomon_indexer() {
 		if int64(RamSizeMB) < fileSizeMB(sqlite.db_path) {
 			UseMem = false
 			switching = true
+			fmt.Println("Swiching to disk mode..............................", TargetHeight)
 		}
 	}
 
@@ -212,9 +213,12 @@ func start_gnomon_indexer() {
 			sqlite.StoreLastIndexHeight(TargetHeight)
 		}
 
-		fmt.Println("All caught up..............................", TargetHeight)
-		t, _ := time.ParseDuration("5s")
-		time.Sleep(t)
+		if !switching {
+			fmt.Println("All caught up..............................", TargetHeight)
+			t, _ := time.ParseDuration("5s")
+			time.Sleep(t)
+		}
+
 		UseMem = false
 		// Extract filename
 		filename := filepath.Base(sqlite.db_path)
