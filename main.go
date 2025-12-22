@@ -26,9 +26,9 @@ var SpamLevel = 50
 
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
-var memPreferredRequests = int16(10)
+var memPreferredRequests = int16(4)
 var diskBatchSize = int16(100)
-var diskPreferredRequests = int16(10)
+var diskPreferredRequests = int16(4)
 
 // Program vars
 var TargetHeight = int64(0)
@@ -573,11 +573,15 @@ func showBlockStatus(bheight int64) {
 }
 func getOutCounts() (int, string) {
 	text := ""
+	spacer := ""
 	tot := 0
+	if api.PreferredRequests >= 10 {
+		spacer = " "
+	}
 	for i, out := range api.Outs {
 		insert := ""
 		if int(api.Outs[i]) < 10 {
-			insert = " "
+			insert = spacer
 		}
 		text += ":" + insert + strconv.Itoa(int(out))
 		tot += int(out)
