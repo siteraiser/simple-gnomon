@@ -106,34 +106,27 @@ func Ask() {
 		}
 
 		Mutex.Lock()
-		noofouts := uint8(len(EndpointAssignments))
-		maxr := PreferredRequests * noofouts
-		tot := uint8(0)
-		for _, out := range Outs {
-			tot += out
-		}
-		if tot < maxr {
 
-			lowest := uint8(255)
-			lowest_id := uint8(255)
+		lowest := uint8(255)
+		lowest_id := uint8(255)
 
-			cancel := false
-			for id, out := range Outs {
-				if out < lowest && out < PreferredRequests {
-					lowest = out
-					lowest_id = uint8(id)
-				} else if out >= PreferredRequests {
-					cancel = true
-				}
-
+		cancel := false
+		for id, out := range Outs {
+			if out < lowest && out < PreferredRequests {
+				lowest = out
+				lowest_id = uint8(id)
+			} else if out >= PreferredRequests {
+				cancel = true
 			}
 
-			if lowest < PreferredRequests && !cancel {
-				currentEndpoint = Endpoints[lowest_id]
-				Mutex.Unlock()
-				return
-			}
 		}
+
+		if lowest < PreferredRequests && !cancel {
+			currentEndpoint = Endpoints[lowest_id]
+			Mutex.Unlock()
+			return
+		}
+
 		Mutex.Unlock()
 	}
 }
