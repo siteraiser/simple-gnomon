@@ -200,7 +200,7 @@ func start_gnomon_indexer() {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 		sqlite.BackupToDisk()
 		//Check size
-		if 15000 < int64(fileSizeMB(sqlite.db_path)) {
+		if int64(RamSizeMB) < fileSizeMB(sqlite.db_path) {
 			UseMem = false
 			switching = true
 		}
