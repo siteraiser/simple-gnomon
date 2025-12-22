@@ -101,7 +101,7 @@ func main() {
 		}
 
 		if filetoobig {
-			fmt.Println("not enough ram switching disk mode ....")
+			fmt.Println("Switching to disk mode ....")
 			UseMem = false
 		}
 	}
