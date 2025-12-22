@@ -128,19 +128,15 @@ var Outs []uint8
 var EndpointAssignments = make(map[string]int16)
 
 func checkOuts() int8 {
-
-	lowest := uint8(100)
-	lowest_id := int8(0)
+	lowest := int8(127)
 	for _, id := range EndpointAssignments {
-		if Outs[id] < lowest {
-			lowest_id = int8(id)
+		if Outs[id] < uint8(lowest) {
+			lowest = int8(id)
 		}
 	}
-
-	if Outs[lowest_id] < PreferredRequests {
-		return lowest_id
+	if Outs[lowest] < PreferredRequests {
+		return lowest
 	}
-
 	return -1
 }
 
