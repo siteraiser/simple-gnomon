@@ -203,7 +203,7 @@ func start_gnomon_indexer() {
 		if int64(RamSizeMB) < fileSizeMB(sqlite.db_path) {
 			UseMem = false
 			switching = true
-			fmt.Println("Swiching to disk mode..............................", TargetHeight)
+			fmt.Println("Switching to disk mode..............................", TargetHeight)
 		}
 	}
 
