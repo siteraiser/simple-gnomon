@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/mattn/go-sqlite3"
 	_ "github.com/mattn/go-sqlite3"
@@ -43,7 +42,6 @@ func Ask() bool {
 		return true
 	}
 	for {
-		time.Sleep(time.Microsecond)
 		if dbready {
 			return true
 		}
