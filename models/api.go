@@ -114,13 +114,7 @@ func Ask() {
 				cancel = true
 			}
 		}
-		avgspeed := getSpeed(lowest_id)
-		if lowest < PreferredRequests && !cancel {
-			ratio := float64(PreferredRequests/2) / float64(lowest)
-			if ratio != float64(1) {
-				avgspeed = int(float64(avgspeed) / float64(ratio))
-			}
-			time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
+		if !cancel && lowest < uint8(PreferredRequests/2) {
 			currentEndpoint = Endpoints[lowest_id]
 			Mutex.Unlock()
 			return
@@ -154,27 +148,6 @@ func AssignConnections(iserror bool) {
 		}
 	}
 	Reset()
-}
-
-var priorTimes = make(map[uint8][]int64)
-var lastTime = time.Now()
-
-func getSpeed(id uint8) int {
-	t := time.Now()
-	if len(priorTimes[id]) > 100 {
-		priorTimes[id] = priorTimes[id][100:]
-	}
-	priorTimes[id] = append(priorTimes[id], time.Since(lastTime).Microseconds())
-	total := int64(0)
-	for _, ti := range priorTimes[id] {
-		total += ti
-	}
-	lastTime = t
-	value := int64(0)
-	if len(priorTimes[id]) != 0 {
-		value = int64(total) / int64(len(priorTimes[id]))
-	}
-	return int(value)
 }
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
