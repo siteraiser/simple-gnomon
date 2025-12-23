@@ -30,7 +30,7 @@ func OK() bool {
 }
 
 // Error type, name, details
-func NewError(einfo ...string) {
+func NewError(einfo ...any) {
 	Status.Mutex.Lock()
 
 	switch einfo[0] {
@@ -38,12 +38,21 @@ func NewError(einfo ...string) {
 		Status.DbOk = false
 	case "connection", "rpc":
 		Status.ApiOk = false
+		for i, endp := range Endpoints {
+			if endp.Address == einfo[2] {
+				Endpoints[i].Errors = append(Endpoints[i].Errors, einfo[3].(error))
+			}
+		}
 	}
 	Status.ErrorCount++
-	Status.ErrorType = einfo[0]
-	Status.ErrorName = einfo[1]
+	Status.ErrorType = einfo[0].(string)
+	Status.ErrorName = einfo[1].(string)
 	if len(einfo) == 3 {
-		Status.ErrorDetail = einfo[2]
+		Status.ErrorDetail = einfo[2].(string)
+	}
+	if len(einfo) == 4 {
+		Status.ErrorDetail = einfo[2].(string)
+		Status.Error = einfo[3].(error)
 	}
 
 	Status.Mutex.Unlock()
@@ -56,6 +65,7 @@ func Reset() {
 	Status.ErrorType = ""
 	Status.ErrorName = ""
 	Status.ErrorDetail = ""
+	Status.Error = nil
 	Status.DbOk = true
 	Status.ApiOk = true
 }
@@ -64,6 +74,7 @@ type State struct {
 	ErrorType   string
 	ErrorName   string
 	ErrorDetail string
+	Error       error
 	DbOk        bool
 	ApiOk       bool
 	ErrorCount  int64
@@ -84,13 +95,26 @@ var Status = &State{
 	ErrorType:   "",
 	ErrorName:   "",
 	ErrorDetail: "",
+	Error:       nil,
 	DbOk:        true,
 	ApiOk:       true,
 	ErrorCount:  0,
 	TotalErrors: 0,
 }
 
-var Endpoints = [3]string{"64.226.81.37:10102", "node.derofoundation.org:11012", "dero-node-ch4k1pu.mysrv.cloud"} //"64.226.81.37:10102"
+type Connection struct {
+	Id      uint8
+	Address string
+	Errors  []error
+}
+
+var Endpoints = []Connection{
+	{Address: "64.226.81.37:10102"},
+	{Address: "node.derofoundation.org:11012"},
+	{Address: "dero-node-ch4k1pu.mysrv.cloud"},
+}
+
+// "64.226.81.37:10102"
 var currentEndpoint = Endpoints[0]
 var Processing []int64
 
@@ -106,48 +130,79 @@ func Ask() {
 		lowest := uint8(255)
 		lowest_id := uint8(255)
 		cancel := false
+
 		for id, out := range Outs {
-			if out < lowest && out < PreferredRequests {
-				lowest = out
-				lowest_id = uint8(id)
-			} else if out >= PreferredRequests {
-				cancel = true
+			if len(Endpoints[id].Errors) == 0 {
+				if out < lowest {
+					lowest = out
+					lowest_id = uint8(id)
+				} else if out >= uint8(PreferredRequests/2) {
+					cancel = true
+				}
 			}
 		}
-		if !cancel && lowest < uint8(PreferredRequests/2) {
+		if !cancel && lowest < uint8(PreferredRequests/2) && lowest_id != uint8(255) {
+
 			currentEndpoint = Endpoints[lowest_id]
+
 			Mutex.Unlock()
 			return
 		}
+
 		Mutex.Unlock()
 	}
 }
 
 var Outs []uint8
-var EndpointAssignments = make(map[string]int16)
+var EndpointAssignments = make(map[*Connection]int16)
 var PreferredRequests = uint8(0)
 
 func AssignConnections(iserror bool) {
-	params := rpc.GetInfo_Params{}
-	if iserror {
-		Outs = Outs[0:0]
-		EndpointAssignments = make(map[string]int16)
-	}
+	//params := rpc.GetInfo_Params{}
+	//	if iserror {
+	Outs = Outs[0:0]
+	EndpointAssignments = make(map[*Connection]int16)
+	//	}
+	//count := 0
 	for i, endpoint := range Endpoints {
-		if _, ok := EndpointAssignments[endpoint]; ok {
-			continue
-		}
 		var result any
 		var rpcClient jsonrpc.RPCClient
-		nodeaddr := "http://" + endpoint + "/json_rpc"
+		nodeaddr := "http://" + endpoint.Address + "/json_rpc"
+		fmt.Println("testing:", nodeaddr)
 		rpcClient = jsonrpc.NewClient(nodeaddr)
-		err := rpcClient.CallFor(&result, "DERO.GetInfo", params) // no params argument
+		err := rpcClient.CallFor(&result, "DERO.GetInfo") //, params no params argument
+		EndpointAssignments[&endpoint] = int16(i)
+		Endpoints[i].Id = uint8(i)
+		Outs = append(Outs, 0)
 		if err != nil {
-			EndpointAssignments[endpoint] = int16(i)
-			Outs = append(Outs, 0)
+			fmt.Println("Error endpoint:", endpoint)
+			Endpoints[i].Errors = append(endpoint.Errors, err)
 		}
 	}
+	fmt.Println(EndpointAssignments)
+	fmt.Println(Outs)
 	Reset()
+}
+
+var priorTimes = make(map[uint8][]int64)
+var lastTime = time.Now()
+
+func getSpeed(id uint8) int {
+	t := time.Now()
+	if len(priorTimes[id]) > 100 {
+		priorTimes[id] = priorTimes[id][100:]
+	}
+	priorTimes[id] = append(priorTimes[id], time.Since(lastTime).Microseconds())
+	total := int64(0)
+	for _, ti := range priorTimes[id] {
+		total += ti
+	}
+	lastTime = t
+	value := int64(0)
+	if len(priorTimes[id]) != 0 {
+		value = int64(total) / int64(len(priorTimes[id]))
+	}
+	return int(value)
 }
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
@@ -173,15 +228,15 @@ func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var err error
 	var rpcClient jsonrpc.RPCClient
-	var endpoint string
+	var endpoint Connection
 
 	Mutex.Lock()
-
 	endpoint = currentEndpoint
-	nodeaddr := "http://" + endpoint + "/json_rpc"
+	nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
 
-	Outs[EndpointAssignments[endpoint]]++
+	Outs[endpoint.Id]++
+
 	Mutex.Unlock()
 
 	if params == nil {
@@ -191,15 +246,13 @@ func getResult[T any](method string, params any) (T, error) {
 	}
 
 	Mutex.Lock()
-
-	Outs[EndpointAssignments[endpoint]]--
+	Outs[endpoint.Id]--
 	Mutex.Unlock()
 
 	if err != nil {
 
 		if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "mismatch") { //Tx statement roothash mismatch ref blid... skip it
 			fmt.Println(err)
-
 			var zero T
 			return zero, err
 		} else if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "many parameters") { //Using batching now so this shouldn't occur
@@ -207,12 +260,12 @@ func getResult[T any](method string, params any) (T, error) {
 			log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
 		} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+nodeaddr+")") {
 			//maybe handle connection errors here with a cancel / rollback instead.
-			NewError("connection", method, "")
+			NewError("connection", method, endpoint.Address, err)
 			fmt.Println(err)
 			//	log.Fatal(err)
 		} else {
 			if !strings.Contains(err.Error(), "200") {
-				NewError("rpc", method, endpoint+err.Error())
+				NewError("rpc", method, endpoint.Address, err)
 			}
 		}
 	}

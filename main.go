@@ -143,8 +143,8 @@ func start_gnomon_indexer() {
 	//	}
 	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
 
-	fmt.Println("Topo Height ", api.GetTopoHeight())
-	fmt.Println("last height ", fmt.Sprint(starting_height))
+	fmt.Println("Topo Height ", HighestKnownHeight)
+	fmt.Println("Last Height ", fmt.Sprint(starting_height))
 
 	if TargetHeight < HighestKnownHeight-blockBatchSize && starting_height+blockBatchSize < HighestKnownHeight {
 		TargetHeight = starting_height + blockBatchSize
@@ -186,6 +186,14 @@ func start_gnomon_indexer() {
 	sqlite.StoreLastIndexHeight(TargetHeight)
 	last := HighestKnownHeight
 	HighestKnownHeight = api.GetTopoHeight()
+	if HighestKnownHeight < 1 {
+		api.AssignConnections(true)
+		fmt.Println("Error getting height ....", HighestKnownHeight)
+		HighestKnownHeight = api.GetTopoHeight()
+		if HighestKnownHeight < 1 {
+			panic("Too many failed connections")
+		}
+	}
 
 	fmt.Println("last:", last)
 	fmt.Println("TargetHeight:", TargetHeight)
