@@ -95,7 +95,6 @@ var currentEndpoint = Endpoints[0]
 var Processing []int64
 
 func Ask() {
-	avgspeed := getSpeed()
 	for {
 		if len(Processing) > 1000 {
 			time.Sleep(time.Millisecond)
@@ -115,6 +114,7 @@ func Ask() {
 				cancel = true
 			}
 		}
+		avgspeed := getSpeed(lowest_id)
 		if lowest < PreferredRequests && !cancel {
 			ratio := float64(PreferredRequests/2) / float64(lowest)
 			if ratio != float64(1) {
@@ -130,9 +130,7 @@ func Ask() {
 }
 
 var Outs []uint8
-
 var EndpointAssignments = make(map[string]int16)
-
 var PreferredRequests = uint8(0)
 
 func AssignConnections(iserror bool) {
@@ -141,7 +139,6 @@ func AssignConnections(iserror bool) {
 		Outs = Outs[0:0]
 		EndpointAssignments = make(map[string]int16)
 	}
-
 	for i, endpoint := range Endpoints {
 		if _, ok := EndpointAssignments[endpoint]; ok {
 			continue
@@ -159,25 +156,23 @@ func AssignConnections(iserror bool) {
 	Reset()
 }
 
-var priorTimes []int64
+var priorTimes = make(map[uint8][]int64)
 var lastTime = time.Now()
 
-func getSpeed() int {
+func getSpeed(id uint8) int {
 	t := time.Now()
-
-	if len(priorTimes) > 100 {
-		priorTimes = priorTimes[100:]
+	if len(priorTimes[id]) > 100 {
+		priorTimes[id] = priorTimes[id][100:]
 	}
-	priorTimes = append(priorTimes, time.Since(lastTime).Microseconds())
+	priorTimes[id] = append(priorTimes[id], time.Since(lastTime).Microseconds())
 	total := int64(0)
-	for _, ti := range priorTimes {
+	for _, ti := range priorTimes[id] {
 		total += ti
 	}
-
 	lastTime = t
 	value := int64(0)
-	if len(priorTimes) != 0 {
-		value = int64(total) / int64(len(priorTimes))
+	if len(priorTimes[id]) != 0 {
+		value = int64(total) / int64(len(priorTimes[id]))
 	}
 	return int(value)
 }
