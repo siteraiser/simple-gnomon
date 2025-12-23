@@ -247,8 +247,9 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 	var tx_str_list []string
 	var regcount = 0
+
 	for _, hash := range bl.Tx_hashes {
-		if hash.String()[:5] == "00000" {
+		if hash.String()[:6] == "000000" {
 			regcount++
 		}
 		if hash.String() != "" {
@@ -260,6 +261,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	tx_count := len(tx_str_list)
 
 	if tx_count == 0 || regcount > 10 {
+
 		manageProcessing(bheight)
 		return
 	}
@@ -415,20 +417,17 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	}
 
 	kv := sc.VariableStringKeys
+
 	//fmt.Println("key", kv)
 	scname := api.GetSCNameFromVars(kv)
-	scdesc := api.GetSCDescriptionFromVars(kv)
-	scimgurl := api.GetSCIDImageURLFromVars(kv)
-	//panic(vars)
-	//	fmt.Println("headers", headers)
+	scdesc := ""
+	scimgurl := ""
 
-	skipchecks := false
-	if large == true && params.SCID == Hardcoded_SCIDS[0] {
-		skipchecks = true
-	}
 	tags := ""
 	class := ""
-	if !skipchecks {
+	if params.SCID != Hardcoded_SCIDS[0] { //only need the name for these
+		scdesc = api.GetSCDescriptionFromVars(kv)
+		scimgurl = api.GetSCIDImageURLFromVars(kv)
 		for key, name := range indexes {
 			for _, filter := range name {
 				if !strings.Contains(sc.Code, filter) { //fmt.Sprintf("%.1000s",)
@@ -440,7 +439,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 			if tags != "" && tags[0:1] == "," {
 				tags = tags[1:]
 			}
-
 		}
 	}
 	entrypoint := ""
