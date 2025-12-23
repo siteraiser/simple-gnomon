@@ -355,7 +355,7 @@ func (ss *SqlStore) RidSpam() {
 
 	var spammerstxs []string
 
-	rows, err = ss.DB.Query("SELECT DISTINCT scid FROM invokes WHERE signer IN ("+spamaddrs+") AND scid = '0000000000000000000000000000000000000000000000000000000000000001';)", nil)
+	rows, err = ss.DB.Query("SELECT txid FROM invokes WHERE signer IN ("+spamaddrs+") AND scid = '0000000000000000000000000000000000000000000000000000000000000001';", nil)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -363,12 +363,12 @@ func (ss *SqlStore) RidSpam() {
 		spammertx string
 	)
 	for rows.Next() {
-		rows.Scan(&spammeraddress)
+		rows.Scan(&spammertx)
 		spammerstxs = append(spammerstxs, spammertx)
 	}
 	in = ""
-	for _, spammer := range Spammers {
-		in += "'" + spammer + "',"
+	for _, spammertx := range spammerstxs {
+		in += "'" + spammertx + "',"
 	}
 	spamtxs := strings.TrimRight(in, ",")
 
