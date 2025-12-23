@@ -130,35 +130,23 @@ func Ask() {
 		lowest := uint8(255)
 		lowest_id := uint8(255)
 		cancel := false
+		target := uint8(PreferredRequests / 2)
 		for id, out := range Outs {
 			if len(Endpoints[id].Errors) == 0 {
 				if out < lowest {
 					lowest = out
 					lowest_id = uint8(id)
 
-				} else if out >= uint8(PreferredRequests/2) {
+				} else if out >= target {
 					cancel = true
 				}
 			}
 		}
-
-		if !cancel {
-			avgspeed := getSpeed(lowest_id)
-			ratio := float64(PreferredRequests/2) / float64(lowest)
-			if ratio != float64(1) {
-				avgspeed = int(float64(avgspeed) / float64(ratio))
-			}
-			if lowest < PreferredRequests {
-				time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
-
-				currentEndpoint = Endpoints[lowest_id]
-
-			}
+		if !cancel && lowest < target {
+			currentEndpoint = Endpoints[lowest_id]
 			Mutex.Unlock()
-
 			return
 		}
-
 		Mutex.Unlock()
 	}
 }
