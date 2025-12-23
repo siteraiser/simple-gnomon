@@ -175,7 +175,7 @@ func AssignConnections(iserror bool) {
 		Outs = append(Outs, 0)
 		if err != nil {
 			fmt.Println("Error endpoint:", endpoint)
-			Endpoints[i].Errors = append(endpoint.Errors, err)
+			Endpoints[i].Errors = []error{err}
 		} else if lasterrcnt == 1 {
 			Endpoints[i].Errors = Endpoints[i].Errors[0:0]
 		}
