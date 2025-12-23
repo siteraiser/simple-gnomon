@@ -141,10 +141,8 @@ func Ask() {
 				}
 			}
 		}
-		if !cancel && lowest < uint8(PreferredRequests/2) && lowest_id != uint8(255) {
-
+		if !cancel && lowest < uint8(PreferredRequests/2) {
 			currentEndpoint = Endpoints[lowest_id]
-
 			Mutex.Unlock()
 			return
 		}
@@ -165,6 +163,7 @@ func AssignConnections(iserror bool) {
 	//	}
 	//count := 0
 	for i, endpoint := range Endpoints {
+		lasterrcnt := len(Endpoints[i].Errors)
 		var result any
 		var rpcClient jsonrpc.RPCClient
 		nodeaddr := "http://" + endpoint.Address + "/json_rpc"
@@ -177,6 +176,8 @@ func AssignConnections(iserror bool) {
 		if err != nil {
 			fmt.Println("Error endpoint:", endpoint)
 			Endpoints[i].Errors = append(endpoint.Errors, err)
+		} else if lasterrcnt == 1 {
+			Endpoints[i].Errors = Endpoints[i].Errors[0:0]
 		}
 	}
 	fmt.Println(EndpointAssignments)
