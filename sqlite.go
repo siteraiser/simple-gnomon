@@ -351,10 +351,35 @@ func (ss *SqlStore) RidSpam() {
 	for _, spammer := range Spammers {
 		in += "'" + spammer + "',"
 	}
-	in = strings.TrimRight(in, ",")
+	spamaddrs := strings.TrimRight(in, ",")
 
-	fmt.Println("deleting:", in)
-	_, err = ss.DB.Exec("DELETE FROM invokes WHERE signer IN (" + in + ") AND scid = '0000000000000000000000000000000000000000000000000000000000000001';")
+	var spammerstxs []string
+
+	rows, err = ss.DB.Query("SELECT DISTINCT scid FROM invokes WHERE signer IN ("+spamaddrs+") AND scid = '0000000000000000000000000000000000000000000000000000000000000001';)", nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+	var (
+		spammertx string
+	)
+	for rows.Next() {
+		rows.Scan(&spammeraddress)
+		spammerstxs = append(spammerstxs, spammertx)
+	}
+	in = ""
+	for _, spammer := range Spammers {
+		in += "'" + spammer + "',"
+	}
+	spamtxs := strings.TrimRight(in, ",")
+
+	fmt.Println("deleting invokes:", spamaddrs)
+	_, err = ss.DB.Exec("DELETE FROM invokes WHERE signer IN (" + spamaddrs + ") AND scid = '0000000000000000000000000000000000000000000000000000000000000001';")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("deleting vars:", spamtxs)
+	_, err = ss.DB.Exec("DELETE FROM variables WHERE signer IN (" + spamtxs + ") AND scid = '0000000000000000000000000000000000000000000000000000000000000001';")
 	if err != nil {
 		log.Fatal(err)
 	}
