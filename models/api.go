@@ -103,11 +103,9 @@ func Ask() {
 				time.Sleep(time.Millisecond * 100)
 			}
 		}
-
 		Mutex.Lock()
 		lowest := uint8(255)
 		lowest_id := uint8(255)
-
 		cancel := false
 		for id, out := range Outs {
 			if out < lowest && out < PreferredRequests {
@@ -116,11 +114,8 @@ func Ask() {
 			} else if out >= PreferredRequests {
 				cancel = true
 			}
-
 		}
-
 		if lowest < PreferredRequests && !cancel {
-
 			ratio := float64(PreferredRequests/2) / float64(lowest)
 			if ratio != float64(1) {
 				avgspeed = int(float64(avgspeed) / float64(ratio))
@@ -130,7 +125,6 @@ func Ask() {
 			Mutex.Unlock()
 			return
 		}
-
 		Mutex.Unlock()
 	}
 }
