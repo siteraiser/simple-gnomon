@@ -379,7 +379,7 @@ func (ss *SqlStore) RidSpam() {
 	}
 
 	fmt.Println("deleting vars:", spamtxs)
-	_, err = ss.DB.Exec("DELETE FROM variables WHERE txid IN (" + spamtxs + ")")
+	_, err = ss.DB.Exec("DELETE FROM variables WHERE scid IN (" + spamtxs + ")")
 	if err != nil {
 		log.Fatal(err)
 	}
