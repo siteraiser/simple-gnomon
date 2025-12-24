@@ -179,12 +179,13 @@ func start_gnomon_indexer() {
 	}
 	count := 0
 	for {
+		count++
 		if len(api.BlocksProcessing)+len(api.TXIDSProcessing) == 0 || count > 5 {
 			break
 		}
 		w, _ := time.ParseDuration("1s")
 		time.Sleep(w)
-		count++
+
 	}
 	//Essentials...
 	if count <= 5 {
