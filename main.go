@@ -238,7 +238,7 @@ func start_gnomon_indexer() {
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
 	if !api.OK() {
-		//	manageBlocksProcessing(bheight)
+		manageBlocksProcessing(bheight)
 		return
 	}
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
@@ -247,7 +247,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	bl := api.GetBlockDeserialized(result.Blob)
 
 	if len(bl.Tx_hashes) < 1 {
-		//	manageBlocksProcessing(bheight)
+		manageBlocksProcessing(bheight)
 		return
 	}
 	var tx_str_list []string
@@ -265,7 +265,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	tx_count := len(tx_str_list)
 	if tx_count == 0 || regcount > 10 {
-		//	manageBlocksProcessing(bheight)
+		manageBlocksProcessing(bheight)
 		return
 	}
 
@@ -278,6 +278,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	*/
 	Mutex.Lock()
 	api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
+	manageBlocksProcessing(bheight)
 	if len(api.TXIDSProcessing) >= 100 {
 		Mutex.Unlock()
 		DoBatch(100)
@@ -504,24 +505,23 @@ func findStart(start int64, top int64) (block int64) {
 	}
 }
 
-/*
-	func manageBlocksProcessing(bheight int64) {
-		api.Mutex.Lock()
-		i := slices.Index(api.BlocksProcessing, bheight)
-		lastfirst := api.BlocksProcessing[0]
-		if i != -1 && i < len(api.BlocksProcessing) {
-			api.BlocksProcessing = append(api.BlocksProcessing[:i], api.BlocksProcessing[i+1:]...)
-		}
-		tostore := int64(-1)
-		if len(api.BlocksProcessing) != 0 {
-			tostore = api.BlocksProcessing[0]
-		}
-		api.Mutex.Unlock()
-		if lastfirst != tostore && tostore > 0 {
-			storeHeight(tostore)
-		}
+func manageBlocksProcessing(bheight int64) {
+	api.Mutex.Lock()
+	i := slices.Index(api.BlocksProcessing, bheight)
+	lastfirst := api.BlocksProcessing[0]
+	if i != -1 && i < len(api.BlocksProcessing) {
+		api.BlocksProcessing = append(api.BlocksProcessing[:i], api.BlocksProcessing[i+1:]...)
 	}
-*/
+	tostore := int64(-1)
+	if len(api.BlocksProcessing) != 0 {
+		tostore = api.BlocksProcessing[0]
+	}
+	api.Mutex.Unlock()
+	if lastfirst != tostore && tostore > 0 {
+		storeHeight(tostore)
+	}
+}
+
 var lastTime = time.Now()
 var priorTimes []int64
 

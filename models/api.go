@@ -121,9 +121,9 @@ var TXIDSProcessing []string
 
 func Ask() {
 	for {
-		if len(BlocksProcessing) > 1000 {
+		if len(TXIDSProcessing)+len(BlocksProcessing) > 1000 {
 			time.Sleep(time.Millisecond)
-			if len(BlocksProcessing) > 5000 {
+			if len(TXIDSProcessing)+len(BlocksProcessing) > 5000 {
 				time.Sleep(time.Millisecond * 100)
 			}
 		}
