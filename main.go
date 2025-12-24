@@ -183,7 +183,7 @@ func start_gnomon_indexer() {
 	count := 0
 	for {
 		count++
-		if len(api.BlocksProcessing)+len(api.TXIDSProcessing) == 0 || count > 5 {
+		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 5 {
 			break
 		}
 		w, _ := time.ParseDuration("5s")
@@ -295,11 +295,23 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	if len(api.TXIDSProcessing) >= 100 {
 		batch := api.TXIDSProcessing[:100]
 		api.Mutex.Unlock()
+		Mutex.Lock()
+		Batches++
+		Mutex.Unlock()
 		DoBatch(batch)
+		Mutex.Lock()
+		Batches--
+		Mutex.Unlock()
 		return
 	} else if done {
 		api.Mutex.Unlock()
+		Mutex.Lock()
+		Batches++
+		Mutex.Unlock()
 		DoBatch(api.TXIDSProcessing)
+		Mutex.Lock()
+		Batches--
+		Mutex.Unlock()
 		return
 	}
 
@@ -309,8 +321,10 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 }
 
-func DoBatch(tx_str_list []string) {
+var Batches = 0
 
+func DoBatch(tx_str_list []string) {
+	api.RemoveTXIDs(tx_str_list)
 	var wg2 sync.WaitGroup
 
 	//Find total number of batches (should always be one now)
@@ -342,9 +356,9 @@ func DoBatch(tx_str_list []string) {
 	}
 
 	wg2.Wait()
+	Batches--
+	if !api.OK() {
 
-	if api.OK() {
-		api.RemoveTXIDs(tx_str_list)
 	}
 }
 
