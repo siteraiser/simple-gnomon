@@ -172,20 +172,25 @@ func start_gnomon_indexer() {
 
 	wg.Wait()
 
-	//Take a breather
-	w, _ := time.ParseDuration("2s")
-	time.Sleep(w)
-
 	//check if there was a missing request or a db error
 	if !api.OK() { //Start over from last saved.
 		start_gnomon_indexer() //without saving index height
 		return
 	}
-
+	count := 0
+	for {
+		if len(api.BlocksProcessing)+len(api.TXIDSProcessing) == 0 || count > 5 {
+			break
+		}
+		w, _ := time.ParseDuration("1s")
+		time.Sleep(w)
+		count++
+	}
 	//Essentials...
-	if len(api.BlocksProcessing)+len(api.TXIDSProcessing) == 0 {
+	if count <= 5 {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 	}
+
 	last := HighestKnownHeight
 	HighestKnownHeight = api.GetTopoHeight()
 	if HighestKnownHeight < 1 {
