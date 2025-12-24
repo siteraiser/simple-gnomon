@@ -344,32 +344,7 @@ func DoBatch(tx_str_list []string) {
 	wg2.Wait()
 
 	if api.OK() {
-
-		fmt.Println("Finished batch of ", len(tx_str_list))
 		api.RemoveTXIDs(tx_str_list)
-		//	api.TXIDSProcessing = api.TXIDSProcessing[len(tx_str_list):]
-		//	lowest := int64(math.MaxInt64)
-		/*	newlist
-			for _, txid := range api.TXIDSProcessing {
-				api.Mutex.Lock()
-
-				ind := slices.Index(api.TXIDSProcessing, tx_hex)
-
-				fmt.Println("tx_hex...", tx_hex)
-				fmt.Println(" api.TXIDSProcessing...", api.TXIDSProcessing)
-				if ind != -1 && ind < len(api.TXIDSProcessing) {
-					api.TXIDSProcessing = append(api.TXIDSProcessing[:0], api.TXIDSProcessing[ind:]...)
-				}
-				api.Mutex.Unlock()
-
-			}
-			 	if r.Txs[i].Block_Height < lowest && r.Txs[i].Block_Height != int64(0) {
-					lowest = r.Txs[i].Block_Height
-				}// maybe use to store complete blocks
-			if lowest != int64(0) && lowest > int64(math.MaxInt64) { //play it safe for now
-				storeHeight(int64(lowest - 1))
-			}
-		*/
 	}
 }
 
