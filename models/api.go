@@ -111,7 +111,7 @@ type Connection struct {
 
 var Endpoints = []Connection{
 	{Address: "64.226.81.37:10102"},
-	//	{Address: "node.derofoundation.org:11012"},
+	{Address: "node.derofoundation.org:11012"},
 	{Address: "dero-node-ch4k1pu.mysrv.cloud"},
 }
 

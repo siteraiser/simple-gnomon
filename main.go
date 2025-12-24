@@ -299,9 +299,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		Batches++
 		Mutex.Unlock()
 		DoBatch(batch)
-		Mutex.Lock()
-		Batches--
-		Mutex.Unlock()
 		return
 	} else if done {
 		api.Mutex.Unlock()
@@ -309,9 +306,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		Batches++
 		Mutex.Unlock()
 		DoBatch(api.TXIDSProcessing)
-		Mutex.Lock()
-		Batches--
-		Mutex.Unlock()
 		return
 	}
 
@@ -356,9 +350,10 @@ func DoBatch(tx_str_list []string) {
 	}
 
 	wg2.Wait()
-	Batches--
-	if !api.OK() {
-
+	if api.OK() {
+		Mutex.Lock()
+		Batches--
+		Mutex.Unlock()
 	}
 }
 
