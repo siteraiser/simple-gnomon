@@ -341,7 +341,10 @@ func DoBatch(size int) {
 				lowest = r.Txs[i].Block_Height
 			}
 		}
-		storeHeight(int64(lowest))
+		if lowest != 0 { //play it safe for now
+			storeHeight(int64(lowest - 1))
+		}
+
 	}
 
 }
