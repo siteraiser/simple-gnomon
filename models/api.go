@@ -256,8 +256,9 @@ func getResult[T any](method string, params any) (T, error) {
 	if method == "DERO.GetTransaction" {
 		gtxtime = time.Now()
 		avgspeed := calculateSpeed(endpoint.Id)
-		if Outs[endpoint.Id] >= PreferredRequests && avgspeed != 0 {
-			ratio := float64(PreferredRequests/2) / float64(Outs[endpoint.Id])
+		noout := Outs[endpoint.Id]
+		if noout >= PreferredRequests && avgspeed != 0 {
+			ratio := float64(PreferredRequests/2) / float64(noout)
 			if ratio != float64(1) {
 				avgspeed = int(float64(avgspeed) / float64(ratio))
 			}
@@ -266,6 +267,8 @@ func getResult[T any](method string, params any) (T, error) {
 			}
 			time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
 		}
+	} else if Outs[endpoint.Id] >= PreferredRequests {
+		time.Sleep(time.Millisecond * time.Duration(1))
 	}
 	Outs[endpoint.Id]++
 
