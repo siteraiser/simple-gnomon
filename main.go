@@ -300,7 +300,7 @@ func DoBatch(size int) {
 	Mutex.Unlock()
 	var wg2 sync.WaitGroup
 
-	//Find total number of batches
+	//Find total number of batches (should always be one now)
 	batch_count := int(math.Ceil(float64(size) / float64(batchSize)))
 	//Make an array to hold the result sets
 	type mockRequest struct {
@@ -308,7 +308,7 @@ func DoBatch(size int) {
 		Txs        []rpc.Tx_Related_Info
 	}
 	var r mockRequest
-	//Go through the array of batches and collect the results
+	//Go through the array of batches (one now) and collect the results
 	for i := range batch_count {
 		end := int(batchSize) * i
 		if i == batch_count-1 {
@@ -321,9 +321,7 @@ func DoBatch(size int) {
 		r.Txs = append(r.Txs, tx.Txs...)
 		r.Txs_as_hex = append(r.Txs_as_hex, tx.Txs_as_hex...)
 	}
-
-	//let the rest go unsaved if one request fails
-
+	// Save the batch
 	for i, tx_hex := range r.Txs_as_hex {
 		wg2.Add(1)
 		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, r.Txs[i].Block_Height)
