@@ -20,15 +20,15 @@ import (
 )
 
 var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
-var blockBatchSize = int64(50000) // Batch size (how many to process before saving w/ mem mode)
+var blockBatchSize = int64(25000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                 // Use in-memory db
 var SpamLevel = 50
 
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
-var memPreferredRequests = uint8(16)
+var memPreferredRequests = uint8(20)
 var diskBatchSize = int16(100)
-var diskPreferredRequests = uint8(16)
+var diskPreferredRequests = uint8(20)
 
 // Program vars
 var TargetHeight = int64(0)
@@ -134,6 +134,7 @@ func start_gnomon_indexer() {
 		sqlite.TrimHeight(starting_height)
 		api.BlocksProcessing = []int64{}
 		api.TXIDSProcessing = []string{}
+		Batches = 0
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
@@ -183,16 +184,15 @@ func start_gnomon_indexer() {
 	count := 0
 	for {
 		count++
-		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 10 {
+		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 20 {
 			break
 		}
-
 		w, _ := time.ParseDuration("6s")
 		time.Sleep(w)
 
 	}
 	//Essentials...
-	if count <= 10 {
+	if count <= 20 {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 	}
 
@@ -296,16 +296,10 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	if len(api.TXIDSProcessing) >= 100 {
 		batch := api.TXIDSProcessing[:100]
 		api.Mutex.Unlock()
-		Mutex.Lock()
-		Batches++
-		Mutex.Unlock()
 		DoBatch(batch)
 		return
-	} else if done {
+	} else if done && len(api.BlocksProcessing) == 0 {
 		api.Mutex.Unlock()
-		Mutex.Lock()
-		Batches++
-		Mutex.Unlock()
 		DoBatch(api.TXIDSProcessing)
 		return
 	}
@@ -319,6 +313,9 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 var Batches = 0
 
 func DoBatch(tx_str_list []string) {
+	Mutex.Lock()
+	Batches++
+	Mutex.Unlock()
 	api.RemoveTXIDs(tx_str_list)
 	var wg2 sync.WaitGroup
 
