@@ -287,8 +287,9 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 }
 
 func DoBatch(size int) {
+	Mutex.Lock()
 	tx_str_list := api.TXIDSProcessing[:size]
-
+	api.TXIDSProcessing = api.TXIDSProcessing[size:]
 	var wg2 sync.WaitGroup
 
 	//Find total number of batches
@@ -322,7 +323,9 @@ func DoBatch(size int) {
 
 	wg2.Wait()
 	if !api.OK() {
+		Mutex.Lock()
 		api.TXIDSProcessing = append(tx_str_list, api.TXIDSProcessing...)
+		Mutex.Unlock()
 	}
 
 }
