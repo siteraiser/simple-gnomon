@@ -278,7 +278,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	*/
 	Mutex.Lock()
 	api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
-	Mutex.Unlock()
 	if len(api.TXIDSProcessing) >= 100 {
 		Mutex.Unlock()
 		DoBatch(100)
