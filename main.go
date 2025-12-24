@@ -276,12 +276,19 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		fmt.Println("LARGE BLOCK...")
 	}
 	*/
+	Mutex.Lock()
 	api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
-	if len(api.TXIDSProcessing) > 100 {
+	Mutex.Unlock()
+	if len(api.TXIDSProcessing) >= 100 {
+		Mutex.Unlock()
 		DoBatch(100)
+		return
 	} else if bheight == TargetHeight {
+		Mutex.Unlock()
 		DoBatch(len(api.TXIDSProcessing))
+		return
 	}
+	Mutex.Unlock()
 	//else if complete{}
 
 }
@@ -290,6 +297,7 @@ func DoBatch(size int) {
 	Mutex.Lock()
 	tx_str_list := api.TXIDSProcessing[:size]
 	api.TXIDSProcessing = api.TXIDSProcessing[size:]
+	Mutex.Unlock()
 	var wg2 sync.WaitGroup
 
 	//Find total number of batches
@@ -476,9 +484,8 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 			api.NewError("database", "db lock", "Adding index")
 		}
 	}
-	storeHeight(int64(staged.Fsi.Height))
 	ready(true)
-
+	storeHeight(int64(staged.Fsi.Height))
 }
 
 /********************************/
