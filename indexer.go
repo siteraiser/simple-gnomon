@@ -11,6 +11,10 @@ import (
 	"github.com/deroproject/derohe/transaction"
 )
 
+/**********************************************************************************/
+// The indexer is responsible for directing the incoming response results into
+// the correct tables and provides helper functions for getting sc variable data
+/**********************************************************************************/
 type SCTXParse struct {
 	Txid       string
 	Scid       string

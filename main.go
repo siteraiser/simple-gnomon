@@ -132,7 +132,7 @@ func start_gnomon_indexer() {
 	if firstRun == true || api.Status.ErrorCount != int64(0) {
 		firstRun = false
 		sqlite.TrimHeight(starting_height)
-		api.Processing = api.Processing[0:0]
+		api.BlocksProcessing = api.BlocksProcessing[0:0]
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
@@ -162,7 +162,7 @@ func start_gnomon_indexer() {
 		api.Ask()
 		wg.Add(1)
 		Mutex.Lock()
-		api.Processing = append(api.Processing, bheight)
+		api.BlocksProcessing = append(api.BlocksProcessing, bheight)
 		Mutex.Unlock()
 		go ProcessBlock(&wg, bheight)
 
@@ -238,19 +238,16 @@ func start_gnomon_indexer() {
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
 	if !api.OK() {
-		manageProcessing(bheight)
+		//	manageBlocksProcessing(bheight)
 		return
 	}
-
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
 	})
-
-	//fmt.Println("result", result)
 	bl := api.GetBlockDeserialized(result.Blob)
 
 	if len(bl.Tx_hashes) < 1 {
-		manageProcessing(bheight)
+		//	manageBlocksProcessing(bheight)
 		return
 	}
 	var tx_str_list []string
@@ -267,23 +264,35 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	tx_count := len(tx_str_list)
-
 	if tx_count == 0 || regcount > 10 {
-
-		manageProcessing(bheight)
+		//	manageBlocksProcessing(bheight)
 		return
 	}
 
-	large := false
+	//manageBlocksProcessing(bheight)
+	/*large := false
 	if tx_count > 500 {
 		large = true
 		fmt.Println("LARGE BLOCK...")
 	}
+	*/
+	api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
+	if len(api.TXIDSProcessing) > 100 {
+		DoBatch(100)
+	} else if bheight == TargetHeight {
+		DoBatch(len(api.TXIDSProcessing))
+	}
+	//else if complete{}
+
+}
+
+func DoBatch(size int) {
+	tx_str_list := api.TXIDSProcessing[:size]
 
 	var wg2 sync.WaitGroup
 
 	//Find total number of batches
-	batch_count := int(math.Ceil(float64(tx_count) / float64(batchSize)))
+	batch_count := int(math.Ceil(float64(size) / float64(batchSize)))
 	//Make an array to hold the result sets
 	type mockRequest struct {
 		Txs_as_hex []string
@@ -305,27 +314,15 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	//let the rest go unsaved if one request fails
-	if !api.OK() {
-		manageProcessing(bheight)
-		return
-	}
-
-	//likely an error
-	if len(r.Txs_as_hex) == 0 {
-		//	fmt.Println("-------r.Txs_as_hex", transaction_result)
-		manageProcessing(bheight)
-		return
-	}
 
 	for i, tx_hex := range r.Txs_as_hex {
 		wg2.Add(1)
-		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, bheight, large)
+		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, r.Txs[i].Block_Height)
 	}
 
 	wg2.Wait()
-	if api.OK() {
-		manageProcessing(bheight)
-		return
+	if !api.OK() {
+		api.TXIDSProcessing = append(tx_str_list, api.TXIDSProcessing...)
 	}
 
 }
@@ -344,15 +341,8 @@ func storeHeight(bheight int64) {
 
 /********************************/
 /********************************/
-func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int64, large bool) {
+func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int64) { //, large bool
 	defer wg2.Done()
-
-	indexes := map[string][]string{
-		"g45":   {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
-		"nfa":   {"ART-NFA-MS1"},
-		"swaps": {"StartSwap"},
-		"tela":  {"docVersion", "telaVersion"},
-	}
 
 	b, err := hex.DecodeString(tx_hex)
 	if err != nil {
@@ -436,7 +426,12 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	if params.SCID != Hardcoded_SCIDS[0] { //only need the name for these
 		scdesc = api.GetSCDescriptionFromVars(kv)
 		scimgurl = api.GetSCIDImageURLFromVars(kv)
-		for key, name := range indexes {
+		for key, name := range map[string][]string{
+			"g45":   {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
+			"nfa":   {"ART-NFA-MS1"},
+			"swaps": {"StartSwap"},
+			"tela":  {"docVersion", "telaVersion"},
+		} {
 			for _, filter := range name {
 				if !strings.Contains(sc.Code, filter) { //fmt.Sprintf("%.1000s",)
 					continue
@@ -487,10 +482,8 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 /********************************/
 
 func findStart(start int64, top int64) (block int64) {
-
 	difference := top - start
 	offset := difference / 2
-
 	if top-start == 1 {
 		return top - 1
 	}
@@ -499,36 +492,26 @@ func findStart(start int64, top int64) (block int64) {
 	} else {
 		return findStart(offset+start, top)
 	}
-
 }
 
-func manageProcessing(bheight int64) {
-	i := -1
-	api.Mutex.Lock()
-	i = GetIndex(bheight)
-	lastfirst := api.Processing[0]
-	if i != -1 && i < len(api.Processing) {
-		api.Processing = append(api.Processing[:i], api.Processing[i+1:]...)
-	}
-	tostore := int64(-1)
-	if len(api.Processing) != 0 {
-		tostore = api.Processing[0]
-	}
-	api.Mutex.Unlock()
-	if lastfirst != tostore && tostore > 0 {
-		storeHeight(tostore)
-	}
-}
-
-func GetIndex(number int64) int {
-	for i, v := range api.Processing {
-		if v == number {
-			return i
+/*
+	func manageBlocksProcessing(bheight int64) {
+		api.Mutex.Lock()
+		i := slices.Index(api.BlocksProcessing, bheight)
+		lastfirst := api.BlocksProcessing[0]
+		if i != -1 && i < len(api.BlocksProcessing) {
+			api.BlocksProcessing = append(api.BlocksProcessing[:i], api.BlocksProcessing[i+1:]...)
+		}
+		tostore := int64(-1)
+		if len(api.BlocksProcessing) != 0 {
+			tostore = api.BlocksProcessing[0]
+		}
+		api.Mutex.Unlock()
+		if lastfirst != tostore && tostore > 0 {
+			storeHeight(tostore)
 		}
 	}
-	return -1 // Not found
-}
-
+*/
 var lastTime = time.Now()
 var priorTimes []int64
 
@@ -566,7 +549,7 @@ func showBlockStatus(bheight int64) {
 		" " + text +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph" +
-		" Inserting " + strconv.Itoa(len(api.Processing)-outtot) +
+		" Inserting " + strconv.Itoa(len(api.BlocksProcessing)-outtot) +
 		" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
 
 	fmt.Print("\r", show)

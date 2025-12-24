@@ -270,30 +270,7 @@ func handleError(err error) {
 }
 
 func (ss *SqlStore) TrimHeight(height int64) int64 {
-	/*
-		var maxscs int
-		err := ss.DB.QueryRow("SELECT max(height) as maxscs FROM scs;").Scan(&maxscs) //"SELECT count(*) heights, scid FROM interactions ORDER BY heights DESC LIMIT 1;"
-		if err != nil {
-			fmt.Println(err)
-		}
-		var maxvariables int
-		err = ss.DB.QueryRow("SELECT max(height) as maxvariables FROM variables;").Scan(&maxvariables)
-		if err != nil {
-			fmt.Println(err)
-		}
-		var maxinvokes int
-		err = ss.DB.QueryRow("SELECT max(height) as maxinvokes FROM variables;").Scan(&maxinvokes)
-		if err != nil {
-			fmt.Println(err)
-		}
-		var maxinteractions int
-		err = ss.DB.QueryRow("SELECT max(height) as maxinteractions FROM variables;").Scan(&maxinteractions)
-		if err != nil {
-			fmt.Println(err)
-		}
 
-		height := min(maxscs, maxvariables, maxinvokes, maxinteractions)
-	*/
 	fmt.Println("Trimming loose ends from:", height)
 
 	statement, err := ss.DB.Prepare("DELETE FROM scs WHERE height >= " + strconv.Itoa(int(height)) + ";")

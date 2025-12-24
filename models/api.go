@@ -110,19 +110,20 @@ type Connection struct {
 
 var Endpoints = []Connection{
 	{Address: "64.226.81.37:10102"},
-	{Address: "node.derofoundation.org:11012"},
+	//{Address: "node.derofoundation.org:11012"},
 	{Address: "dero-node-ch4k1pu.mysrv.cloud"},
 }
 
 // "64.226.81.37:10102"
 var currentEndpoint = Endpoints[0]
-var Processing []int64
+var BlocksProcessing []int64
+var TXIDSProcessing []string
 
 func Ask() {
 	for {
-		if len(Processing) > 1000 {
+		if len(BlocksProcessing) > 1000 {
 			time.Sleep(time.Millisecond)
-			if len(Processing) > 5000 {
+			if len(BlocksProcessing) > 5000 {
 				time.Sleep(time.Millisecond * 100)
 			}
 		}
@@ -136,7 +137,6 @@ func Ask() {
 				if out < lowest {
 					lowest = out
 					lowest_id = uint8(id)
-
 				} else if out >= target {
 					cancel = true
 				}
@@ -177,7 +177,7 @@ func AssignConnections(iserror bool) {
 			fmt.Println("Error endpoint:", endpoint)
 			Endpoints[i].Errors = []error{err}
 		} else if lasterrcnt == 1 {
-			Endpoints[i].Errors = Endpoints[i].Errors[0:0]
+			Endpoints[i].Errors = []error{}
 		}
 	}
 	fmt.Println(EndpointAssignments)
