@@ -94,7 +94,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 			int64(scidstoadd.Fsi.Height),
 		)
 		if err != nil {
-			fmt.Println("err StoreSCIDVariableDetails: ", err)
+			//	fmt.Println("err StoreSCIDVariableDetails: ", err)
 			return err
 		}
 		if !changed {
@@ -146,7 +146,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 			return errors.New("did not store scid/interaction")
 		}
 		if UseMem {
-			fmt.Print("sql [AddSCIDToIndex] New updated disk: ", fmt.Sprint(len(indexer.SSSBackend.GetSCIDInteractionHeight(scidstoadd.TXHash))))
+			//fmt.Print("sql [AddSCIDToIndex] New updated disk: ", fmt.Sprint(len(indexer.SSSBackend.GetSCIDInteractionHeight(scidstoadd.TXHash))))
 		}
 
 		return

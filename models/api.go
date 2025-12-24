@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -118,6 +119,18 @@ var Endpoints = []Connection{
 var currentEndpoint = Endpoints[0]
 var BlocksProcessing []int64
 var TXIDSProcessing []string
+
+func RemoveTXIDs(txids []string) {
+	Mutex.Lock()
+	var newlist []string
+	for _, txid := range TXIDSProcessing {
+		if !slices.Contains(txids, txid) {
+			newlist = append(newlist, txid)
+		}
+	}
+	TXIDSProcessing = newlist
+	Mutex.Unlock()
+}
 
 func Ask() {
 	for {
@@ -235,7 +248,9 @@ func getResult[T any](method string, params any) (T, error) {
 	endpoint = currentEndpoint
 	nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
-
+	if Outs[endpoint.Id] >= uint8(PreferredRequests) {
+		time.Sleep(time.Millisecond)
+	}
 	Outs[endpoint.Id]++
 
 	Mutex.Unlock()
@@ -415,7 +430,7 @@ func GetSCNameFromVars(keys map[string]interface{}) string {
 		}
 
 		text = string(b)
-		fmt.Println("Name found:", text)
+		//	fmt.Println("Name found:", text)
 	}
 	if text == "" {
 		return ""

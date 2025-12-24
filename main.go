@@ -132,8 +132,8 @@ func start_gnomon_indexer() {
 	if firstRun == true || api.Status.ErrorCount != int64(0) {
 		firstRun = false
 		sqlite.TrimHeight(starting_height)
-		api.BlocksProcessing = api.BlocksProcessing[0:0]
-		api.TXIDSProcessing = api.TXIDSProcessing[0:0]
+		api.BlocksProcessing = []int64{}
+		api.TXIDSProcessing = []string{}
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
@@ -179,13 +179,14 @@ func start_gnomon_indexer() {
 		start_gnomon_indexer() //without saving index height
 		return
 	}
+
 	count := 0
 	for {
 		count++
 		if len(api.BlocksProcessing)+len(api.TXIDSProcessing) == 0 || count > 5 {
 			break
 		}
-		w, _ := time.ParseDuration("1s")
+		w, _ := time.ParseDuration("5s")
 		time.Sleep(w)
 
 	}
@@ -247,19 +248,24 @@ func start_gnomon_indexer() {
 
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
+	discarding := false
+	done := false
+	if bheight == TargetHeight-1 {
+		done = true
+	}
 	if !api.OK() {
-		manageBlocksProcessing(bheight)
 		return
 	}
+
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
 	})
 	bl := api.GetBlockDeserialized(result.Blob)
 
 	if len(bl.Tx_hashes) < 1 {
-		manageBlocksProcessing(bheight)
-		return
+		discarding = true
 	}
+
 	var tx_str_list []string
 	var regcount = 0
 
@@ -275,47 +281,40 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	tx_count := len(tx_str_list)
 	if tx_count == 0 || regcount > 10 {
-		manageBlocksProcessing(bheight)
-		return
+		discarding = true
 	}
-
-	//manageBlocksProcessing(bheight)
-	/*large := false
-	if tx_count > 500 {
-		large = true
-		fmt.Println("LARGE BLOCK...")
-	}
-	*/
+	//good place to set large block flag if needed
 
 	manageBlocksProcessing(bheight)
 
 	api.Mutex.Lock()
-	api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
+	if !discarding {
+		api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
+	}
 
 	if len(api.TXIDSProcessing) >= 100 {
+		batch := api.TXIDSProcessing[:100]
 		api.Mutex.Unlock()
-		DoBatch(100)
+		DoBatch(batch)
 		return
-	} else if bheight == TargetHeight {
+	} else if done {
 		api.Mutex.Unlock()
-		DoBatch(len(api.TXIDSProcessing))
+		DoBatch(api.TXIDSProcessing)
 		return
 	}
+
 	api.Mutex.Unlock()
+
 	//else if complete{}
 
 }
 
-func DoBatch(size int) {
+func DoBatch(tx_str_list []string) {
 
-	api.Mutex.Lock()
-	tx_str_list := api.TXIDSProcessing[:size]
-	api.TXIDSProcessing = api.TXIDSProcessing[size:]
-	api.Mutex.Unlock()
 	var wg2 sync.WaitGroup
 
 	//Find total number of batches (should always be one now)
-	batch_count := int(math.Ceil(float64(size) / float64(batchSize)))
+	batch_count := int(math.Ceil(float64(len(tx_str_list)) / float64(batchSize)))
 	//Make an array to hold the result sets
 	type mockRequest struct {
 		Txs_as_hex []string
@@ -328,6 +327,7 @@ func DoBatch(size int) {
 		if i == batch_count-1 {
 			end = len(tx_str_list)
 		}
+
 		api.Ask()
 		tx := api.GetTransaction(rpc.GetTransaction_Params{
 			Tx_Hashes: tx_str_list[int(batchSize)*i : end],
@@ -342,23 +342,35 @@ func DoBatch(size int) {
 	}
 
 	wg2.Wait()
-	if !api.OK() {
-		Mutex.Lock()
-		api.TXIDSProcessing = append(tx_str_list, api.TXIDSProcessing...)
-		Mutex.Unlock()
-	} else {
-		lowest := int64(0)
-		for i, _ := range r.Txs_as_hex {
-			if r.Txs[i].Block_Height < lowest {
-				lowest = r.Txs[i].Block_Height
+
+	if api.OK() {
+
+		fmt.Println("Finished batch of ", len(tx_str_list))
+		api.RemoveTXIDs(tx_str_list)
+		//	api.TXIDSProcessing = api.TXIDSProcessing[len(tx_str_list):]
+		//	lowest := int64(math.MaxInt64)
+		/*	newlist
+			for _, txid := range api.TXIDSProcessing {
+				api.Mutex.Lock()
+
+				ind := slices.Index(api.TXIDSProcessing, tx_hex)
+
+				fmt.Println("tx_hex...", tx_hex)
+				fmt.Println(" api.TXIDSProcessing...", api.TXIDSProcessing)
+				if ind != -1 && ind < len(api.TXIDSProcessing) {
+					api.TXIDSProcessing = append(api.TXIDSProcessing[:0], api.TXIDSProcessing[ind:]...)
+				}
+				api.Mutex.Unlock()
+
 			}
-		}
-		if lowest != 0 { //play it safe for now
-			storeHeight(int64(lowest - 1))
-		}
-
+			 	if r.Txs[i].Block_Height < lowest && r.Txs[i].Block_Height != int64(0) {
+					lowest = r.Txs[i].Block_Height
+				}// maybe use to store complete blocks
+			if lowest != int64(0) && lowest > int64(math.MaxInt64) { //play it safe for now
+				storeHeight(int64(lowest - 1))
+			}
+		*/
 	}
-
 }
 
 func storeHeight(bheight int64) {
@@ -398,7 +410,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	}
 
 	tx_type := ""
-	fmt.Print("scid found at height:", fmt.Sprint(bheight)+"\n")
+	//	fmt.Print("scid found at height:", fmt.Sprint(bheight)+"\n")
 	params := rpc.GetSC_Params{}
 	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
 		tx_type = "install"
@@ -434,6 +446,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	// Discard the discardable
 	if CustomActions[params.SCID].Act == "discard" ||
 		(CustomActions[params.SCID].Act == "discard-before" && CustomActions[params.SCID].Block >= bheight) {
+
 		return
 	}
 	if (slices.Contains(Spammers, signer)) && params.SCID == Hardcoded_SCIDS[0] { //|| spammy == true
@@ -494,15 +507,15 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		Class:      class, //Class and tags are not in original gnomon
 		Tags:       tags,
 	}
-	fmt.Println("staged scid:", staged.TXHash, ":", fmt.Sprint(staged.Fsi.Height))
-	fmt.Println("staged params.scid:", params.SCID, ":", fmt.Sprint(staged.Fsi.Height))
+	//	fmt.Println("staged scid:", staged.TXHash, ":", fmt.Sprint(staged.Fsi.Height))
+	//	fmt.Println("staged params.scid:", params.SCID, ":", fmt.Sprint(staged.Fsi.Height))
 
 	// now add the scid to the index
 	Ask()
 	// if the contract already exists, record the interaction
 	ready(false)
 	if err := sqlindexer.AddSCIDToIndex(staged); err != nil {
-		fmt.Println(err, " ", staged.TXHash, " ", staged.Fsi.Height)
+		//fmt.Println(err, " ", staged.TXHash, " ", staged.Fsi.Height)
 		if strings.Contains(err.Error(), "database is locked") {
 			api.NewError("database", "db lock", "Adding index")
 		}

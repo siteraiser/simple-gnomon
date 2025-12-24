@@ -508,7 +508,7 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, height int, scname str
 	ready(true)
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
-		fmt.Println("ownerinsertid: ", last_insert_id)
+		//	fmt.Println("ownerinsertid: ", last_insert_id)
 		if last_insert_id >= 0 {
 			changes = true
 			return
@@ -579,8 +579,8 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 	results := make(map[int64][]*SCIDVariable)
 	var heights []int64
 
-	bName := scid + "vars"
-	fmt.Println("GetSCIDVariableDetailsAtTopoheight", bName)
+	//bName := scid + "vars"
+	//fmt.Println("GetSCIDVariableDetailsAtTopoheight", bName)
 
 	//fmt.Println("SELECT height,vars FROM variables WHERE height=? AND scid =?")
 	ready(false)
@@ -664,7 +664,7 @@ func (ss *SqlStore) StoreSCIDInvoke(scidstoadd SCIDToIndexStage, height int64) (
 		if err == nil {
 			last_insert_id, _ := result.LastInsertId()
 			if last_insert_id >= 0 {
-				fmt.Println("\n INSERTED NEW RECORD " + strconv.Itoa(int(last_insert_id)) + " H:" + strconv.Itoa(int(height)))
+				//fmt.Println("\n INSERTED NEW RECORD " + strconv.Itoa(int(last_insert_id)) + " H:" + strconv.Itoa(int(height)))
 				changes = true
 			}
 		}
@@ -707,7 +707,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd SCIDToIndexStage, heig
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		if last_insert_id >= 0 {
-			fmt.Println("\n INSERTED NEW RECORD " + strconv.Itoa(int(last_insert_id)) + " H:" + strconv.Itoa(int(height)))
+			//	fmt.Println("\n INSERTED NEW RECORD " + strconv.Itoa(int(last_insert_id)) + " H:" + strconv.Itoa(int(height)))
 			changes = true
 		}
 	}
@@ -734,7 +734,7 @@ func (ss *SqlStore) GetSCIDInteractionHeight(scid string) (scidinteractions []in
 	)
 	for rows.Next() {
 		rows.Scan(&height)
-		fmt.Println("height ", height)
+		//	fmt.Println("height ", height)
 		scidinteractions = append(scidinteractions, int64(height))
 	}
 
