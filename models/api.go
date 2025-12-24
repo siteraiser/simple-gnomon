@@ -248,8 +248,14 @@ func getResult[T any](method string, params any) (T, error) {
 	endpoint = currentEndpoint
 	nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
-	if Outs[endpoint.Id] >= uint8(PreferredRequests) {
-		time.Sleep(time.Millisecond)
+
+	avgspeed := getSpeed(endpoint.Id)
+	if Outs[endpoint.Id] >= PreferredRequests {
+		ratio := float64(PreferredRequests/2) / float64(Outs[endpoint.Id])
+		if ratio != float64(1) {
+			avgspeed = int(float64(avgspeed) / float64(ratio))
+		}
+		time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
 	}
 	Outs[endpoint.Id]++
 
