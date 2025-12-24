@@ -201,22 +201,26 @@ func AssignConnections(iserror bool) {
 var priorTimes = make(map[uint8][]int64)
 var lastTime = time.Now()
 
-func getSpeed(id uint8) int {
-	t := time.Now()
+func calculateSpeed(id uint8) int {
 	if len(priorTimes[id]) > 100 {
 		priorTimes[id] = priorTimes[id][100:]
 	}
-	priorTimes[id] = append(priorTimes[id], time.Since(lastTime).Microseconds())
 	total := int64(0)
 	for _, ti := range priorTimes[id] {
 		total += ti
 	}
-	lastTime = t
 	value := int64(0)
 	if len(priorTimes[id]) != 0 {
 		value = int64(total) / int64(len(priorTimes[id]))
 	}
 	return int(value)
+}
+
+func updateSpeed(id uint8, start time.Time) {
+	if len(priorTimes[id]) > 100 {
+		priorTimes[id] = priorTimes[id][100:]
+	}
+	priorTimes[id] = append(priorTimes[id], time.Since(start).Microseconds())
 }
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
@@ -249,13 +253,20 @@ func getResult[T any](method string, params any) (T, error) {
 	nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
 
-	avgspeed := getSpeed(endpoint.Id)
-	if Outs[endpoint.Id] >= PreferredRequests {
-		ratio := float64(PreferredRequests/2) / float64(Outs[endpoint.Id])
-		if ratio != float64(1) {
-			avgspeed = int(float64(avgspeed) / float64(ratio))
+	gtxtime := time.Time{}
+	if method == "DERO.GetTransaction" {
+		gtxtime = time.Now()
+		avgspeed := calculateSpeed(endpoint.Id)
+		if Outs[endpoint.Id] >= PreferredRequests && avgspeed != 0 {
+			ratio := float64(PreferredRequests/2) / float64(Outs[endpoint.Id])
+			if ratio != float64(1) {
+				avgspeed = int(float64(avgspeed) / float64(ratio))
+			}
+			if avgspeed > 1000000 {
+				avgspeed = 1000000
+			}
+			time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
 		}
-		time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
 	}
 	Outs[endpoint.Id]++
 
@@ -269,6 +280,10 @@ func getResult[T any](method string, params any) (T, error) {
 
 	Mutex.Lock()
 	Outs[endpoint.Id]--
+	notime := time.Time{}
+	if method == "DERO.GetTransaction" && gtxtime != notime {
+		updateSpeed(endpoint.Id, gtxtime)
+	}
 	Mutex.Unlock()
 
 	if err != nil {
