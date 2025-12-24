@@ -201,9 +201,6 @@ func AssignConnections(iserror bool) {
 var priorTimes = make(map[uint8][]int64)
 
 func calculateSpeed(id uint8) int {
-	if len(priorTimes[id]) > 100 {
-		priorTimes[id] = priorTimes[id][100:]
-	}
 	total := int64(0)
 	for _, ti := range priorTimes[id] {
 		total += ti
@@ -216,8 +213,8 @@ func calculateSpeed(id uint8) int {
 }
 
 func updateSpeed(id uint8, start time.Time) {
-	if len(priorTimes[id]) > 100 {
-		priorTimes[id] = priorTimes[id][100:]
+	if len(priorTimes[id]) > 10 {
+		priorTimes[id] = priorTimes[id][10:]
 	}
 	priorTimes[id] = append(priorTimes[id], time.Since(start).Microseconds())
 }
@@ -253,10 +250,10 @@ func getResult[T any](method string, params any) (T, error) {
 	rpcClient = jsonrpc.NewClient(nodeaddr)
 
 	gtxtime := time.Time{}
+	noout := Outs[endpoint.Id]
 	if method == "DERO.GetTransaction" {
 		gtxtime = time.Now()
 		avgspeed := calculateSpeed(endpoint.Id)
-		noout := Outs[endpoint.Id]
 		if noout >= PreferredRequests && avgspeed != 0 {
 			ratio := float64(PreferredRequests/2) / float64(noout)
 			if ratio != float64(1) {
@@ -267,8 +264,12 @@ func getResult[T any](method string, params any) (T, error) {
 			}
 			time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
 		}
-	} else if Outs[endpoint.Id] >= PreferredRequests {
-		time.Sleep(time.Millisecond * time.Duration(5))
+	} else if noout >= PreferredRequests {
+		ratio := float64(PreferredRequests/2) / float64(noout)
+		if ratio != float64(1) {
+			time.Sleep(time.Millisecond * time.Duration(int(float64(5)/float64(ratio))))
+		}
+
 	}
 	Outs[endpoint.Id]++
 
