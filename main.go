@@ -183,7 +183,9 @@ func start_gnomon_indexer() {
 	}
 
 	//Essentials...
-	sqlite.StoreLastIndexHeight(TargetHeight)
+	if len(api.BlocksProcessing)+len(api.TXIDSProcessing) == 0 {
+		sqlite.StoreLastIndexHeight(TargetHeight)
+	}
 	last := HighestKnownHeight
 	HighestKnownHeight = api.GetTopoHeight()
 	if HighestKnownHeight < 1 {
