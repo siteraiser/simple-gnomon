@@ -20,7 +20,7 @@ import (
 )
 
 var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
-var blockBatchSize = int64(50000) // Batch size (how many to process before saving w/ mem mode)
+var blockBatchSize = int64(10000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                 // Use in-memory db
 var SpamLevel = 50
 
@@ -183,15 +183,16 @@ func start_gnomon_indexer() {
 	count := 0
 	for {
 		count++
-		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 5 {
+		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 10 {
 			break
 		}
-		w, _ := time.ParseDuration("5s")
+
+		w, _ := time.ParseDuration("6s")
 		time.Sleep(w)
 
 	}
 	//Essentials...
-	if count <= 5 {
+	if count <= 10 {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 	}
 
