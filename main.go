@@ -473,6 +473,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 			api.NewError("database", "db lock", "Adding index")
 		}
 	}
+	storeHeight(int64(staged.Fsi.Height))
 	ready(true)
 
 }
