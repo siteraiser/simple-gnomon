@@ -173,7 +173,7 @@ func start_gnomon_indexer() {
 	wg.Wait()
 
 	//Take a breather
-	w, _ := time.ParseDuration("1s")
+	w, _ := time.ParseDuration("2s")
 	time.Sleep(w)
 
 	//check if there was a missing request or a db error
