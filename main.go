@@ -334,6 +334,14 @@ func DoBatch(size int) {
 		Mutex.Lock()
 		api.TXIDSProcessing = append(tx_str_list, api.TXIDSProcessing...)
 		Mutex.Unlock()
+	} else {
+		lowest := int64(0)
+		for i, _ := range r.Txs_as_hex {
+			if r.Txs[i].Block_Height < lowest {
+				lowest = r.Txs[i].Block_Height
+			}
+		}
+		storeHeight(int64(lowest))
 	}
 
 }
@@ -485,7 +493,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		}
 	}
 	ready(true)
-	storeHeight(int64(staged.Fsi.Height))
+
 }
 
 /********************************/
