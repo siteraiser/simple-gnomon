@@ -518,7 +518,7 @@ func manageBlocksProcessing(bheight int64) {
 	}
 	api.Mutex.Unlock()
 	if lastfirst != tostore && tostore > 0 {
-		storeHeight(tostore)
+		//	storeHeight(tostore)
 	}
 }
 
