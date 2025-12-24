@@ -128,11 +128,12 @@ func start_gnomon_indexer() {
 		}
 		fmt.Println("err: ", err)
 	}
-
+	//Errors
 	if firstRun == true || api.Status.ErrorCount != int64(0) {
 		firstRun = false
 		sqlite.TrimHeight(starting_height)
 		api.BlocksProcessing = api.BlocksProcessing[0:0]
+		api.TXIDSProcessing = api.TXIDSProcessing[0:0]
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
@@ -154,6 +155,7 @@ func start_gnomon_indexer() {
 
 	var wg sync.WaitGroup
 	for bheight := starting_height; bheight < TargetHeight; bheight++ {
+
 		if !api.OK() {
 			break
 		}
@@ -284,28 +286,32 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		fmt.Println("LARGE BLOCK...")
 	}
 	*/
-	Mutex.Lock()
-	api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
+
 	manageBlocksProcessing(bheight)
+
+	api.Mutex.Lock()
+	api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
+
 	if len(api.TXIDSProcessing) >= 100 {
-		Mutex.Unlock()
+		api.Mutex.Unlock()
 		DoBatch(100)
 		return
 	} else if bheight == TargetHeight {
-		Mutex.Unlock()
+		api.Mutex.Unlock()
 		DoBatch(len(api.TXIDSProcessing))
 		return
 	}
-	Mutex.Unlock()
+	api.Mutex.Unlock()
 	//else if complete{}
 
 }
 
 func DoBatch(size int) {
-	Mutex.Lock()
+
+	api.Mutex.Lock()
 	tx_str_list := api.TXIDSProcessing[:size]
 	api.TXIDSProcessing = api.TXIDSProcessing[size:]
-	Mutex.Unlock()
+	api.Mutex.Unlock()
 	var wg2 sync.WaitGroup
 
 	//Find total number of batches (should always be one now)
