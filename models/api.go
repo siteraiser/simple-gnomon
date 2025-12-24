@@ -199,7 +199,6 @@ func AssignConnections(iserror bool) {
 }
 
 var priorTimes = make(map[uint8][]int64)
-var lastTime = time.Now()
 
 func calculateSpeed(id uint8) int {
 	if len(priorTimes[id]) > 100 {
@@ -262,8 +261,8 @@ func getResult[T any](method string, params any) (T, error) {
 			if ratio != float64(1) {
 				avgspeed = int(float64(avgspeed) / float64(ratio))
 			}
-			if avgspeed > 1000000 {
-				avgspeed = 1000000
+			if avgspeed > 100000 {
+				avgspeed = 100000
 			}
 			time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
 		}
