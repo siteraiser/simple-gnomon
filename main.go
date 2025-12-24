@@ -250,10 +250,7 @@ func start_gnomon_indexer() {
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
 	discarding := false
-	done := false
-	if bheight == TargetHeight-1 {
-		done = true
-	}
+
 	if !api.OK() {
 		return
 	}
@@ -298,7 +295,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		api.Mutex.Unlock()
 		DoBatch(batch)
 		return
-	} else if done && len(api.BlocksProcessing) == 0 {
+	} else if len(api.BlocksProcessing) == 0 {
 		api.Mutex.Unlock()
 		DoBatch(api.TXIDSProcessing)
 		return
