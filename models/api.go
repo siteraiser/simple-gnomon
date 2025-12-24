@@ -268,7 +268,7 @@ func getResult[T any](method string, params any) (T, error) {
 			time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
 		}
 	} else if Outs[endpoint.Id] >= PreferredRequests {
-		time.Sleep(time.Millisecond * time.Duration(1))
+		time.Sleep(time.Millisecond * time.Duration(5))
 	}
 	Outs[endpoint.Id]++
 
