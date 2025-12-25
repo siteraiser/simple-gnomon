@@ -179,28 +179,29 @@ func start_gnomon_indexer() {
 		start_gnomon_indexer() //without saving index height
 		return
 	}
-
+	place := 0
 	count := 0
 	for {
-		count++
-		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 120 {
-			break
+
+		loading := []string{" .. .", ". .. ", ".. .."}
+		fmt.Print("\r", loading[place])
+		place++
+		if place == 3 {
+			place = 0
 		}
 
+		count++
+		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 240 {
+			break
+		}
 		if len(api.BlocksProcessing) == 0 && len(api.TXIDSProcessing) != 0 {
 			DoBatch(api.TXIDSProcessing)
 		}
-
-		wait := " . .."
-		if count%2 == 0 {
-			wait = ".. . "
-		}
-		fmt.Print("\r", wait)
 		w, _ := time.ParseDuration("1s")
 		time.Sleep(w)
 	}
 
-	if count <= 120 {
+	if count <= 240 {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 	}
 

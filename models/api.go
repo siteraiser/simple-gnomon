@@ -20,6 +20,11 @@ import (
 	"github.com/ybbus/jsonrpc"
 )
 
+var Endpoints = []Connection{
+	{Address: "64.226.81.37:10102"},
+	//	{Address: "node.derofoundation.org:11012"},
+	{Address: "dero-node-ch4k1pu.mysrv.cloud"},
+}
 var Mutex sync.Mutex
 
 // No Errors
@@ -107,12 +112,6 @@ type Connection struct {
 	Id      uint8
 	Address string
 	Errors  []error
-}
-
-var Endpoints = []Connection{
-	{Address: "64.226.81.37:10102"},
-	{Address: "node.derofoundation.org:11012"},
-	{Address: "dero-node-ch4k1pu.mysrv.cloud"},
 }
 
 var currentEndpoint = Endpoints[0]
