@@ -119,6 +119,14 @@ var currentEndpoint = Endpoints[0]
 var BlocksProcessing []int64
 var TXIDSProcessing []string
 
+func RemoveBlocks(bheight int64) {
+	Mutex.Lock()
+	i := slices.Index(BlocksProcessing, bheight)
+	if i != -1 && i < len(BlocksProcessing) {
+		BlocksProcessing = append(BlocksProcessing[:i], BlocksProcessing[i+1:]...)
+	}
+	Mutex.Unlock()
+}
 func RemoveTXIDs(txids []string) {
 	Mutex.Lock()
 	var newlist []string
@@ -170,10 +178,11 @@ var PreferredRequests = uint8(0)
 
 func AssignConnections(iserror bool) {
 	//params := rpc.GetInfo_Params{}
-	//	if iserror {
+	//if iserror {
 	Outs = Outs[0:0]
 	EndpointAssignments = make(map[*Connection]int16)
 	//	}
+
 	//count := 0
 	for i, endpoint := range Endpoints {
 		lasterrcnt := len(Endpoints[i].Errors)
@@ -192,6 +201,11 @@ func AssignConnections(iserror bool) {
 		} else if lasterrcnt == 1 {
 			Endpoints[i].Errors = []error{}
 		}
+	}
+	if len(EndpointAssignments) == 0 {
+		w, _ := time.ParseDuration("10s")
+		time.Sleep(w)
+		AssignConnections(false)
 	}
 	fmt.Println(EndpointAssignments)
 	fmt.Println(Outs)

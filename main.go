@@ -139,10 +139,9 @@ func start_gnomon_indexer() {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
 	}
-	//	if api.Status.ErrorCount != int64(0) || last_height % 1000 == 0 {
+
 	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
-	//		return
-	//	}
+
 	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
 
 	fmt.Println("Topo Height ", HighestKnownHeight)
@@ -211,7 +210,7 @@ func start_gnomon_indexer() {
 		}
 	}
 
-	fmt.Println("last:", last)
+	fmt.Println("Last:", last)
 	fmt.Println("TargetHeight:", TargetHeight)
 	//maybe skip when caught up
 	fmt.Println("Purging spam:", Spammers)
@@ -287,7 +286,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 	//good place to set large block flag if needed
 
-	manageBlocksProcessing(bheight)
+	api.RemoveBlocks(bheight)
 
 	api.Mutex.Lock()
 	if !discarding {
@@ -306,8 +305,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 
 	api.Mutex.Unlock()
-
-	//else if complete{}
 
 }
 
@@ -386,7 +383,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		}
 		panic(err)
 	}
-	//
 
 	if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
 		return
@@ -397,7 +393,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	params := rpc.GetSC_Params{}
 	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
 		tx_type = "install"
-		//	fmt.Println("install:", tx)
+		fmt.Println("Installed:", tx.SCDATA.Value(rpc.SCCODE, rpc.DataString))
 
 		params = rpc.GetSC_Params{
 			SCID:       tx.GetHash().String(),
@@ -423,7 +419,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	// Discard the discardable
 	if CustomActions[params.SCID].Act == "discard" ||
 		(CustomActions[params.SCID].Act == "discard-before" && CustomActions[params.SCID].Block >= bheight) {
-
 		return
 	}
 	if (slices.Contains(Spammers, signer)) && params.SCID == Hardcoded_SCIDS[0] { //|| spammy == true
@@ -444,7 +439,6 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	scname := api.GetSCNameFromVars(kv)
 	scdesc := ""
 	scimgurl := ""
-
 	tags := ""
 	class := ""
 	if params.SCID != Hardcoded_SCIDS[0] { //only need the name for these
@@ -516,15 +510,6 @@ func findStart(start int64, top int64) (block int64) {
 	} else {
 		return findStart(offset+start, top)
 	}
-}
-
-func manageBlocksProcessing(bheight int64) {
-	api.Mutex.Lock()
-	i := slices.Index(api.BlocksProcessing, bheight)
-	if i != -1 && i < len(api.BlocksProcessing) {
-		api.BlocksProcessing = append(api.BlocksProcessing[:i], api.BlocksProcessing[i+1:]...)
-	}
-	api.Mutex.Unlock()
 }
 
 var lastTime = time.Now()
