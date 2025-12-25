@@ -20,7 +20,7 @@ import (
 )
 
 var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
-var blockBatchSize = int64(50000) // Batch size (how many to process before saving w/ mem mode)
+var blockBatchSize = int64(10000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                 // Use in-memory db
 var SpamLevel = 50
 
@@ -140,8 +140,10 @@ func start_gnomon_indexer() {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
 	}
+
 	api.Completed = []int{}                                  //clear here
 	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
+	api.HighestContinuous = int(starting_height)
 
 	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
 
@@ -184,14 +186,12 @@ func start_gnomon_indexer() {
 	place := 0
 	count := 0
 	for {
-
 		loading := []string{" .. .", ". .. ", ".. .."}
 		fmt.Print("\r", loading[place])
 		place++
 		if place == 3 {
 			place = 0
 		}
-
 		count++
 		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 240 {
 			break
@@ -355,7 +355,7 @@ func DoBatch(tx_str_list []string) {
 		Mutex.Lock()
 		Batches--
 		Mutex.Unlock()
-		h := api.FindContinous(r)
+		h := api.FindContinuous(r)
 		if h != 0 {
 			storeHeight(h)
 		}

@@ -124,8 +124,9 @@ var BlocksProcessing []int64
 var TXIDSProcessing []string
 var Blocks = map[int]int{}
 var Completed []int
+var HighestContinuous int
 
-func FindContinous(r MockRequest) int64 {
+func FindContinuous(r MockRequest) int64 {
 
 	Mutex.Lock()
 	for i, _ := range r.Txs_as_hex {
@@ -134,20 +135,21 @@ func FindContinous(r MockRequest) int64 {
 			Completed = append(Completed, int(r.Txs[i].Block_Height))
 		}
 	}
-	highestcontinuous := 0
+
 	if len(Completed) != 0 {
+		prevcontinuous := HighestContinuous
 		sort.Ints(Completed)
 		for i, height := range Completed {
 			if slices.Index(Completed, height+1) != -1 {
-				if height > highestcontinuous && height == (Completed[i+1]-1) {
-					highestcontinuous = height
+				if (height == prevcontinuous+1 || height == HighestContinuous+1) && height == (Completed[i+1]-1) {
+					HighestContinuous = height
 					RemoveCompleted(height)
 				}
 			}
 		}
-		if highestcontinuous != 0 {
+		if HighestContinuous != prevcontinuous {
 			Mutex.Unlock()
-			return int64(highestcontinuous)
+			return int64(HighestContinuous)
 		}
 	}
 	Mutex.Unlock()
