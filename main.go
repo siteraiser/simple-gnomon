@@ -295,7 +295,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		api.Mutex.Unlock()
 		DoBatch(batch)
 		return
-	} else if len(api.BlocksProcessing) == 0 {
+	} else if bheight > TargetHeight-2 || len(api.BlocksProcessing) == 0 {
 		api.Mutex.Unlock()
 		DoBatch(api.TXIDSProcessing)
 		return
