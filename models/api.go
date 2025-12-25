@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -113,11 +114,53 @@ type Connection struct {
 	Address string
 	Errors  []error
 }
+type MockRequest struct {
+	Txs_as_hex []string
+	Txs        []rpc.Tx_Related_Info
+}
 
 var currentEndpoint = Endpoints[0]
 var BlocksProcessing []int64
 var TXIDSProcessing []string
 var Blocks = map[int]int{}
+var Completed []int
+
+func FindContinous(r MockRequest) int64 {
+	Mutex.Lock()
+	for i, _ := range r.Txs_as_hex {
+		Blocks[int(r.Txs[i].Block_Height)]--
+		if Blocks[int(r.Txs[i].Block_Height)] == 0 {
+			Completed = append(Completed, int(r.Txs[i].Block_Height))
+		}
+	}
+	highestcontinuous := 0
+	if len(Completed) != 0 {
+		sort.Ints(Completed)
+		for i, height := range Completed {
+			if len(Completed) > height+1 {
+				if height > highestcontinuous && height == (Completed[i+1]-1) {
+					highestcontinuous = height
+					RemoveCompleted(height)
+				}
+			}
+		}
+		if highestcontinuous != 0 {
+			Mutex.Unlock()
+			return int64(highestcontinuous)
+		}
+	}
+	Mutex.Unlock()
+	return 0
+}
+
+func RemoveCompleted(bheight int) {
+
+	i := slices.Index(Completed, bheight)
+	if i != -1 && i < len(Completed) {
+		Completed = append(Completed[:i], Completed[i+1:]...)
+	}
+
+}
 
 func RemoveBlocks(bheight int64) {
 	Mutex.Lock()
