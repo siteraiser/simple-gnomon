@@ -20,7 +20,7 @@ import (
 )
 
 var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
-var blockBatchSize = int64(50000) // Batch size (how many to process before saving w/ mem mode)
+var blockBatchSize = int64(10000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                 // Use in-memory db
 var SpamLevel = 50
 
@@ -128,19 +128,19 @@ func start_gnomon_indexer() {
 		}
 		fmt.Println("err: ", err)
 	}
+
 	//Errors
 	if firstRun == true || api.Status.ErrorCount != int64(0) {
 		firstRun = false
 		sqlite.TrimHeight(starting_height)
 		api.BlocksProcessing = []int64{}
 		api.TXIDSProcessing = []string{}
-		api.Completed = []int{}
 		Batches = 0
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
 	}
-
+	api.Completed = []int{}                                  //clear here
 	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
 
 	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
@@ -170,8 +170,6 @@ func start_gnomon_indexer() {
 		go ProcessBlock(&wg, bheight)
 
 	}
-	// Wait for all requests to finish
-	fmt.Println("Batch completed, count:", blockBatchSize)
 
 	wg.Wait()
 
@@ -180,6 +178,9 @@ func start_gnomon_indexer() {
 		start_gnomon_indexer() //without saving index height
 		return
 	}
+	// Wait for all requests to finish
+	fmt.Println("Batch completed, count:", blockBatchSize)
+
 	place := 0
 	count := 0
 	for {
