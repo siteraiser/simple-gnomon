@@ -117,6 +117,7 @@ type Connection struct {
 var currentEndpoint = Endpoints[0]
 var BlocksProcessing []int64
 var TXIDSProcessing []string
+var Blocks = map[int]int{}
 
 func RemoveBlocks(bheight int64) {
 	Mutex.Lock()

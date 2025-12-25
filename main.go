@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -134,6 +135,7 @@ func start_gnomon_indexer() {
 		sqlite.TrimHeight(starting_height)
 		api.BlocksProcessing = []int64{}
 		api.TXIDSProcessing = []string{}
+		completed = []int{}
 		Batches = 0
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
@@ -295,7 +297,9 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	api.RemoveBlocks(bheight)
 
 	api.Mutex.Lock()
+
 	if !discarding {
+		api.Blocks[int(bheight)] += tx_count
 		api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
 	}
 
@@ -351,9 +355,32 @@ func DoBatch(tx_str_list []string) {
 	if api.OK() {
 		Mutex.Lock()
 		Batches--
+		for i, _ := range r.Txs_as_hex {
+			api.Blocks[int(r.Txs[i].Block_Height)]--
+			if api.Blocks[int(r.Txs[i].Block_Height)] == 0 {
+				completed = append(completed, int(r.Txs[i].Block_Height))
+			}
+		}
+		highestcontinuous := 0
+		if len(completed) != 0 {
+			sort.Ints(completed)
+			for i, height := range completed {
+				if len(completed) > height+1 {
+					if height > highestcontinuous && height == (completed[i+1]+1) {
+						highestcontinuous = height
+					}
+				}
+			}
+			if highestcontinuous != 0 {
+				storeHeight(int64(highestcontinuous))
+			}
+		}
+
 		Mutex.Unlock()
 	}
 }
+
+var completed []int
 
 func storeHeight(bheight int64) {
 	Ask()
