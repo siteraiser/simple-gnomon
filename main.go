@@ -186,6 +186,11 @@ func start_gnomon_indexer() {
 		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 120 {
 			break
 		}
+
+		if len(api.BlocksProcessing) == 0 && len(api.TXIDSProcessing) != 0 {
+			DoBatch(api.TXIDSProcessing)
+		}
+
 		wait := " . .."
 		if count%2 == 0 {
 			wait = ".. . "
@@ -297,10 +302,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		batch := api.TXIDSProcessing[:100]
 		api.Mutex.Unlock()
 		DoBatch(batch)
-		return
-	} else if bheight > TargetHeight-5 || len(api.BlocksProcessing) == 0 {
-		api.Mutex.Unlock()
-		DoBatch(api.TXIDSProcessing)
 		return
 	}
 
