@@ -126,6 +126,7 @@ var Blocks = map[int]int{}
 var Completed []int
 
 func FindContinous(r MockRequest) int64 {
+
 	Mutex.Lock()
 	for i, _ := range r.Txs_as_hex {
 		Blocks[int(r.Txs[i].Block_Height)]--
@@ -137,7 +138,7 @@ func FindContinous(r MockRequest) int64 {
 	if len(Completed) != 0 {
 		sort.Ints(Completed)
 		for i, height := range Completed {
-			if len(Completed) > height+1 {
+			if slices.Index(Completed, height+1) != -1 {
 				if height > highestcontinuous && height == (Completed[i+1]-1) {
 					highestcontinuous = height
 					RemoveCompleted(height)

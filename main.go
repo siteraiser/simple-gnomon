@@ -372,7 +372,6 @@ func storeHeight(bheight int64) {
 		}
 		return
 	}
-	fmt.Println("Saving LastIndexHeight: ", bheight)
 }
 
 /********************************/
