@@ -114,7 +114,7 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 			)
 
 			if err == nil {
-				fmt.Println("err StoreOwner: ", err)
+				//fmt.Println("err StoreOwner: ", err)
 				return err
 			}
 			if changed {
