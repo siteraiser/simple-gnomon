@@ -187,15 +187,15 @@ func start_gnomon_indexer() {
 		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 120 {
 			break
 		}
-		w, _ := time.ParseDuration("1s")
-		time.Sleep(w)
-		wait := " ..."
+		wait := " . .."
 		if count%2 == 0 {
-			wait = "... "
+			wait = ".. . "
 		}
 		fmt.Print("\r", wait)
+		w, _ := time.ParseDuration("1s")
+		time.Sleep(w)
 	}
-	//Essentials...
+
 	if count <= 120 {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 	}
@@ -408,16 +408,10 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	} else if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
 		tx_type = "invoke"
 		//	fmt.Println("invoke:", tx)
-
 		scid, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
-
-		if !ok { // paranoia
+		if !ok || scid.String() == "" {
 			return
 		}
-		if scid.String() == "" { // yeah... weird
-			return
-		}
-
 		params = rpc.GetSC_Params{
 			SCID:       scid.String(),
 			Code:       false,
