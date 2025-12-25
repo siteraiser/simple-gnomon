@@ -113,11 +113,13 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 				scidstoadd.Tags,
 			)
 
-			if err != nil {
+			if err == nil {
 				fmt.Println("err StoreOwner: ", err)
 				return err
 			}
-
+			if changed {
+				showSC(scidstoadd.Fsi.SCName, scidstoadd.TXHash, scidstoadd.ScCode)
+			}
 		} else if scidstoadd.Type == "invoke" {
 			//it is an invoke
 			changed, err = indexer.SSSBackend.StoreSCIDInvoke(
@@ -283,4 +285,14 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 	}
 
 	return variables, nil
+}
+
+func showSC(SCName string, TXHash string, ScCode string) {
+	fmt.Println("SC FOUND ----------------------------------")
+	fmt.Println("SC NAME:", SCName)
+	fmt.Println("-------------------------------------------")
+	fmt.Println("SCID:", TXHash)
+	fmt.Println("-------------------------------------------")
+	fmt.Println(ScCode)
+	fmt.Println("-------------------------------------------")
 }

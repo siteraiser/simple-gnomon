@@ -115,7 +115,6 @@ var Endpoints = []Connection{
 	{Address: "dero-node-ch4k1pu.mysrv.cloud"},
 }
 
-// "64.226.81.37:10102"
 var currentEndpoint = Endpoints[0]
 var BlocksProcessing []int64
 var TXIDSProcessing []string

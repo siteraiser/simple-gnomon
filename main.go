@@ -523,18 +523,10 @@ func findStart(start int64, top int64) (block int64) {
 func manageBlocksProcessing(bheight int64) {
 	api.Mutex.Lock()
 	i := slices.Index(api.BlocksProcessing, bheight)
-	lastfirst := api.BlocksProcessing[0]
 	if i != -1 && i < len(api.BlocksProcessing) {
 		api.BlocksProcessing = append(api.BlocksProcessing[:i], api.BlocksProcessing[i+1:]...)
 	}
-	tostore := int64(-1)
-	if len(api.BlocksProcessing) != 0 {
-		tostore = api.BlocksProcessing[0]
-	}
 	api.Mutex.Unlock()
-	if lastfirst != tostore && tostore > 0 {
-		//	storeHeight(tostore)
-	}
 }
 
 var lastTime = time.Now()
