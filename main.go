@@ -20,7 +20,7 @@ import (
 )
 
 var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
-var blockBatchSize = int64(10000) // Batch size (how many to process before saving w/ mem mode)
+var blockBatchSize = int64(50000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                 // Use in-memory db
 var SpamLevel = 50
 
