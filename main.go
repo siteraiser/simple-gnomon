@@ -184,15 +184,19 @@ func start_gnomon_indexer() {
 	count := 0
 	for {
 		count++
-		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 20 {
+		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 120 {
 			break
 		}
-		w, _ := time.ParseDuration("6s")
+		w, _ := time.ParseDuration("1s")
 		time.Sleep(w)
-
+		wait := " ..."
+		if count%2 == 0 {
+			wait = "... "
+		}
+		fmt.Print("\r", wait)
 	}
 	//Essentials...
-	if count <= 20 {
+	if count <= 120 {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 	}
 
