@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -120,40 +119,68 @@ type MockRequest struct {
 }
 
 var currentEndpoint = Endpoints[0]
-var BlocksProcessing []int64
-var TXIDSProcessing []string
-var Blocks = map[int]int{}
-var Completed []int
-var HighestContinuous int
 
-func FindContinuous(r MockRequest) int64 {
+type Block struct {
+	Height    int64
+	TxIds     []string
+	Processed bool
+}
 
-	Mutex.Lock()
-	for i, _ := range r.Txs_as_hex {
-		Blocks[int(r.Txs[i].Block_Height)]--
-		if Blocks[int(r.Txs[i].Block_Height)] == 0 {
-			Completed = append(Completed, int(r.Txs[i].Block_Height))
+type Batch struct {
+	Id        int
+	TxIds     []string
+	Processed bool
+}
+
+func BlockByHeight(height int64) *Block {
+	for i, block := range Blocks {
+		if block.Height == height {
+			return &Blocks[i]
 		}
 	}
-
-	if len(Completed) != 0 {
-		prevcontinuous := HighestContinuous
-		sort.Ints(Completed)
-		for i, height := range Completed {
-			if slices.Index(Completed, height+1) != -1 {
-				if (height == prevcontinuous+1 || height == HighestContinuous+1) && height == (Completed[i+1]-1) {
-					HighestContinuous = height
-					RemoveCompleted(height)
-				}
+	return &Block{}
+}
+func BatchById(Id int) *Batch {
+	for i, batch := range Batches {
+		if batch.Id == Id {
+			return &Batches[i]
+		}
+	}
+	return nil
+}
+func ProcessBlocks(txid string) {
+	for i, _ := range Blocks {
+		if len(Blocks[i].TxIds) != 0 {
+			bindex := slices.Index(Blocks[i].TxIds, txid)
+			if bindex != -1 && bindex < len(Blocks[i].TxIds) {
+				Blocks[i].TxIds = append(Blocks[i].TxIds[:bindex], Blocks[i].TxIds[bindex+1:]...)
 			}
 		}
-		if HighestContinuous != prevcontinuous {
-			Mutex.Unlock()
-			return int64(HighestContinuous)
+		if len(Blocks[i].TxIds) == 0 {
+			Blocks[i].Processed = true
 		}
 	}
-	Mutex.Unlock()
-	return 0
+}
+
+var Batches []Batch
+var Blocks []Block
+var Batchids = int(0)
+
+var TXIDSProcessing []string
+
+// var Blocks = map[int]int{}
+var Completed []int
+var StartingFrom int
+var LastContinuous = int(0)
+
+func RemoveBlocks(bheight int) {
+	var newlist []Block
+	for _, block := range Blocks {
+		if block.Height != int64(bheight) {
+			newlist = append(newlist, block)
+		}
+	}
+	Blocks = newlist
 }
 
 func RemoveCompleted(bheight int) {
@@ -165,14 +192,6 @@ func RemoveCompleted(bheight int) {
 
 }
 
-func RemoveBlocks(bheight int64) {
-	Mutex.Lock()
-	i := slices.Index(BlocksProcessing, bheight)
-	if i != -1 && i < len(BlocksProcessing) {
-		BlocksProcessing = append(BlocksProcessing[:i], BlocksProcessing[i+1:]...)
-	}
-	Mutex.Unlock()
-}
 func RemoveTXIDs(txids []string) {
 	Mutex.Lock()
 	var newlist []string
@@ -188,9 +207,9 @@ func RemoveTXIDs(txids []string) {
 func Ask() {
 	time.Sleep(time.Microsecond)
 	for {
-		if len(TXIDSProcessing)+len(BlocksProcessing) > 1000 {
+		if len(TXIDSProcessing)+len(Blocks) > 2000 {
 			time.Sleep(time.Millisecond)
-			if len(TXIDSProcessing)+len(BlocksProcessing) > 5000 {
+			if len(TXIDSProcessing)+len(Blocks) > 5000 {
 				time.Sleep(time.Millisecond * 100)
 			}
 		}

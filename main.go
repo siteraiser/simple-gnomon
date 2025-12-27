@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,9 +26,9 @@ var SpamLevel = 50
 
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
-var memPreferredRequests = uint8(20)
+var memPreferredRequests = uint8(16)
 var diskBatchSize = int16(100)
-var diskPreferredRequests = uint8(20)
+var diskPreferredRequests = uint8(16)
 
 // Program vars
 var TargetHeight = int64(0)
@@ -133,9 +133,8 @@ func start_gnomon_indexer() {
 	if firstRun == true || api.Status.ErrorCount != int64(0) {
 		firstRun = false
 		sqlite.TrimHeight(starting_height)
-		api.BlocksProcessing = []int64{}
 		api.TXIDSProcessing = []string{}
-		Batches = 0
+		api.Batches = []api.Batch{}
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
@@ -143,7 +142,7 @@ func start_gnomon_indexer() {
 
 	api.Completed = []int{}                                  //clear here
 	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
-	api.HighestContinuous = int(starting_height)
+	api.StartingFrom = int(starting_height)
 
 	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
 
@@ -166,9 +165,9 @@ func start_gnomon_indexer() {
 		showBlockStatus(bheight)
 		api.Ask()
 		wg.Add(1)
-		Mutex.Lock()
-		api.BlocksProcessing = append(api.BlocksProcessing, bheight)
-		Mutex.Unlock()
+		api.Mutex.Lock()
+		api.Blocks = append(api.Blocks, api.Block{Height: bheight})
+		api.Mutex.Unlock()
 		go ProcessBlock(&wg, bheight)
 
 	}
@@ -193,11 +192,14 @@ func start_gnomon_indexer() {
 			place = 0
 		}
 		count++
-		if len(api.BlocksProcessing)+len(api.TXIDSProcessing)+Batches == 0 || count > 240 {
+		//Mutex.Lock()
+		if len(api.Batches) == 0 || count > 240 {
 			break
 		}
-		if len(api.BlocksProcessing) == 0 && len(api.TXIDSProcessing) != 0 {
-			DoBatch(api.TXIDSProcessing)
+		if len(api.TXIDSProcessing) != 0 {
+			batchlist := api.TXIDSProcessing
+			api.RemoveTXIDs(batchlist)
+			DoBatch(api.Batch{TxIds: batchlist})
 		}
 		w, _ := time.ParseDuration("1s")
 		time.Sleep(w)
@@ -279,13 +281,12 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	var regcount = 0
 
 	for _, hash := range bl.Tx_hashes {
-		if hash.String()[:6] == "000000" {
+		if hash.String()[:5] == "00000" {
 			regcount++
 		}
 		if hash.String() != "" {
 			tx_str_list = append(tx_str_list, hash.String())
 		}
-
 	}
 
 	tx_count := len(tx_str_list)
@@ -294,21 +295,19 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 	//good place to set large block flag if needed
 
-	api.RemoveBlocks(bheight)
-
 	api.Mutex.Lock()
-
+	api.BlockByHeight(bheight).TxIds = tx_str_list
 	if !discarding {
-		api.Blocks[int(bheight)] = tx_count
 		api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
 	} else {
-		api.Completed = append(api.Completed, int(bheight))
+		api.BlockByHeight(bheight).Processed = true
+		api.BlockByHeight(bheight).TxIds = []string{}
 	}
 
-	if len(api.TXIDSProcessing) >= 100 {
-		batch := api.TXIDSProcessing[:100]
+	if len(api.TXIDSProcessing) >= 10 {
+		batchlist := api.TXIDSProcessing[:10]
 		api.Mutex.Unlock()
-		DoBatch(batch)
+		DoBatch(api.Batch{TxIds: batchlist})
 		return
 	}
 
@@ -316,49 +315,92 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 }
 
-var Batches = 0
+func DoBatch(batch api.Batch) {
+	api.RemoveTXIDs(batch.TxIds)
+	api.Mutex.Lock()
+	batch.Id = api.Batchids
+	api.Batchids++
+	api.Batches = append(api.Batches, batch)
+	api.Mutex.Unlock()
+	for _, TxId := range batch.TxIds {
+		api.ProcessBlocks(TxId)
+	}
 
-func DoBatch(tx_str_list []string) {
-	Mutex.Lock()
-	Batches++
-	Mutex.Unlock()
-	api.RemoveTXIDs(tx_str_list)
+	var r rpc.GetTransaction_Result
+	api.Ask()
+	r = api.GetTransaction(rpc.GetTransaction_Params{
+		Tx_Hashes: batch.TxIds, //[int(batchSize)*i : end]
+	})
+
 	var wg2 sync.WaitGroup
+	for i, tx_hex := range r.Txs_as_hex {
 
-	//Find total number of batches (should always be one now)
-	batch_count := int(math.Ceil(float64(len(tx_str_list)) / float64(batchSize)))
-	//Make an array to hold the result sets
-
-	var r api.MockRequest
-	//Go through the array of batches (one now) and collect the results
-	for i := range batch_count {
-		end := int(batchSize) * i
-		if i == batch_count-1 {
-			end = len(tx_str_list)
+		b, err := hex.DecodeString(tx_hex)
+		if err != nil {
+			panic(err)
 		}
 
-		api.Ask()
-		tx := api.GetTransaction(rpc.GetTransaction_Params{
-			Tx_Hashes: tx_str_list[int(batchSize)*i : end],
-		})
-		r.Txs = append(r.Txs, tx.Txs...)
-		r.Txs_as_hex = append(r.Txs_as_hex, tx.Txs_as_hex...)
-	}
-	// Save the batch
-	for i, tx_hex := range r.Txs_as_hex {
+		var tx transaction.Transaction
+		if err := tx.Deserialize(b); err != nil {
+			fmt.Println("\nTX Height: ", tx.Height)
+			if strings.Contains(err.Error(), "Invalid Version in Transaction") {
+				continue
+			}
+			panic(err)
+		}
+		api.ProcessBlocks(tx.GetHash().String())
 		wg2.Add(1)
-		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, r.Txs[i].Block_Height)
+		go saveDetails(&wg2, tx, r.Txs[i].Signer, int64(tx.Height))
 	}
-
 	wg2.Wait()
 	if api.OK() {
-		Mutex.Lock()
-		Batches--
-		Mutex.Unlock()
-		h := api.FindContinuous(r)
-		if h != 0 {
-			storeHeight(h)
+		api.Mutex.Lock()
+		var remove = []int64{}
+		for _, block := range api.Blocks {
+			if block.Processed {
+				remove = append(remove, block.Height)
+				if block.Height > int64(api.LastContinuous+1) { //todo, check for performace issues && slices.Index(api.Completed, int(block.Height)) == -1
+					api.Completed = append(api.Completed, int(block.Height))
+				}
+			}
 		}
+		for height := range remove {
+			api.RemoveBlocks(int(height))
+		}
+
+		if len(api.Completed) != 0 {
+			var delete []int
+			if api.LastContinuous == 0 {
+				api.LastContinuous = api.StartingFrom
+			}
+			sort.Ints(api.Completed)
+			for i, height := range api.Completed {
+				if len(api.Completed) > i+1 && (height <= api.LastContinuous+1 || api.LastContinuous == 0) {
+					if height == api.Completed[i+1]-1 {
+						delete = append(delete, height)
+						api.LastContinuous = height
+					} else {
+						break
+					}
+				}
+			}
+			for _, height := range delete {
+				api.RemoveCompleted(height)
+			}
+			api.Mutex.Unlock()
+			if api.StartingFrom < api.LastContinuous || api.StartingFrom == 0 {
+				storeHeight(int64(api.LastContinuous))
+			}
+		}
+		api.Mutex.Lock()
+		newbatches := []api.Batch{}
+		for i, _ := range api.Batches {
+			if batch.Id == api.Batches[i].Id {
+				newbatches = append(api.Batches[:i], api.Batches[i+1:]...)
+			}
+		}
+		api.Batches = newbatches
+		api.Mutex.Unlock()
 	}
 }
 
@@ -376,27 +418,12 @@ func storeHeight(bheight int64) {
 
 /********************************/
 /********************************/
-func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int64) { //, large bool
+func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, signer string, bheight int64) { //, large bool
 	defer wg2.Done()
-
-	b, err := hex.DecodeString(tx_hex)
-	if err != nil {
-		panic(err)
-	}
-
-	var tx transaction.Transaction
-	if err := tx.Deserialize(b); err != nil {
-		fmt.Println("\nTX Height: ", tx.Height)
-		if strings.Contains(err.Error(), "Invalid Version in Transaction") {
-			return
-		}
-		panic(err)
-	}
 
 	if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
 		return
 	}
-
 	tx_type := ""
 	//	fmt.Print("scid found at height:", fmt.Sprint(bheight)+"\n")
 	params := rpc.GetSC_Params{}
@@ -558,7 +585,7 @@ func showBlockStatus(bheight int64) {
 		" " + text +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph" +
-		" Inserting " + strconv.Itoa(len(api.BlocksProcessing)-outtot) +
+		" Processing " + strconv.Itoa(len(api.Blocks)-outtot) +
 		" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
 
 	fmt.Print("\r", show)
