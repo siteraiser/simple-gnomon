@@ -166,9 +166,6 @@ var Batches []Batch
 var Blocks []Block
 var Batchids = int(0)
 
-var TXIDSProcessing []string
-
-// var Blocks = map[int]int{}
 var Completed []int
 var StartingFrom int
 var LastContinuous = int(0)
@@ -192,24 +189,49 @@ func RemoveCompleted(bheight int) {
 
 }
 
-func RemoveTXIDs(txids []string) {
-	Mutex.Lock()
-	var newlist []string
-	for _, txid := range TXIDSProcessing {
-		if !slices.Contains(txids, txid) {
-			newlist = append(newlist, txid)
-		}
+func AllTXs() (all []string) {
+	for _, block := range Blocks {
+		all = append(all, block.TxIds...)
 	}
-	TXIDSProcessing = newlist
-	Mutex.Unlock()
+	return
+}
+func RemoveTXs(txids []string) {
+
+	var blocklist []Block
+	for _, block := range Blocks {
+		txlist := []string{}
+		for _, txid := range txids {
+			if !slices.Contains(block.TxIds, txid) {
+				txlist = append(txlist, txid)
+			}
+		}
+		blocklist = append(blocklist, Block{
+			TxIds: txlist,
+		})
+	}
+	Blocks = blocklist
+
 }
 
+/*
+	func RemoveTXIDs(txids []string) {
+		Mutex.Lock()
+		var newlist []string
+		for _, txid := range TXIDSProcessing {
+			if !slices.Contains(txids, txid) {
+				newlist = append(newlist, txid)
+			}
+		}
+		TXIDSProcessing = newlist
+		Mutex.Unlock()
+	}
+*/
 func Ask() {
 	//time.Sleep(time.Microsecond)
 	for {
-		if len(TXIDSProcessing) > 2000 {
+		if len(AllTXs()) > 2000 {
 			time.Sleep(time.Millisecond)
-			if len(TXIDSProcessing) > 5000 {
+			if len(AllTXs()) > 5000 {
 				time.Sleep(time.Millisecond * 100)
 			}
 		}
