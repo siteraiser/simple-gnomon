@@ -325,12 +325,10 @@ func getResult[T any](method string, params any) (T, error) {
 
 	endpoint = currentEndpoint
 
-	for {
-		if Outs[endpoint.Id] > PreferredRequests/2 {
-			time.Sleep(time.Microsecond * 10)
-		}
-		break
+	if Outs[endpoint.Id] > PreferredRequests/2 {
+		time.Sleep(time.Microsecond * 10)
 	}
+
 	nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
 
