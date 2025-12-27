@@ -205,7 +205,7 @@ func Ask() {
 
 	for {
 		Mutex.Lock()
-		time.Sleep(time.Microsecond)
+
 		if len(AllTXs()) > 10000 {
 			time.Sleep(time.Millisecond * 20)
 		}
@@ -214,6 +214,7 @@ func Ask() {
 		lowest_id := uint8(255)
 		cancel := false
 		target := uint8(PreferredRequests / 2)
+
 		for id, out := range Outs {
 			if len(Endpoints[id].Errors) == 0 {
 				if out < lowest {
@@ -230,6 +231,7 @@ func Ask() {
 			return
 		}
 		Mutex.Unlock()
+		time.Sleep(time.Microsecond * 10)
 	}
 }
 
@@ -320,36 +322,45 @@ func getResult[T any](method string, params any) (T, error) {
 	var endpoint Connection
 
 	Mutex.Lock()
+
 	endpoint = currentEndpoint
+
+	for {
+		if Outs[endpoint.Id] > PreferredRequests/2 {
+			time.Sleep(time.Microsecond * 10)
+		}
+		break
+	}
 	nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
 
-	/*	*/
-	gtxtime := time.Time{}
-	noout := Outs[endpoint.Id]
+	/*
+		gtxtime := time.Time{}
+		noout := Outs[endpoint.Id]
 
-	target := float64(PreferredRequests / 2)
-	if method == "DERO.GetTransaction" {
-		gtxtime = time.Now()
-		avgspeed := calculateSpeed(endpoint.Id)
+		target := float64(PreferredRequests / 2)
+		if method == "DERO.GetTransaction" {
+			gtxtime = time.Now()
+			avgspeed := calculateSpeed(endpoint.Id)
 
-		if noout >= PreferredRequests && avgspeed != 0 {
+			if noout >= PreferredRequests && avgspeed != 0 {
+				ratio := target / float64(noout)
+				if ratio != float64(1) {
+					avgspeed = int(float64(avgspeed) / float64(ratio))
+				}
+				if avgspeed > 10000 {
+					avgspeed = 10000
+				}
+				time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
+			}
+		} else if noout >= uint8(target) {
 			ratio := target / float64(noout)
 			if ratio != float64(1) {
-				avgspeed = int(float64(avgspeed) / float64(ratio))
+				time.Sleep(time.Millisecond * time.Duration(int(float64(5)/float64(ratio))))
 			}
-			if avgspeed > 10000 {
-				avgspeed = 10000
-			}
-			time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
-		}
-	} else if noout >= uint8(target) {
-		ratio := target / float64(noout)
-		if ratio != float64(1) {
-			time.Sleep(time.Millisecond * time.Duration(int(float64(5)/float64(ratio))))
-		}
 
-	}
+		}
+	*/
 
 	Outs[endpoint.Id]++
 
@@ -362,13 +373,15 @@ func getResult[T any](method string, params any) (T, error) {
 	}
 
 	Mutex.Lock()
-	Outs[endpoint.Id]--
-	/*	*/
-	notime := time.Time{}
-	if method == "DERO.GetTransaction" && gtxtime != notime {
-		updateSpeed(endpoint.Id, gtxtime)
-	}
 
+	Outs[endpoint.Id]--
+
+	/*
+		notime := time.Time{}
+		if method == "DERO.GetTransaction" && gtxtime != notime {
+			updateSpeed(endpoint.Id, gtxtime)
+		}
+	*/
 	Mutex.Unlock()
 
 	if err != nil {
