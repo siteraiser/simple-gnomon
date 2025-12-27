@@ -227,11 +227,14 @@ func RemoveTXs(txids []string) {
 	}
 */
 func Ask() {
-
+	//time.Sleep(time.Microsecond)
 	for {
-		time.Sleep(time.Microsecond)
-
 		Mutex.Lock()
+
+		if len(AllTXs()) > 5000 {
+			time.Sleep(time.Millisecond * 100)
+		}
+
 		lowest := uint8(255)
 		lowest_id := uint8(255)
 		cancel := false
