@@ -152,10 +152,11 @@ func ProcessBlocks(txid string) {
 	for i, _ := range Blocks {
 		if len(Blocks[i].TxIds) != 0 {
 			bindex := slices.Index(Blocks[i].TxIds, txid)
-			if bindex != -1 && bindex < len(Blocks[i].TxIds) {
+			if bindex != -1 && bindex < len(Blocks[i].TxIds) { //bindex +1 <
 				Blocks[i].TxIds = append(Blocks[i].TxIds[:bindex], Blocks[i].TxIds[bindex+1:]...)
 			}
 		}
+
 		if len(Blocks[i].TxIds) == 0 {
 			Blocks[i].Processed = true
 		}
@@ -164,7 +165,7 @@ func ProcessBlocks(txid string) {
 
 var Batches []Batch
 var Blocks []Block
-
+var TXIDSProcessing []string
 var StartingFrom int
 
 func RemoveBlocks(bheight int) {
@@ -183,7 +184,7 @@ func AllTXs() (all []string) {
 	}
 	return
 }
-func RemoveTXs(txids []string) {
+func RemoveTXs(txids []string) []Block {
 
 	var blocklist []Block
 	for _, block := range Blocks {
@@ -197,7 +198,18 @@ func RemoveTXs(txids []string) {
 			TxIds: txlist,
 		})
 	}
-	Blocks = blocklist
+	return blocklist
+
+}
+func RemoveTXIDs(txids []string) {
+
+	var newlist []string
+	for _, txid := range TXIDSProcessing {
+		if !slices.Contains(txids, txid) {
+			newlist = append(newlist, txid)
+		}
+	}
+	TXIDSProcessing = newlist
 
 }
 
@@ -346,7 +358,7 @@ func getResult[T any](method string, params any) (T, error) {
 
 	nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
-
+	/**/
 	gtxtime := time.Time{}
 	noout := Outs[endpoint.Id]
 	avgspeed := 100
@@ -385,12 +397,11 @@ func getResult[T any](method string, params any) (T, error) {
 
 	Outs[endpoint.Id]--
 
-	/*	*/
 	notime := time.Time{}
 	if gtxtime != notime {
 		updateSpeed(endpoint.Id, method, gtxtime)
 	}
-
+	/**/
 	Mutex.Unlock()
 
 	if err != nil {

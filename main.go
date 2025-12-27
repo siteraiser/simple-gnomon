@@ -194,9 +194,9 @@ func start_gnomon_indexer() {
 		if len(api.Blocks) == 0 || count > 240 {
 			break
 		}
-		if len(api.AllTXs()) != 0 {
-			batchlist := api.AllTXs()
-			api.RemoveTXs(batchlist)
+		if len(api.TXIDSProcessing) != 0 {
+			batchlist := api.TXIDSProcessing
+			api.RemoveTXIDs(batchlist)
 			DoBatch(api.Batch{TxIds: batchlist})
 		}
 		w, _ := time.ParseDuration("1s")
@@ -297,10 +297,11 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 	if !discarding {
 		api.BlockByHeight(bheight).TxIds = append(api.BlockByHeight(bheight).TxIds, tx_str_list...)
+		api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
 	}
 
-	if len(api.AllTXs()) >= 100 {
-		batchlist := api.AllTXs()[:100]
+	if len(api.TXIDSProcessing) >= 100 {
+		batchlist := api.TXIDSProcessing[:100]
 		api.Mutex.Unlock()
 		DoBatch(api.Batch{TxIds: batchlist})
 		return
@@ -311,27 +312,32 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 }
 
 func DoBatch(batch api.Batch) {
+	api.Mutex.Lock()
+	api.RemoveTXIDs(batch.TxIds)
+	api.Mutex.Unlock()
 
-	var r = rpc.GetTransaction_Result{}
+	var r rpc.GetTransaction_Result
 	api.Ask()
 	r = api.GetTransaction(rpc.GetTransaction_Params{
 		Tx_Hashes: batch.TxIds, //[int(batchSize)*i : end]
 	})
-	if len(r.Txs) != 0 { //not an error
-		api.Mutex.Lock()
-		api.RemoveTXs(batch.TxIds)
-		api.Mutex.Unlock()
-	}
+
 	var wg2 sync.WaitGroup
 	for i, tx_hex := range r.Txs_as_hex {
 		wg2.Add(1)
 		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, int64(r.Txs[i].Block_Height))
 	}
+
 	wg2.Wait()
+
 	if api.OK() {
+
 		//fmt.Println("Batches", api.Batches)
 		//just go through and check if the block ever existed...maybe lol if not the skip/pass
 		api.Mutex.Lock()
+
+		api.RemoveTXs(batch.TxIds)
+
 		var remove = []int64{}
 		for _, block := range api.Blocks {
 			if block.Processed {
@@ -377,8 +383,9 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		}
 		panic(err)
 	}
-
+	api.Mutex.Lock()
 	api.ProcessBlocks(tx.GetHash().String())
+	api.Mutex.Unlock()
 	if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
 		return
 	}
