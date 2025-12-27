@@ -164,11 +164,8 @@ func ProcessBlocks(txid string) {
 
 var Batches []Batch
 var Blocks []Block
-var Batchids = int(0)
 
-var Completed []int
 var StartingFrom int
-var LastContinuous = int(0)
 
 func RemoveBlocks(bheight int) {
 	var newlist []Block
@@ -178,15 +175,6 @@ func RemoveBlocks(bheight int) {
 		}
 	}
 	Blocks = newlist
-}
-
-func RemoveCompleted(bheight int) {
-
-	i := slices.Index(Completed, bheight)
-	if i != -1 && i < len(Completed) {
-		Completed = append(Completed[:i], Completed[i+1:]...)
-	}
-
 }
 
 func AllTXs() (all []string) {
@@ -213,19 +201,6 @@ func RemoveTXs(txids []string) {
 
 }
 
-/*
-	func RemoveTXIDs(txids []string) {
-		Mutex.Lock()
-		var newlist []string
-		for _, txid := range TXIDSProcessing {
-			if !slices.Contains(txids, txid) {
-				newlist = append(newlist, txid)
-			}
-		}
-		TXIDSProcessing = newlist
-		Mutex.Unlock()
-	}
-*/
 func Ask() {
 
 	for {

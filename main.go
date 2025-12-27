@@ -137,8 +137,8 @@ func start_gnomon_indexer() {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
 	}
-	api.Blocks = []api.Block{}
-	api.Completed = []int{}                                  //clear here
+	api.Blocks = []api.Block{} //clear here
+
 	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
 	api.StartingFrom = int(starting_height)
 
@@ -542,7 +542,7 @@ func showBlockStatus(bheight int64) {
 		" " + text +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph" +
-		" Processing " + strconv.Itoa(len(api.Blocks)-len(api.Completed)) +
+		" Processing " + strconv.Itoa(len(api.Blocks)) +
 		" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
 
 	fmt.Print("\r", show)
