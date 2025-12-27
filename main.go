@@ -386,7 +386,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	params := rpc.GetSC_Params{}
 	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
 		tx_type = "install"
-		//	fmt.Println("Installed:", tx.SCDATA.Value(rpc.SCCODE, rpc.DataString))
+		fmt.Println("Installed:", tx.SCDATA.Value(rpc.SCCODE, rpc.DataString))
 
 		params = rpc.GetSC_Params{
 			SCID:       tx.GetHash().String(),
