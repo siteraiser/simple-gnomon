@@ -275,9 +275,20 @@ func AssignConnections(iserror bool) {
 	Reset()
 }
 
-var priorTimes = make(map[uint8][]int64)
+var priorGBTimes = make(map[uint8][]int64)
+var priorTxTimes = make(map[uint8][]int64)
+var priorSCTimes = make(map[uint8][]int64)
 
-func calculateSpeed(id uint8) int {
+func calculateSpeed(id uint8, method string) int {
+	var priorTimes map[uint8][]int64
+	if method == "DERO.GetTransaction" {
+		priorTimes = priorTxTimes
+	} else if method == "DERO.GetBlock" {
+		priorTimes = priorGBTimes
+	} else if method == "DERO.GetSC" {
+		priorTimes = priorSCTimes
+	}
+
 	total := int64(0)
 	for _, ti := range priorTimes[id] {
 		total += ti
@@ -289,9 +300,17 @@ func calculateSpeed(id uint8) int {
 	return int(value)
 }
 
-func updateSpeed(id uint8, start time.Time) {
-	if len(priorTimes[id]) > 10 {
-		priorTimes[id] = priorTimes[id][10:]
+func updateSpeed(id uint8, method string, start time.Time) {
+	var priorTimes = make(map[uint8][]int64)
+	if method == "DERO.GetTransaction" {
+		priorTimes = priorTxTimes
+	} else if method == "DERO.GetBlock" {
+		priorTimes = priorGBTimes
+	} else if method == "DERO.GetSC" {
+		priorTimes = priorSCTimes
+	}
+	if len(priorTimes[id]) > 50 {
+		priorTimes[id] = priorTimes[id][50:]
 	}
 	priorTimes[id] = append(priorTimes[id], time.Since(start).Microseconds())
 }
@@ -325,40 +344,32 @@ func getResult[T any](method string, params any) (T, error) {
 
 	endpoint = currentEndpoint
 
-	if Outs[endpoint.Id] > PreferredRequests/2 {
-		time.Sleep(time.Microsecond * 10)
-	}
-
 	nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
 
-	/*
-		gtxtime := time.Time{}
-		noout := Outs[endpoint.Id]
+	gtxtime := time.Time{}
+	noout := Outs[endpoint.Id]
+	avgspeed := 100
+	target := float64(PreferredRequests / 2)
+	if method == "DERO.GetTransaction" {
+		gtxtime = time.Now()
+		avgspeed = calculateSpeed(endpoint.Id, method)
 
-		target := float64(PreferredRequests / 2)
-		if method == "DERO.GetTransaction" {
-			gtxtime = time.Now()
-			avgspeed := calculateSpeed(endpoint.Id)
-
-			if noout >= PreferredRequests && avgspeed != 0 {
-				ratio := target / float64(noout)
-				if ratio != float64(1) {
-					avgspeed = int(float64(avgspeed) / float64(ratio))
-				}
-				if avgspeed > 10000 {
-					avgspeed = 10000
-				}
-				time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
-			}
-		} else if noout >= uint8(target) {
-			ratio := target / float64(noout)
-			if ratio != float64(1) {
-				time.Sleep(time.Millisecond * time.Duration(int(float64(5)/float64(ratio))))
-			}
-
-		}
-	*/
+	} else if noout >= uint8(target) {
+		gtxtime = time.Now()
+		avgspeed = calculateSpeed(endpoint.Id, method)
+	}
+	if avgspeed == 0 {
+		avgspeed = 100
+	}
+	ratio := target / float64(noout)
+	if ratio != float64(1) {
+		avgspeed = int(float64(avgspeed) / float64(ratio))
+	}
+	if avgspeed > 10000 {
+		avgspeed = 10000
+	}
+	time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
 
 	Outs[endpoint.Id]++
 
@@ -374,12 +385,12 @@ func getResult[T any](method string, params any) (T, error) {
 
 	Outs[endpoint.Id]--
 
-	/*
-		notime := time.Time{}
-		if method == "DERO.GetTransaction" && gtxtime != notime {
-			updateSpeed(endpoint.Id, gtxtime)
-		}
-	*/
+	/*	*/
+	notime := time.Time{}
+	if gtxtime != notime {
+		updateSpeed(endpoint.Id, method, gtxtime)
+	}
+
 	Mutex.Unlock()
 
 	if err != nil {
