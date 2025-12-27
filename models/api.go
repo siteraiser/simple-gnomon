@@ -205,11 +205,11 @@ func RemoveTXIDs(txids []string) {
 }
 
 func Ask() {
-	time.Sleep(time.Microsecond)
+	//time.Sleep(time.Microsecond)
 	for {
-		if len(TXIDSProcessing)+len(Blocks) > 2000 {
+		if len(TXIDSProcessing) > 2000 {
 			time.Sleep(time.Millisecond)
-			if len(TXIDSProcessing)+len(Blocks) > 5000 {
+			if len(TXIDSProcessing) > 5000 {
 				time.Sleep(time.Millisecond * 100)
 			}
 		}
