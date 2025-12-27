@@ -416,6 +416,7 @@ func getResult[T any](method string, params any) (T, error) {
 
 	return result, nil
 }
+
 func GetTopoHeight() int64 {
 	validator := func(r rpc.GetInfo_Result) bool {
 		return r.TopoHeight != 0

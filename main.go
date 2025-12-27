@@ -311,16 +311,17 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 }
 
 func DoBatch(batch api.Batch) {
-	api.Mutex.Lock()
-	api.RemoveTXs(batch.TxIds)
-	api.Mutex.Unlock()
 
-	var r rpc.GetTransaction_Result
+	var r = rpc.GetTransaction_Result{}
 	api.Ask()
 	r = api.GetTransaction(rpc.GetTransaction_Params{
 		Tx_Hashes: batch.TxIds, //[int(batchSize)*i : end]
 	})
-
+	if len(r.Txs) != 0 { //not an error
+		api.Mutex.Lock()
+		api.RemoveTXs(batch.TxIds)
+		api.Mutex.Unlock()
+	}
 	var wg2 sync.WaitGroup
 	for i, tx_hex := range r.Txs_as_hex {
 		wg2.Add(1)
