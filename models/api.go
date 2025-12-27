@@ -231,8 +231,8 @@ func Ask() {
 	for {
 		Mutex.Lock()
 
-		if len(AllTXs()) > 5000 {
-			time.Sleep(time.Millisecond * 100)
+		if len(AllTXs()) > 10000 {
+			time.Sleep(time.Millisecond * 20)
 		}
 
 		lowest := uint8(255)
