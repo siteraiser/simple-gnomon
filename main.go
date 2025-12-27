@@ -325,7 +325,7 @@ func DoBatch(batch api.Batch) {
 	var wg2 sync.WaitGroup
 	for i, tx_hex := range r.Txs_as_hex {
 		wg2.Add(1)
-		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, int64(r.Txs[i].Block_Height))
+		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, int64(r.Txs[i].Block_Height), batch)
 	}
 
 	wg2.Wait()
@@ -335,8 +335,6 @@ func DoBatch(batch api.Batch) {
 		//fmt.Println("Batches", api.Batches)
 		//just go through and check if the block ever existed...maybe lol if not the skip/pass
 		api.Mutex.Lock()
-
-		api.RemoveTXs(batch.TxIds)
 
 		var remove = []int64{}
 		for _, block := range api.Blocks {
@@ -368,7 +366,7 @@ func storeHeight(bheight int64) {
 
 /********************************/
 /********************************/
-func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int64) { //, large bool
+func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int64, batch api.Batch) { //, large bool
 	defer wg2.Done()
 	b, err := hex.DecodeString(tx_hex)
 	if err != nil {
@@ -384,8 +382,12 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		panic(err)
 	}
 	api.Mutex.Lock()
+	for _, t := range batch.TxIds {
+		api.ProcessBlocks(t) //api.RemoveTXs(batch.TxIds)
+	}
 	api.ProcessBlocks(tx.GetHash().String())
 	api.Mutex.Unlock()
+
 	if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
 		return
 	}

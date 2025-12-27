@@ -184,7 +184,7 @@ func AllTXs() (all []string) {
 	}
 	return
 }
-func RemoveTXs(txids []string) []Block {
+func RemoveTXs(txids []string) {
 
 	var blocklist []Block
 	for _, block := range Blocks {
@@ -198,7 +198,7 @@ func RemoveTXs(txids []string) []Block {
 			TxIds: txlist,
 		})
 	}
-	return blocklist
+	Blocks = blocklist
 
 }
 func RemoveTXIDs(txids []string) {
