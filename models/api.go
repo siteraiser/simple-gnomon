@@ -227,10 +227,10 @@ func RemoveTXs(txids []string) {
 	}
 */
 func Ask() {
-	//time.Sleep(time.Microsecond)
+
 	for {
 		Mutex.Lock()
-
+		time.Sleep(time.Microsecond)
 		if len(AllTXs()) > 10000 {
 			time.Sleep(time.Millisecond * 20)
 		}
@@ -352,11 +352,14 @@ func getResult[T any](method string, params any) (T, error) {
 	/*	*/
 	gtxtime := time.Time{}
 	noout := Outs[endpoint.Id]
+
+	target := float64(PreferredRequests / 2)
 	if method == "DERO.GetTransaction" {
 		gtxtime = time.Now()
 		avgspeed := calculateSpeed(endpoint.Id)
+
 		if noout >= PreferredRequests && avgspeed != 0 {
-			ratio := float64(PreferredRequests/2) / float64(noout)
+			ratio := target / float64(noout)
 			if ratio != float64(1) {
 				avgspeed = int(float64(avgspeed) / float64(ratio))
 			}
@@ -365,8 +368,8 @@ func getResult[T any](method string, params any) (T, error) {
 			}
 			time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
 		}
-	} else if noout >= PreferredRequests {
-		ratio := float64(PreferredRequests/2) / float64(noout)
+	} else if noout >= uint8(target) {
+		ratio := target / float64(noout)
 		if ratio != float64(1) {
 			time.Sleep(time.Millisecond * time.Duration(int(float64(5)/float64(ratio))))
 		}
