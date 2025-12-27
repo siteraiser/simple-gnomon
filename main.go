@@ -350,6 +350,10 @@ func DoBatch(batch api.Batch) {
 			panic(err)
 		}
 		api.ProcessBlocks(tx.GetHash().String())
+		if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
+			continue
+		}
+
 		wg2.Add(1)
 		go saveDetails(&wg2, tx, r.Txs[i].Signer, int64(tx.Height))
 	}
@@ -422,9 +426,6 @@ func storeHeight(bheight int64) {
 func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, signer string, bheight int64) { //, large bool
 	defer wg2.Done()
 
-	if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
-		return
-	}
 	tx_type := ""
 	//	fmt.Print("scid found at height:", fmt.Sprint(bheight)+"\n")
 	params := rpc.GetSC_Params{}
