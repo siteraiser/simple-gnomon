@@ -26,9 +26,9 @@ var SpamLevel = 50
 
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
-var memPreferredRequests = uint8(16)
+var memPreferredRequests = uint8(20)
 var diskBatchSize = int16(100)
-var diskPreferredRequests = uint8(16)
+var diskPreferredRequests = uint8(20)
 
 // Program vars
 var TargetHeight = int64(0)
@@ -305,8 +305,8 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		api.BlockByHeight(bheight).TxIds = []string{}
 	}
 
-	if len(api.TXIDSProcessing) >= 10 {
-		batchlist := api.TXIDSProcessing[:10]
+	if len(api.TXIDSProcessing) >= 100 {
+		batchlist := api.TXIDSProcessing[:100]
 		api.Mutex.Unlock()
 		DoBatch(api.Batch{TxIds: batchlist})
 		return
