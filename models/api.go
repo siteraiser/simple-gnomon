@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"image"
 	"log"
-	"math"
 	"net/http"
 	"net/url"
 	"slices"
@@ -224,9 +223,9 @@ func Ask(use string) {
 	for {
 		Mutex.Lock()
 		all := len(AllTXs())
-		if all > 1000 {
+		if all > 10000 {
 			if use == "height" {
-				time.Sleep(time.Microsecond * time.Duration(math.Pow(float64(all), 2)))
+				time.Sleep(time.Microsecond * time.Duration(all*2))
 			}
 		}
 
