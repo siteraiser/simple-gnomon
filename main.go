@@ -18,9 +18,11 @@ import (
 	api "github.com/secretnamebasis/simple-gnomon/models"
 )
 
-var startAt = int64(0)            // Start at Block Height, will be auto-set when using 0
-var blockBatchSize = int64(50000) // Batch size (how many to process before saving w/ mem mode)
-var UseMem = true                 // Use in-memory db
+var startAt = int64(0) // Start at Block Height, will be auto-set when using 0
+var blockBatchSize int64
+var blockBatchSizeMem = int64(25000)
+var blockBatchSizeDisk = int64(5000) // Batch size (how many to process before saving w/ mem mode)
+var UseMem = true                    // Use in-memory db
 var SpamLevel = 50
 
 // Optimized settings for mode db mode
@@ -94,6 +96,7 @@ func main() {
 		if !filetoobig {
 			fmt.Println("loading db into memory ....")
 			batchSize = memBatchSize
+			blockBatchSize = blockBatchSizeMem
 			api.PreferredRequests = memPreferredRequests
 			sqlite, err = NewSqlDB(db_path, db_name)
 		}
@@ -106,6 +109,7 @@ func main() {
 	if !UseMem { //|| memModeSelect(false)
 		fmt.Println("loading db ....")
 		batchSize = diskBatchSize
+		blockBatchSize = blockBatchSizeDisk
 		api.PreferredRequests = diskPreferredRequests
 		sqlite, err = NewDiskDB(db_path, db_name)
 		CreateTables(sqlite.DB)
@@ -246,6 +250,7 @@ func start_gnomon_indexer() {
 		}
 
 		UseMem = false
+		blockBatchSize = blockBatchSizeDisk
 		// Extract filename
 		filename := filepath.Base(sqlite.db_path)
 		dir := filepath.Dir(sqlite.db_path)
@@ -331,9 +336,6 @@ func DoBatch(batch api.Batch) {
 	var tx transaction.Transaction
 	for i, tx_hex := range r.Txs_as_hex {
 		tx, _ = decodeTx(tx_hex)
-		api.Mutex.Lock()
-		api.ProcessBlocks(tx.GetHash().String())
-		api.Mutex.Unlock()
 
 		wg2.Add(1)
 		go saveDetails(&wg2, tx, r.Txs[i].Block_Height, r.Txs[i].Signer, batch)
@@ -447,6 +449,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 
 func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string, params rpc.GetSC_Params, bheight int64, signer string) {
 	defer wg3.Done()
+
 	api.Ask("sc")
 	sc := api.GetSC(params) //Variables: true,
 
@@ -518,6 +521,7 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 
 func storeHeight(bheight int64) {
 	Ask()
+	//fmt.Println("Saving LastIndexHeight: ", bheight)
 	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
 		fmt.Println("Error Saving LastIndexHeight: ", err)
 		if strings.Contains(err.Error(), "database is locked") {
