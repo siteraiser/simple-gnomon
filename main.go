@@ -315,6 +315,8 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 
 }
 
+var laststored = int64(0)
+
 func DoBatch(batch api.Batch) {
 	api.Mutex.Lock()
 	api.RemoveTXIDs(batch.TxIds)
@@ -346,22 +348,22 @@ func DoBatch(batch api.Batch) {
 		api.RemoveTXs(batch.TxIds)
 		var remove = []int64{}
 		for _, block := range api.Blocks {
-			if block.Processed {
+			if block.Processed || block.Height == 0 {
 				remove = append(remove, block.Height)
 			}
 		}
 		for height := range remove {
 			api.RemoveBlocks(int(height))
 		}
-
-		if len(api.Blocks) != 0 && api.Blocks[0].Height != 0 {
-
-			b := api.Blocks[0]
-			api.Mutex.Unlock()
-			storeHeight(b.Height)
-			return
-		}
 		api.Mutex.Unlock()
+		for _, block := range api.Blocks {
+			if block.Height > laststored {
+				storeHeight(block.Height)
+				laststored = block.Height
+				break
+			}
+		}
+
 	}
 }
 
