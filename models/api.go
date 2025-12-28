@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"image"
 	"log"
-	"math"
 	"net/http"
 	"net/url"
 	"slices"
@@ -223,7 +222,7 @@ func Ask(use string) {
 		all := len(AllTXs())
 		if all > 500 {
 			if use == "height" {
-				time.Sleep(time.Millisecond * time.Duration(math.Pow(float64(all), 2)))
+				//		time.Sleep(time.Millisecond * time.Duration(math.Pow(float64(all), 2)))
 			}
 		}
 

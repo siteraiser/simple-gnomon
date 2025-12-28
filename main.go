@@ -316,29 +316,30 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 func DoBatch(batch api.Batch) {
 	api.Mutex.Lock()
 	api.RemoveTXIDs(batch.TxIds)
-
 	api.Mutex.Unlock()
-
+	var wg2 sync.WaitGroup
 	var r rpc.GetTransaction_Result
 	api.Ask("tx")
 	r = api.GetTransaction(rpc.GetTransaction_Params{
 		Tx_Hashes: batch.TxIds, //[int(batchSize)*i : end]
 	})
-
-	var wg2 sync.WaitGroup
+	var tx transaction.Transaction
 	for i, tx_hex := range r.Txs_as_hex {
-		wg2.Add(1)
-		go saveDetails(&wg2, tx_hex, r.Txs[i].Signer, int64(r.Txs[i].Block_Height), batch)
-	}
+		tx, _ = decodeTx(tx_hex)
+		api.Mutex.Lock()
+		api.ProcessBlocks(tx.GetHash().String())
+		api.Mutex.Unlock()
 
+		wg2.Add(1)
+		go saveDetails(&wg2, tx, r.Txs[i].Block_Height, r.Txs[i].Signer, batch)
+
+	}
 	wg2.Wait()
 
 	if api.OK() {
 
-		//fmt.Println("Batches", api.Batches)
-		//just go through and check if the block ever existed...maybe lol if not the skip/pass
 		api.Mutex.Lock()
-
+		api.RemoveTXs(batch.TxIds)
 		var remove = []int64{}
 		for _, block := range api.Blocks {
 			if block.Processed {
@@ -348,54 +349,46 @@ func DoBatch(batch api.Batch) {
 		for height := range remove {
 			api.RemoveBlocks(int(height))
 		}
-		api.Mutex.Unlock()
+
 		if len(api.Blocks) != 0 && api.Blocks[0].Height != 0 {
-			storeHeight(api.Blocks[0].Height)
-		}
-	}
-}
 
-func storeHeight(bheight int64) {
-	Ask()
-	//--maybe replace by using add owner and add a height to there...
-	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
-		fmt.Println("Error Saving LastIndexHeight: ", err)
-		if strings.Contains(err.Error(), "database is locked") {
-			api.NewError("database", "db lock", "Storing last index")
-		}
-		return
-	}
-}
-
-/********************************/
-/********************************/
-func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int64, batch api.Batch) { //, large bool
-	defer wg2.Done()
-	b, err := hex.DecodeString(tx_hex)
-	if err != nil {
-		panic(err)
-	}
-
-	var tx transaction.Transaction
-	if err := tx.Deserialize(b); err != nil {
-		fmt.Println("\nTX Height: ", tx.Height)
-		if strings.Contains(err.Error(), "Invalid Version in Transaction") {
+			b := api.Blocks[0]
+			api.Mutex.Unlock()
+			fmt.Println("Blocks", b)
+			storeHeight(b.Height)
 			return
 		}
-		panic(err)
+		api.Mutex.Unlock()
 	}
-	api.Mutex.Lock()
+}
+
+/********************************/
+/********************************/
+/*
+fmt.Println("batch.TxIds:", len(batch.TxIds))
+
+	fmt.Println("api.BlockByHeight(bheight).TxIds:", len(api.BlockByHeight(bheight).TxIds))
 	for _, t := range batch.TxIds {
+
+		if slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
+			fmt.Println(bheight, " (bheight).TxIds Contains:", t)
+		}
+		if !slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
+			fmt.Println(bheight, " (bheight).TxIds NOT Contains:", t)
+		}
+
 		api.ProcessBlocks(t) //api.RemoveTXs(batch.TxIds)
-	}
-	api.ProcessBlocks(tx.GetHash().String())
-	api.Mutex.Unlock()
+*/
+func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64, signer string, batch api.Batch) { //, large bool
+	defer wg2.Done()
+	var wg3 sync.WaitGroup
+	var ok = true
 
 	if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
-		return
+		ok = false
 	}
 	tx_type := ""
-	//	fmt.Print("scid found at height:", fmt.Sprint(bheight)+"\n")
+	//fmt.Print("scid found at height:", fmt.Sprint(bheight)+"\n")
 	params := rpc.GetSC_Params{}
 	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
 		tx_type = "install"
@@ -412,7 +405,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		//	fmt.Println("invoke:", tx)
 		scid, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
 		if !ok || scid.String() == "" {
-			return
+			ok = false
 		}
 		params = rpc.GetSC_Params{
 			SCID:       scid.String(),
@@ -425,12 +418,21 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	// Discard the discardable
 	if CustomActions[params.SCID].Act == "discard" ||
 		(CustomActions[params.SCID].Act == "discard-before" && CustomActions[params.SCID].Block >= bheight) {
-		return
+		ok = false
 	}
 	if (slices.Contains(Spammers, signer)) && params.SCID == Hardcoded_SCIDS[0] { //|| spammy == true
-		return
+		ok = false
+	}
+	if ok {
+		wg3.Add(1)
+		go processSCs(&wg3, tx, tx_type, params, bheight, signer)
+		wg3.Wait()
 	}
 
+}
+
+func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string, params rpc.GetSC_Params, bheight int64, signer string) {
+	defer wg3.Done()
 	api.Ask("sc")
 	sc := api.GetSC(params) //Variables: true,
 
@@ -492,13 +494,25 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 	// if the contract already exists, record the interaction
 	ready(false)
 	if err := sqlindexer.AddSCIDToIndex(staged); err != nil {
-		//fmt.Println(err, " ", staged.TXHash, " ", staged.Fsi.Height)
+		fmt.Println(err, " ", staged.TXHash, " ", staged.Fsi.Height)
 		if strings.Contains(err.Error(), "database is locked") {
 			api.NewError("database", "db lock", "Adding index")
 		}
 	}
 	ready(true)
+}
 
+func storeHeight(bheight int64) {
+	Ask()
+	fmt.Println("storeHeight:", bheight)
+	fmt.Println("storeHeight:", api.Blocks[0])
+	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
+		fmt.Println("Error Saving LastIndexHeight: ", err)
+		if strings.Contains(err.Error(), "database is locked") {
+			api.NewError("database", "db lock", "Storing last index")
+		}
+		return
+	}
 }
 
 /********************************/
@@ -577,6 +591,21 @@ func getOutCounts() (int, string) {
 	}
 
 	return tot, text[1:]
+}
+func decodeTx(tx_hex string) (transaction.Transaction, error) {
+	b, err := hex.DecodeString(tx_hex)
+	if err != nil {
+		panic(err)
+	}
+	var tx transaction.Transaction
+	if err := tx.Deserialize(b); err != nil {
+		fmt.Println("\nTX Height: ", tx.Height)
+		if strings.Contains(err.Error(), "Invalid Version in Transaction") {
+			return tx, err
+		}
+		panic(err)
+	}
+	return tx, err
 }
 
 // Supply true to boot from disk, returns true if memory is nearly full
