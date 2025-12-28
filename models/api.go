@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"image"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"slices"
@@ -213,13 +214,17 @@ func RemoveTXIDs(txids []string) {
 
 }
 
-func Ask() {
-
+func Ask(use string) {
+	if use != "height" {
+		return
+	}
 	for {
 		Mutex.Lock()
 		all := len(AllTXs())
-		if all > 1000 {
-			time.Sleep(time.Millisecond * time.Duration(all/100))
+		if all > 500 {
+			if use == "height" {
+				time.Sleep(time.Millisecond * time.Duration(math.Pow(float64(all), 2)))
+			}
 		}
 
 		lowest := uint8(255)

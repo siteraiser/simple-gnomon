@@ -25,9 +25,9 @@ var SpamLevel = 50
 
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
-var memPreferredRequests = uint8(20)
+var memPreferredRequests = uint8(10)
 var diskBatchSize = int16(100)
-var diskPreferredRequests = uint8(20)
+var diskPreferredRequests = uint8(8)
 
 // Program vars
 var TargetHeight = int64(0)
@@ -161,7 +161,7 @@ func start_gnomon_indexer() {
 		}
 		//---- MAIN PRINTOUT
 		showBlockStatus(bheight)
-		api.Ask()
+		api.Ask("height")
 		wg.Add(1)
 		api.Mutex.Lock()
 		api.Blocks = append(api.Blocks, api.Block{Height: bheight})
@@ -298,6 +298,8 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	if !discarding {
 		api.BlockByHeight(bheight).TxIds = append(api.BlockByHeight(bheight).TxIds, tx_str_list...)
 		api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
+	} else {
+		api.RemoveBlocks(int(bheight))
 	}
 
 	if len(api.TXIDSProcessing) >= 100 {
@@ -314,10 +316,11 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 func DoBatch(batch api.Batch) {
 	api.Mutex.Lock()
 	api.RemoveTXIDs(batch.TxIds)
+
 	api.Mutex.Unlock()
 
 	var r rpc.GetTransaction_Result
-	api.Ask()
+	api.Ask("tx")
 	r = api.GetTransaction(rpc.GetTransaction_Params{
 		Tx_Hashes: batch.TxIds, //[int(batchSize)*i : end]
 	})
@@ -428,7 +431,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx_hex string, signer string, bheight int6
 		return
 	}
 
-	api.Ask()
+	api.Ask("sc")
 	sc := api.GetSC(params) //Variables: true,
 
 	vars, err := GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
