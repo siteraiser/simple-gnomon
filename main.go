@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/deroproject/derohe/cryptography/crypto"
@@ -28,9 +27,9 @@ var SpamLevel = 50
 
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
-var memPreferredRequests = uint8(4)
-var diskBatchSize = int16(50)
-var diskPreferredRequests = uint8(4)
+var memPreferredRequests = uint8(10)
+var diskBatchSize = int16(100)
+var diskPreferredRequests = uint8(8)
 
 // Program vars
 var TargetHeight = int64(0)
@@ -168,14 +167,12 @@ func start_gnomon_indexer() {
 		//---- MAIN PRINTOUT
 		showBlockStatus(bheight)
 		api.Ask("height")
-		atomic.AddInt32(&count, 1)
 		wg.Add(1)
 		api.Mutex.Lock()
 		api.Blocks = append(api.Blocks, api.Block{Height: bheight})
 		api.Mutex.Unlock()
 		go ProcessBlock(&wg, bheight)
 
-		checkGo()
 	}
 
 	wg.Wait()
@@ -207,8 +204,7 @@ func start_gnomon_indexer() {
 			showBlockStatus(TargetHeight)
 			batchlist := api.TXIDSProcessing
 			api.RemoveTXIDs(batchlist)
-			var g sync.WaitGroup
-			DoBatch(&g, api.Batch{TxIds: batchlist})
+			DoBatch(api.Batch{TxIds: batchlist})
 		}
 		w, _ := time.ParseDuration("1s")
 		time.Sleep(w)
@@ -272,7 +268,6 @@ func start_gnomon_indexer() {
 
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
-	defer atomic.AddInt32(&count, -1)
 	discarding := false
 
 	if !api.OK() {
@@ -307,33 +302,28 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	//good place to set large block flag if needed
 
 	api.Mutex.Lock()
+
 	if !discarding {
 		api.BlockByHeight(bheight).TxIds = append(api.BlockByHeight(bheight).TxIds, tx_str_list...)
 		api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
 	} else {
 		api.RemoveBlocks(int(bheight))
 	}
-	api.Mutex.Unlock()
 
-	var wga sync.WaitGroup
-
-	api.Mutex.Lock()
-	if len(api.TXIDSProcessing) >= int(batchSize) {
-		batchlist := api.TXIDSProcessing[:batchSize]
+	if len(api.TXIDSProcessing) >= 100 {
+		batchlist := api.TXIDSProcessing[:100]
 		api.Mutex.Unlock()
-		wga.Add(1)
-		go DoBatch(&wga, api.Batch{TxIds: batchlist})
-		wga.Wait()
+		DoBatch(api.Batch{TxIds: batchlist})
+		return
 	}
+
 	api.Mutex.Unlock()
 
 }
 
 var laststored = int64(0)
 
-func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
-	defer wga.Done()
-	defer atomic.AddInt32(&count, -1)
+func DoBatch(batch api.Batch) {
 	api.Mutex.Lock()
 	api.RemoveTXIDs(batch.TxIds)
 	api.BatchCount++
@@ -348,7 +338,6 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 	for i, tx_hex := range r.Txs_as_hex {
 		tx, err := decodeTx(tx_hex)
 		if err == nil {
-			atomic.AddInt32(&count, 1)
 			wg2.Add(1)
 			go saveDetails(&wg2, tx, r.Txs[i].Block_Height, r.Txs[i].Signer, batch)
 		} else {
@@ -357,10 +346,7 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 				TxIds: []string{tx.GetHash().String()},
 			})
 		}
-		checkGo()
-
 	}
-
 	wg2.Wait()
 
 	if api.OK() {
@@ -371,13 +357,55 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 		updateBlocks(batch)
 	}
 }
+func updateBlocks(batch api.Batch) {
+	api.Mutex.Lock()
+	var remove = []int64{}
+	for _, block := range api.Blocks {
+		if block.Processed || block.Height == 0 {
+			remove = append(remove, block.Height)
+		}
+	}
+	for height := range remove {
+		api.RemoveBlocks(int(height))
+	}
+	api.Mutex.Unlock()
+	for _, block := range api.Blocks {
+		if block.Height > laststored {
+			storeHeight(block.Height)
+			laststored = block.Height
+			break
+		}
+	}
+}
 
 /********************************/
 /********************************/
+/*
+fmt.Println("batch.TxIds:", len(batch.TxIds))
 
+	fmt.Println("api.BlockByHeight(bheight).TxIds:", len(api.BlockByHeight(bheight).TxIds))
+	for _, t := range batch.TxIds {
+
+		if slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
+			fmt.Println(bheight, " (bheight).TxIds Contains:", t)
+		}
+		if !slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
+			fmt.Println(bheight, " (bheight).TxIds NOT Contains:", t)
+		}
+
+		api.ProcessBlocks(t) //api.RemoveTXs(batch.TxIds)
+}
+	if len(tx.Txs_as_hex) != len(batch.TxIds) {
+		fmt.Println(len(r.Txs_as_hex), " fffffff ", len(batch.TxIds))
+		for i, _ := range r.Txs_as_hex {
+			fmt.Println(int64(r.Txs[i].Block_Height), " - ", r.Txs[i])
+		}
+		panic(r)
+	}
+
+*/
 func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64, signer string, batch api.Batch) { //, large bool
 	defer wg2.Done()
-	defer atomic.AddInt32(&count, -1)
 	var wg3 sync.WaitGroup
 	var ok = true
 	api.RemoveTXs([]string{tx.GetHash().String()})
@@ -422,10 +450,8 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 		ok = false
 	}
 	if ok {
-		atomic.AddInt32(&count, 1)
 		wg3.Add(1)
 		go processSCs(&wg3, tx, tx_type, params, bheight, signer)
-		checkGo()
 		wg3.Wait()
 	}
 	updateBlocks(api.Batch{
@@ -435,7 +461,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 
 func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string, params rpc.GetSC_Params, bheight int64, signer string) {
 	defer wg3.Done()
-	defer atomic.AddInt32(&count, -1)
+
 	api.Ask("sc")
 	sc := api.GetSC(params) //Variables: true,
 
@@ -514,39 +540,6 @@ func storeHeight(bheight int64) {
 			api.NewError("database", "db lock", "Storing last index")
 		}
 		return
-	}
-}
-
-var count int32
-
-func checkGo() {
-	for {
-		current := atomic.LoadInt32(&count)
-		if current > 2 {
-			time.Sleep(1 * time.Millisecond)
-		} else {
-			break
-		}
-	}
-}
-func updateBlocks(batch api.Batch) {
-	api.Mutex.Lock()
-	var remove = []int64{}
-	for _, block := range api.Blocks {
-		if block.Processed || block.Height == 0 {
-			remove = append(remove, block.Height)
-		}
-	}
-	for height := range remove {
-		api.RemoveBlocks(int(height))
-	}
-	api.Mutex.Unlock()
-	for _, block := range api.Blocks {
-		if block.Height > laststored {
-			storeHeight(block.Height)
-			laststored = block.Height
-			break
-		}
 	}
 }
 
