@@ -191,8 +191,10 @@ func RemoveTXs(txids []string) {
 	for _, block := range Blocks {
 		txlist := []string{}
 		for _, txid := range txids {
-			if !slices.Contains(block.TxIds, txid) {
-				txlist = append(txlist, txid)
+			if len(block.TxIds) != 0 {
+				if !slices.Contains(block.TxIds, txid) {
+					txlist = append(txlist, txid)
+				}
 			}
 		}
 		blocklist = append(blocklist, Block{

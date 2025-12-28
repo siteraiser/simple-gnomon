@@ -459,7 +459,6 @@ func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool
 		affected_rows, _ := result.RowsAffected()
 		if affected_rows != 0 {
 			changes = true
-			ready(true)
 			return
 		}
 	} else {

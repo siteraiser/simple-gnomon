@@ -360,9 +360,10 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 			wg2.Add(1)
 			go saveDetails(&wg2, tx, r.Txs[i].Block_Height, r.Txs[i].Signer, batch)
 		} else {
-			api.RemoveTXs([]string{tx.GetHash().String()})
+			remove := []string{r.Txs[i].Tx_hash, tx.GetHash().String()}
+			api.RemoveTXs(remove)
 			updateBlocks(api.Batch{
-				TxIds: []string{tx.GetHash().String()},
+				TxIds: remove,
 			})
 		}
 	}
