@@ -336,14 +336,15 @@ func DoBatch(batch api.Batch) {
 	//var tx transaction.Transaction
 	for i, tx_hex := range r.Txs_as_hex {
 		tx, err := decodeTx(tx_hex)
-		if err != nil {
+		if err == nil {
+			wg2.Add(1)
+			go saveDetails(&wg2, tx, r.Txs[i].Block_Height, r.Txs[i].Signer, batch)
+		} else {
 			api.RemoveTXs([]string{tx.GetHash().String()})
-			updateBlocks(batch)
+			updateBlocks(api.Batch{
+				TxIds: []string{tx.GetHash().String()},
+			})
 		}
-
-		wg2.Add(1)
-		go saveDetails(&wg2, tx, r.Txs[i].Block_Height, r.Txs[i].Signer, batch)
-
 	}
 	wg2.Wait()
 
