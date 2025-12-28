@@ -191,7 +191,7 @@ func start_gnomon_indexer() {
 		}
 		count++
 		//Mutex.Lock()
-		if api.BatchCount == 0 || count > 240 { // len(api.Blocks) == 0
+		if api.BatchCount == 0 && len(api.TXIDSProcessing) == 0 || count > 240 { // len(api.Blocks) == 0
 			break
 		}
 		if len(api.TXIDSProcessing) != 0 {
