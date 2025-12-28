@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/deroproject/derohe/cryptography/crypto"
@@ -26,10 +27,10 @@ var UseMem = true                    // Use in-memory db
 var SpamLevel = 50
 
 // Optimized settings for mode db mode
-var memBatchSize = int16(100)
-var memPreferredRequests = uint8(10)
-var diskBatchSize = int16(100)
-var diskPreferredRequests = uint8(8)
+var memBatchSize = int16(25)
+var memPreferredRequests = uint8(4)
+var diskBatchSize = int16(20)
+var diskPreferredRequests = uint8(4)
 
 // Program vars
 var TargetHeight = int64(0)
@@ -57,6 +58,9 @@ type action struct {
 }
 
 var CustomActions = map[string]action{}
+
+var rcount int32
+var rlimit = int32(4)
 
 func main() {
 	var err error
@@ -172,7 +176,7 @@ func start_gnomon_indexer() {
 		api.Blocks = append(api.Blocks, api.Block{Height: bheight})
 		api.Mutex.Unlock()
 		go ProcessBlock(&wg, bheight)
-
+		checkGo()
 	}
 
 	wg.Wait()
@@ -204,7 +208,10 @@ func start_gnomon_indexer() {
 			showBlockStatus(TargetHeight)
 			batchlist := api.TXIDSProcessing
 			api.RemoveTXIDs(batchlist)
-			DoBatch(api.Batch{TxIds: batchlist})
+			var g sync.WaitGroup
+			g.Add(1)
+			atomic.AddInt32(&rcount, 1)
+			DoBatch(&g, api.Batch{TxIds: batchlist})
 		}
 		w, _ := time.ParseDuration("1s")
 		time.Sleep(w)
@@ -302,28 +309,35 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	//good place to set large block flag if needed
 
 	api.Mutex.Lock()
-
 	if !discarding {
 		api.BlockByHeight(bheight).TxIds = append(api.BlockByHeight(bheight).TxIds, tx_str_list...)
 		api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
 	} else {
 		api.RemoveBlocks(int(bheight))
 	}
-
-	if len(api.TXIDSProcessing) >= 100 {
-		batchlist := api.TXIDSProcessing[:100]
-		api.Mutex.Unlock()
-		DoBatch(api.Batch{TxIds: batchlist})
-		return
-	}
-
 	api.Mutex.Unlock()
+
+	var wga sync.WaitGroup
+	api.Mutex.Lock()
+	if len(api.TXIDSProcessing) >= int(batchSize) {
+		batchlist := api.TXIDSProcessing[:batchSize]
+		api.Mutex.Unlock()
+		atomic.AddInt32(&rcount, 1)
+		checkGo()
+		wga.Add(1)
+		go DoBatch(&wga, api.Batch{TxIds: batchlist})
+		wga.Wait()
+	} else {
+		api.Mutex.Unlock()
+	}
 
 }
 
 var laststored = int64(0)
 
-func DoBatch(batch api.Batch) {
+func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
+	defer wga.Done()
+	defer atomic.AddInt32(&rcount, -1)
 	api.Mutex.Lock()
 	api.RemoveTXIDs(batch.TxIds)
 	api.BatchCount++
@@ -546,7 +560,16 @@ func storeHeight(bheight int64) {
 /********************************/
 /*********** Helpers ************/
 /********************************/
-
+func checkGo() {
+	for {
+		current := atomic.LoadInt32(&rcount)
+		if current > rlimit {
+			time.Sleep(1 * time.Millisecond)
+		} else {
+			break
+		}
+	}
+}
 func findStart(start int64, top int64) (block int64) {
 	difference := top - start
 	offset := difference / 2
