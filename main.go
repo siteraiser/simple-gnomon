@@ -185,6 +185,7 @@ func start_gnomon_indexer() {
 	for {
 		loading := []string{" .. .", ". .. ", ".. .."}
 		fmt.Print("\r", loading[place])
+
 		place++
 		if place == 3 {
 			place = 0
@@ -195,6 +196,7 @@ func start_gnomon_indexer() {
 			break
 		}
 		if len(api.TXIDSProcessing) != 0 {
+			showBlockStatus(TargetHeight)
 			batchlist := api.TXIDSProcessing
 			api.RemoveTXIDs(batchlist)
 			DoBatch(api.Batch{TxIds: batchlist})
@@ -351,16 +353,22 @@ func DoBatch(batch api.Batch) {
 		for height := range remove {
 			api.RemoveBlocks(int(height))
 		}
-
-		if len(api.Blocks) != 0 && api.Blocks[0].Height != 0 {
+		api.Mutex.Unlock()
+		for _, block := range api.Blocks {
+			if block.Height != int64(0) {
+				storeHeight(block.Height)
+				break
+			}
+		}
+		if len(api.Blocks) != 0 && api.Blocks[0].Height != int64(0) {
 
 			b := api.Blocks[0]
-			api.Mutex.Unlock()
+
 			fmt.Println("Blocks", b)
 			storeHeight(b.Height)
-			return
+
 		}
-		api.Mutex.Unlock()
+
 	}
 }
 
@@ -515,8 +523,6 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 
 func storeHeight(bheight int64) {
 	Ask()
-	fmt.Println("storeHeight:", bheight)
-	fmt.Println("storeHeight:", api.Blocks[0])
 	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
 		fmt.Println("Error Saving LastIndexHeight: ", err)
 		if strings.Contains(err.Error(), "database is locked") {
