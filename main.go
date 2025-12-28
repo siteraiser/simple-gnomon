@@ -360,14 +360,6 @@ func DoBatch(batch api.Batch) {
 				break
 			}
 		}
-		if len(api.Blocks) != 0 && api.Blocks[0].Height != int64(0) {
-
-			b := api.Blocks[0]
-
-			fmt.Println("Blocks", b)
-			storeHeight(b.Height)
-
-		}
 
 	}
 }

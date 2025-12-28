@@ -196,7 +196,8 @@ func RemoveTXs(txids []string) {
 			}
 		}
 		blocklist = append(blocklist, Block{
-			TxIds: txlist,
+			Height: block.Height,
+			TxIds:  txlist,
 		})
 	}
 	Blocks = blocklist
