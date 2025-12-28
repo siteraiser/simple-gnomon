@@ -27,10 +27,10 @@ var UseMem = true                    // Use in-memory db
 var SpamLevel = 50
 
 // Optimized settings for mode db mode
-var memBatchSize = int16(100)
-var memPreferredRequests = uint8(8)
+var memBatchSize = int16(250)
+var memPreferredRequests = uint8(20)
 var diskBatchSize = int16(100)
-var diskPreferredRequests = uint8(8)
+var diskPreferredRequests = uint8(10)
 
 // Program vars
 var TargetHeight = int64(0)
