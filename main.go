@@ -333,9 +333,13 @@ func DoBatch(batch api.Batch) {
 	r = api.GetTransaction(rpc.GetTransaction_Params{
 		Tx_Hashes: batch.TxIds, //[int(batchSize)*i : end]
 	})
-	var tx transaction.Transaction
+	//var tx transaction.Transaction
 	for i, tx_hex := range r.Txs_as_hex {
-		tx, _ = decodeTx(tx_hex)
+		tx, err := decodeTx(tx_hex)
+		if err != nil {
+			api.RemoveTXs([]string{tx.GetHash().String()})
+			updateBlocks(batch)
+		}
 
 		wg2.Add(1)
 		go saveDetails(&wg2, tx, r.Txs[i].Block_Height, r.Txs[i].Signer, batch)
@@ -344,28 +348,31 @@ func DoBatch(batch api.Batch) {
 	wg2.Wait()
 
 	if api.OK() {
-
 		api.Mutex.Lock()
 		api.BatchCount--
 		api.RemoveTXs(batch.TxIds)
-		var remove = []int64{}
-		for _, block := range api.Blocks {
-			if block.Processed || block.Height == 0 {
-				remove = append(remove, block.Height)
-			}
-		}
-		for height := range remove {
-			api.RemoveBlocks(int(height))
-		}
 		api.Mutex.Unlock()
-		for _, block := range api.Blocks {
-			if block.Height > laststored {
-				storeHeight(block.Height)
-				laststored = block.Height
-				break
-			}
+		updateBlocks(batch)
+	}
+}
+func updateBlocks(batch api.Batch) {
+	api.Mutex.Lock()
+	var remove = []int64{}
+	for _, block := range api.Blocks {
+		if block.Processed || block.Height == 0 {
+			remove = append(remove, block.Height)
 		}
-
+	}
+	for height := range remove {
+		api.RemoveBlocks(int(height))
+	}
+	api.Mutex.Unlock()
+	for _, block := range api.Blocks {
+		if block.Height > laststored {
+			storeHeight(block.Height)
+			laststored = block.Height
+			break
+		}
 	}
 }
 
@@ -399,6 +406,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 	defer wg2.Done()
 	var wg3 sync.WaitGroup
 	var ok = true
+	api.RemoveTXs([]string{tx.GetHash().String()})
 
 	if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
 		ok = false
@@ -444,7 +452,9 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 		go processSCs(&wg3, tx, tx_type, params, bheight, signer)
 		wg3.Wait()
 	}
-
+	updateBlocks(api.Batch{
+		TxIds: []string{tx.GetHash().String()},
+	})
 }
 
 func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string, params rpc.GetSC_Params, bheight int64, signer string) {
@@ -619,7 +629,6 @@ func decodeTx(tx_hex string) (transaction.Transaction, error) {
 		if strings.Contains(err.Error(), "Invalid Version in Transaction") {
 			return tx, err
 		}
-		panic(err)
 	}
 	return tx, err
 }
