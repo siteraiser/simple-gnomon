@@ -137,6 +137,7 @@ func start_gnomon_indexer() {
 		firstRun = false
 		sqlite.TrimHeight(starting_height)
 		api.Batches = []api.Batch{}
+		api.BatchCount = 0
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
