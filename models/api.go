@@ -223,13 +223,13 @@ func Ask(use string) {
 	}
 	for {
 		Mutex.Lock()
-		all := len(AllTXs())
+		/*all := len(AllTXs())
 		if all > 10000 {
 			if use == "height" {
 				time.Sleep(time.Microsecond * time.Duration(all*2))
 			}
 		}
-
+		*/
 		lowest := uint8(255)
 		lowest_id := uint8(255)
 		cancel := false
