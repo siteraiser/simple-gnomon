@@ -164,6 +164,7 @@ func ProcessBlocks(txid string) {
 }
 
 var Batches []Batch
+var BatchCount = 0
 var Blocks []Block
 var TXIDSProcessing []string
 var StartingFrom int

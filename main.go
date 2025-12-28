@@ -191,7 +191,7 @@ func start_gnomon_indexer() {
 		}
 		count++
 		//Mutex.Lock()
-		if len(api.Blocks) == 0 || count > 240 {
+		if api.BatchCount == 0 || count > 240 { // len(api.Blocks) == 0
 			break
 		}
 		if len(api.TXIDSProcessing) != 0 {
@@ -316,6 +316,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 func DoBatch(batch api.Batch) {
 	api.Mutex.Lock()
 	api.RemoveTXIDs(batch.TxIds)
+	api.BatchCount++
 	api.Mutex.Unlock()
 	var wg2 sync.WaitGroup
 	var r rpc.GetTransaction_Result
@@ -339,6 +340,7 @@ func DoBatch(batch api.Batch) {
 	if api.OK() {
 
 		api.Mutex.Lock()
+		api.BatchCount--
 		api.RemoveTXs(batch.TxIds)
 		var remove = []int64{}
 		for _, block := range api.Blocks {
@@ -378,6 +380,15 @@ fmt.Println("batch.TxIds:", len(batch.TxIds))
 		}
 
 		api.ProcessBlocks(t) //api.RemoveTXs(batch.TxIds)
+}
+	if len(tx.Txs_as_hex) != len(batch.TxIds) {
+		fmt.Println(len(r.Txs_as_hex), " fffffff ", len(batch.TxIds))
+		for i, _ := range r.Txs_as_hex {
+			fmt.Println(int64(r.Txs[i].Block_Height), " - ", r.Txs[i])
+		}
+		panic(r)
+	}
+
 */
 func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64, signer string, batch api.Batch) { //, large bool
 	defer wg2.Done()
