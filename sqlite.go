@@ -454,7 +454,7 @@ func (ss *SqlStore) ViewTables() {
 func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool, err error) {
 	ready(false)
 	result, err := ss.DB.Exec("UPDATE state SET value = '" + strconv.Itoa(int(last_indexedheight)) + "' WHERE name = 'lastindexedheight';")
-	ready(true)
+
 	if err == nil {
 		affected_rows, _ := result.RowsAffected()
 		if affected_rows != 0 {
@@ -464,7 +464,7 @@ func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool
 	} else {
 		fmt.Println("Error storing last index height")
 	}
-
+	ready(true)
 	return
 }
 

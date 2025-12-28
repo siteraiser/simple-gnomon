@@ -29,7 +29,7 @@ var SpamLevel = 50
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
 var memPreferredRequests = uint8(20)
-var diskBatchSize = int16(100)
+var diskBatchSize = int16(25)
 var diskPreferredRequests = uint8(10)
 
 // Program vars
@@ -65,7 +65,7 @@ var rlimit = int32(1000)
 func main() {
 	var err error
 	var text string
-	fmt.Print("Enter system memory to use in GB(8,16,...): ")
+	fmt.Print("Enter system memory to use in GB(0,2,8,...): ")
 	_, err = fmt.Scanln(&text)
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -350,6 +350,9 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 	r = api.GetTransaction(rpc.GetTransaction_Params{
 		Tx_Hashes: batch.TxIds, //[int(batchSize)*i : end]
 	})
+	if !api.OK() {
+		return
+	}
 	//var tx transaction.Transaction
 	for i, tx_hex := range r.Txs_as_hex {
 		tx, err := decodeTx(tx_hex)
