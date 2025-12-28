@@ -353,14 +353,15 @@ func DoBatch(batch api.Batch) {
 		for height := range remove {
 			api.RemoveBlocks(int(height))
 		}
-		api.Mutex.Unlock()
-		for _, block := range api.Blocks {
-			if block.Height != int64(0) {
-				storeHeight(block.Height)
-				break
-			}
-		}
 
+		if len(api.Blocks) != 0 && api.Blocks[0].Height != 0 {
+
+			b := api.Blocks[0]
+			api.Mutex.Unlock()
+			storeHeight(b.Height)
+			return
+		}
+		api.Mutex.Unlock()
 	}
 }
 
