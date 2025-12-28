@@ -358,31 +358,31 @@ func getResult[T any](method string, params any) (T, error) {
 
 	nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
-	/*	*/
-	gtxtime := time.Time{}
-	noout := Outs[endpoint.Id]
-	avgspeed := 100
-	target := float64(PreferredRequests / 2)
-	if method == "DERO.GetTransaction" {
-		gtxtime = time.Now()
-		avgspeed = calculateSpeed(endpoint.Id, method)
+	/*
+		gtxtime := time.Time{}
+		noout := Outs[endpoint.Id]
+		avgspeed := 100
+		target := float64(PreferredRequests / 2)
+		if method == "DERO.GetTransaction" {
+			gtxtime = time.Now()
+			avgspeed = calculateSpeed(endpoint.Id, method)
 
-	} else if noout >= uint8(target) {
-		gtxtime = time.Now()
-		avgspeed = calculateSpeed(endpoint.Id, method)
-	}
-	if avgspeed == 0 {
-		avgspeed = 100
-	}
-	ratio := target / float64(noout)
-	if ratio != float64(1) {
-		avgspeed = int(float64(avgspeed) / float64(ratio))
-	}
-	if avgspeed > 10000 {
-		avgspeed = 10000
-	}
-	time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
-
+		} else if noout >= uint8(target) {
+			gtxtime = time.Now()
+			avgspeed = calculateSpeed(endpoint.Id, method)
+		}
+		if avgspeed == 0 {
+			avgspeed = 100
+		}
+		ratio := target / float64(noout)
+		if ratio != float64(1) {
+			avgspeed = int(float64(avgspeed) / float64(ratio))
+		}
+		if avgspeed > 10000 {
+			avgspeed = 10000
+		}
+		time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
+	*/
 	Outs[endpoint.Id]++
 
 	Mutex.Unlock()
@@ -396,12 +396,12 @@ func getResult[T any](method string, params any) (T, error) {
 	Mutex.Lock()
 
 	Outs[endpoint.Id]--
-	/*	*/
-	notime := time.Time{}
-	if gtxtime != notime {
-		updateSpeed(endpoint.Id, method, gtxtime)
-	}
-
+	/*
+		notime := time.Time{}
+		if gtxtime != notime {
+			updateSpeed(endpoint.Id, method, gtxtime)
+		}
+	*/
 	Mutex.Unlock()
 
 	if err != nil {

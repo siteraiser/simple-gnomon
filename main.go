@@ -201,13 +201,15 @@ func start_gnomon_indexer() {
 		}
 		count++
 		//Mutex.Lock()
-		if api.BatchCount == 0 && len(api.TXIDSProcessing) == 0 || count > 600 { // wait for 10 mins
+		if (api.BatchCount == 0 && len(api.TXIDSProcessing) == 0) || count > 600 || !api.OK() { // wait for 10 mins
 			break
 		}
 		if len(api.TXIDSProcessing) != 0 {
 			showBlockStatus(TargetHeight)
+			api.Mutex.Lock()
 			batchlist := api.TXIDSProcessing
 			api.RemoveTXIDs(batchlist)
+			api.Mutex.Unlock()
 			var g sync.WaitGroup
 			g.Add(1)
 			atomic.AddInt32(&rcount, 1)
