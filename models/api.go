@@ -226,7 +226,6 @@ func Ask(use string) {
 		/**/
 		lowest := uint8(255)
 		lowest_id := uint8(255)
-		cancel := false
 		target := uint8(PreferredRequests / 2)
 
 		for id, out := range Outs {
@@ -234,12 +233,10 @@ func Ask(use string) {
 				if out < lowest {
 					lowest = out
 					lowest_id = uint8(id)
-				} else if out >= target {
-					cancel = true
 				}
 			}
 		}
-		if !cancel && lowest < target {
+		if lowest < target {
 			currentEndpoint = Endpoints[lowest_id]
 			Mutex.Unlock()
 			return
