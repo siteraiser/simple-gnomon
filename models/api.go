@@ -207,10 +207,9 @@ func RemoveTXs(txids []string) {
 
 }
 func RemoveTXIDs(txids []string) {
-
 	var newlist []string
 	for _, txid := range TXIDSProcessing {
-		if !slices.Contains(txids, txid) {
+		if slices.Index(txids, txid) == -1 {
 			newlist = append(newlist, txid)
 		}
 	}

@@ -21,7 +21,7 @@ import (
 
 var startAt = int64(0) // Start at Block Height, will be auto-set when using 0
 var blockBatchSize int64
-var blockBatchSizeMem = int64(25000)
+var blockBatchSizeMem = int64(5000)
 var blockBatchSizeDisk = int64(5000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                    // Use in-memory db
 var SpamLevel = 50
@@ -60,7 +60,7 @@ type action struct {
 var CustomActions = map[string]action{}
 
 var rcount int32
-var rlimit = int32(1000)
+var rlimit = int32(2000)
 
 func main() {
 	var err error
@@ -187,7 +187,7 @@ func start_gnomon_indexer() {
 		return
 	}
 	// Wait for all requests to finish
-	fmt.Println("Batch completed, count:", blockBatchSize)
+	fmt.Println("Batch completing, count:", blockBatchSize)
 
 	place := 0
 	count := 0
@@ -208,7 +208,6 @@ func start_gnomon_indexer() {
 			showBlockStatus(TargetHeight)
 			api.Mutex.Lock()
 			batchlist := api.TXIDSProcessing
-			api.RemoveTXIDs(batchlist)
 			api.Mutex.Unlock()
 			var g sync.WaitGroup
 			g.Add(1)
