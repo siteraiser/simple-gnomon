@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -141,6 +142,7 @@ func start_gnomon_indexer() {
 		firstRun = false
 		sqlite.TrimHeight(starting_height)
 		api.Batches = []api.Batch{}
+		api.TXIDSProcessing = []string{}
 		api.BatchCount = 0
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
@@ -205,16 +207,7 @@ func start_gnomon_indexer() {
 			break
 		}
 		if len(api.TXIDSProcessing) != 0 {
-			showBlockStatus(TargetHeight)
-			api.Mutex.Lock()
-			batchlist := api.TXIDSProcessing
-			api.RemoveTXIDs(batchlist)
-			api.Mutex.Unlock()
-			var g sync.WaitGroup
-			g.Add(1)
-			atomic.AddInt32(&rcount, 1)
-			DoBatch(&g, api.Batch{TxIds: batchlist})
-			g.Wait()
+			panic(api.TXIDSProcessing)
 		}
 		w, _ := time.ParseDuration("1s")
 		time.Sleep(w)
@@ -321,19 +314,27 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	api.Mutex.Unlock()
 
 	var wga sync.WaitGroup
-	api.Mutex.Lock()
-	if len(api.TXIDSProcessing) >= int(batchSize) {
-		batchlist := api.TXIDSProcessing[:batchSize]
-		api.RemoveTXIDs(batchlist)
+
+	//Find total number of batches
+	batch_count := int(math.Ceil(float64(tx_count) / float64(batchSize)))
+
+	//Go through the array of batches and collect the results
+	for i := range batch_count {
+		end := int(batchSize) * i
+		api.Mutex.Lock()
+		if i == batch_count-1 {
+			end = len(api.TXIDSProcessing)
+		}
+		txs := api.TXIDSProcessing[int(batchSize)*i : end]
+		api.RemoveTXIDs(txs)
 		api.Mutex.Unlock()
 		atomic.AddInt32(&rcount, 1)
 		checkGo()
 		wga.Add(1)
-		go DoBatch(&wga, api.Batch{TxIds: batchlist})
-		wga.Wait()
-	} else {
-		api.Mutex.Unlock()
+		go DoBatch(&wga, api.Batch{TxIds: txs})
+
 	}
+	wga.Wait()
 
 }
 
