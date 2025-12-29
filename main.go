@@ -317,12 +317,19 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		var wga sync.WaitGroup
 
 		//Find total number of batches
-		batch_count := int(math.Ceil(float64(tx_count) / float64(batchSize)))
+		batch_count := int(math.Ceil(float64(len(api.TXIDSProcessing)) / float64(batchSize)))
 
 		//Go through the array of batches and collect the results
 		for i := range batch_count {
+
 			end := int(batchSize) * i
 			api.Mutex.Lock()
+
+			if len(api.TXIDSProcessing) >= 100 && i == batch_count-1 {
+				api.Mutex.Unlock()
+				continue
+			}
+
 			if i == batch_count-1 {
 				end = len(api.TXIDSProcessing)
 			}
