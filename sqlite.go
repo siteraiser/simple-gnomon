@@ -506,18 +506,20 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, height int, scname str
 		class,
 		tags,
 	)
-	ready(true)
+
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		//	fmt.Println("ownerinsertid: ", last_insert_id)
 		if last_insert_id >= 0 {
 			changes = true
+			ready(true)
 			return
 		}
 
 	} else {
 		ss.Cancel = true
 	}
+	ready(true)
 	return
 
 }
@@ -550,28 +552,31 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*SCIDVaria
 	if err != nil {
 		return changes, fmt.Errorf("[StoreSCIDVariableDetails] could not marshal getinfo info: %v", err)
 	}
+
+	ready(false) //maybe look up the scid id
 	statement, err := ss.DB.Prepare("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
 
 	if err != nil {
 		log.Fatal(err)
 	}
-	ready(false) //maybe look up the scid id
+
 	result, err := statement.Exec(
 		int(topoheight),
 		scid,
 		confBytes,
 	)
-	ready(true)
+
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		if last_insert_id >= 0 {
 			changes = true
+			ready(true)
 			return
 		}
 	} else {
 		ss.Cancel = true
 	}
-
+	ready(true)
 	return
 }
 
@@ -704,7 +709,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd SCIDToIndexStage, heig
 		scidstoadd.TXHash,
 		scs_id,
 	)
-	ready(true)
+
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		if last_insert_id >= 0 {

@@ -361,7 +361,15 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 			wg2.Add(1)
 			go saveDetails(&wg2, tx, r.Txs[i].Block_Height, r.Txs[i].Signer, batch)
 		} else {
-			remove := []string{r.Txs[i].Tx_hash, tx.GetHash().String()}
+			remove := []string{r.Txs[i].Tx_hash}
+			if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
+				remove = append(remove, tx.GetHash().String())
+			} else if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
+				_, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
+				if ok {
+					remove = append(remove, tx.GetHash().String())
+				}
+			}
 			api.RemoveTXs(remove)
 			updateBlocks(api.Batch{
 				TxIds: remove,

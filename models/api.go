@@ -222,8 +222,6 @@ func Ask(use string) {
 
 	for {
 		Mutex.Lock()
-
-		/**/
 		lowest := uint8(255)
 		lowest_id := uint8(255)
 		target := uint8(PreferredRequests / 2)
@@ -337,7 +335,6 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 	}
 
 	if !validator(result) {
-
 		fmt.Println(errors.New("failed validation"), method)
 		var zero t
 		return zero
