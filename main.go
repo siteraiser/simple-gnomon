@@ -311,13 +311,14 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	} else {
 		api.RemoveBlocks(int(bheight))
 	}
+	txidlen := len(api.TXIDSProcessing)
 	api.Mutex.Unlock()
-	if len(api.TXIDSProcessing) >= 100 || bheight == TargetHeight-1 {
+	if txidlen >= 100 || bheight == TargetHeight-1 {
 
 		var wga sync.WaitGroup
 
 		//Find total number of batches
-		batch_count := int(math.Ceil(float64(len(api.TXIDSProcessing)) / float64(batchSize)))
+		batch_count := int(math.Ceil(float64(txidlen) / float64(batchSize)))
 
 		//Go through the array of batches and collect the results
 		for i := range batch_count {
@@ -325,13 +326,13 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 			end := int(batchSize) * i
 			api.Mutex.Lock()
 
-			if len(api.TXIDSProcessing) >= 100 && i == batch_count-1 {
+			if (txidlen >= 100 && i == batch_count-1) && bheight != TargetHeight-1 {
 				api.Mutex.Unlock()
 				continue
 			}
 
 			if i == batch_count-1 {
-				end = len(api.TXIDSProcessing)
+				end = txidlen
 			}
 			txs := api.TXIDSProcessing[int(batchSize)*i : end]
 			api.RemoveTXIDs(txs)
