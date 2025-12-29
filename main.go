@@ -378,53 +378,6 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 		updateBlocks(batch)
 	}
 }
-func updateBlocks(batch api.Batch) {
-	api.Mutex.Lock()
-	var remove = []int64{}
-	for _, block := range api.Blocks {
-		if block.Processed || block.Height == 0 {
-			remove = append(remove, block.Height)
-		}
-	}
-	for height := range remove {
-		api.RemoveBlocks(int(height))
-	}
-	api.Mutex.Unlock()
-	for _, block := range api.Blocks {
-		if block.Height > laststored {
-			storeHeight(block.Height)
-			laststored = block.Height
-			break
-		}
-	}
-}
-
-/********************************/
-/********************************/
-/*
-fmt.Println("batch.TxIds:", len(batch.TxIds))
-
-	fmt.Println("api.BlockByHeight(bheight).TxIds:", len(api.BlockByHeight(bheight).TxIds))
-	for _, t := range batch.TxIds {
-
-		if slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
-			fmt.Println(bheight, " (bheight).TxIds Contains:", t)
-		}
-		if !slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
-			fmt.Println(bheight, " (bheight).TxIds NOT Contains:", t)
-		}
-
-		api.ProcessBlocks(t) //api.RemoveTXs(batch.TxIds)
-}
-	if len(tx.Txs_as_hex) != len(batch.TxIds) {
-		fmt.Println(len(r.Txs_as_hex), " fffffff ", len(batch.TxIds))
-		for i, _ := range r.Txs_as_hex {
-			fmt.Println(int64(r.Txs[i].Block_Height), " - ", r.Txs[i])
-		}
-		panic(r)
-	}
-
-*/
 func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64, signer string, batch api.Batch) { //, large bool
 	defer wg2.Done()
 	var wg3 sync.WaitGroup
@@ -565,6 +518,71 @@ func storeHeight(bheight int64) {
 	}
 }
 
+func decodeTx(tx_hex string) (transaction.Transaction, error) {
+	b, err := hex.DecodeString(tx_hex)
+	if err != nil {
+		if strings.Contains(err.Error(), "Transaction version unknown") {
+			return transaction.Transaction{}, err
+		}
+		panic(err)
+	}
+	var tx transaction.Transaction
+	if err := tx.Deserialize(b); err != nil {
+		fmt.Println("\nTX Height: ", tx.Height)
+		if strings.Contains(err.Error(), "Invalid Version in Transaction") {
+			return tx, err
+		}
+		panic(err)
+	}
+	return tx, err
+}
+func updateBlocks(batch api.Batch) {
+	api.Mutex.Lock()
+	var remove = []int64{}
+	for _, block := range api.Blocks {
+		if block.Processed || block.Height == 0 {
+			remove = append(remove, block.Height)
+		}
+	}
+	for height := range remove {
+		api.RemoveBlocks(int(height))
+	}
+	api.Mutex.Unlock()
+	for _, block := range api.Blocks {
+		if block.Height > laststored {
+			storeHeight(block.Height)
+			laststored = block.Height
+			break
+		}
+	}
+}
+
+/********************************/
+/********************************/
+/*
+fmt.Println("batch.TxIds:", len(batch.TxIds))
+
+	fmt.Println("api.BlockByHeight(bheight).TxIds:", len(api.BlockByHeight(bheight).TxIds))
+	for _, t := range batch.TxIds {
+
+		if slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
+			fmt.Println(bheight, " (bheight).TxIds Contains:", t)
+		}
+		if !slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
+			fmt.Println(bheight, " (bheight).TxIds NOT Contains:", t)
+		}
+
+		api.ProcessBlocks(t) //api.RemoveTXs(batch.TxIds)
+}
+	if len(tx.Txs_as_hex) != len(batch.TxIds) {
+		fmt.Println(len(r.Txs_as_hex), " fffffff ", len(batch.TxIds))
+		for i, _ := range r.Txs_as_hex {
+			fmt.Println(int64(r.Txs[i].Block_Height), " - ", r.Txs[i])
+		}
+		panic(r)
+	}
+
+*/
 /********************************/
 /*********** Helpers ************/
 /********************************/
@@ -659,20 +677,6 @@ func getOutCounts() (int, string) {
 	}
 
 	return tot, text[1:]
-}
-func decodeTx(tx_hex string) (transaction.Transaction, error) {
-	b, err := hex.DecodeString(tx_hex)
-	if err != nil {
-		panic(err)
-	}
-	var tx transaction.Transaction
-	if err := tx.Deserialize(b); err != nil {
-		fmt.Println("\nTX Height: ", tx.Height)
-		if strings.Contains(err.Error(), "Invalid Version in Transaction") {
-			return tx, err
-		}
-	}
-	return tx, err
 }
 
 // Supply true to boot from disk, returns true if memory is nearly full
