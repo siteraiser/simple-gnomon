@@ -208,6 +208,7 @@ func start_gnomon_indexer() {
 			showBlockStatus(TargetHeight)
 			api.Mutex.Lock()
 			batchlist := api.TXIDSProcessing
+			api.RemoveTXIDs(batchlist)
 			api.Mutex.Unlock()
 			var g sync.WaitGroup
 			g.Add(1)
@@ -323,6 +324,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	api.Mutex.Lock()
 	if len(api.TXIDSProcessing) >= int(batchSize) {
 		batchlist := api.TXIDSProcessing[:batchSize]
+		api.RemoveTXIDs(batchlist)
 		api.Mutex.Unlock()
 		atomic.AddInt32(&rcount, 1)
 		checkGo()
@@ -341,7 +343,7 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 	defer wga.Done()
 	defer atomic.AddInt32(&rcount, -1)
 	api.Mutex.Lock()
-	api.RemoveTXIDs(batch.TxIds)
+
 	api.BatchCount++
 	api.Mutex.Unlock()
 	var wg2 sync.WaitGroup
