@@ -22,7 +22,7 @@ import (
 
 var startAt = int64(0) // Start at Block Height, will be auto-set when using 0
 var blockBatchSize int64
-var blockBatchSizeMem = int64(25000)
+var blockBatchSizeMem = int64(5000)
 var blockBatchSizeDisk = int64(5000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                    // Use in-memory db
 var SpamLevel = 50
@@ -61,7 +61,7 @@ type action struct {
 var CustomActions = map[string]action{}
 
 var rcount int32
-var rlimit = int32(1000)
+var rlimit = int32(2000)
 
 func main() {
 	var err error
@@ -207,7 +207,7 @@ func start_gnomon_indexer() {
 			break
 		}
 		if len(api.TXIDSProcessing) != 0 {
-			panic(api.TXIDSProcessing)
+			fmt.Println(api.TXIDSProcessing)
 		}
 		w, _ := time.ParseDuration("1s")
 		time.Sleep(w)
@@ -330,12 +330,13 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 				api.Mutex.Unlock()
 				continue
 			}
-
+			start := int(batchSize) * i
 			if i == batch_count-1 {
 				end = txidlen
 			}
-			txs := api.TXIDSProcessing[int(batchSize)*i : end]
-			api.RemoveTXIDs(txs)
+
+			txs := api.TXIDSProcessing[start:end]
+			api.TXIDSProcessing = api.TXIDSProcessing[end:]
 			api.Mutex.Unlock()
 			atomic.AddInt32(&rcount, 1)
 			checkGo()
