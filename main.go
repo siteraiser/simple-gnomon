@@ -521,15 +521,13 @@ func storeHeight(bheight int64) {
 func decodeTx(tx_hex string) (transaction.Transaction, error) {
 	b, err := hex.DecodeString(tx_hex)
 	if err != nil {
-		if strings.Contains(err.Error(), "Transaction version unknown") {
-			return transaction.Transaction{}, err
-		}
 		panic(err)
 	}
 	var tx transaction.Transaction
 	if err := tx.Deserialize(b); err != nil {
 		fmt.Println("\nTX Height: ", tx.Height)
-		if strings.Contains(err.Error(), "Invalid Version in Transaction") {
+		if strings.Contains(err.Error(), "Invalid Version in Transaction") ||
+			strings.Contains(err.Error(), "Transaction version unknown") {
 			return tx, err
 		}
 		panic(err)
