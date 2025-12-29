@@ -22,7 +22,7 @@ import (
 
 var startAt = int64(0) // Start at Block Height, will be auto-set when using 0
 var blockBatchSize int64
-var blockBatchSizeMem = int64(5000)
+var blockBatchSizeMem = int64(25000)
 var blockBatchSizeDisk = int64(5000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                    // Use in-memory db
 var SpamLevel = 50
@@ -61,7 +61,7 @@ type action struct {
 var CustomActions = map[string]action{}
 
 var rcount int32
-var rlimit = int32(2000)
+var rlimit = int32(1000)
 
 func main() {
 	var err error
