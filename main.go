@@ -213,6 +213,7 @@ func start_gnomon_indexer() {
 			g.Add(1)
 			atomic.AddInt32(&rcount, 1)
 			DoBatch(&g, api.Batch{TxIds: batchlist})
+			g.Wait()
 		}
 		w, _ := time.ParseDuration("1s")
 		time.Sleep(w)
