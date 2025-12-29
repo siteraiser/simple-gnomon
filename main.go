@@ -350,6 +350,7 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 	r = api.GetTransaction(rpc.GetTransaction_Params{
 		Tx_Hashes: batch.TxIds, //[int(batchSize)*i : end]
 	})
+	showBlockStatus(-1)
 	if !api.OK() {
 		return
 	}
@@ -438,7 +439,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 	params := rpc.GetSC_Params{}
 	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
 		tx_type = "install"
-		fmt.Println("Installed:", tx.SCDATA.Value(rpc.SCCODE, rpc.DataString))
+		fmt.Println("\nSC Code:\n", tx.SCDATA.Value(rpc.SCCODE, rpc.DataString))
 
 		params = rpc.GetSC_Params{
 			SCID:       tx.GetHash().String(),
@@ -535,9 +536,10 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 		Class:      class, //Class and tags are not in original gnomon
 		Tags:       tags,
 	}
-	//	fmt.Println("staged scid:", staged.TXHash, ":", fmt.Sprint(staged.Fsi.Height))
-	//	fmt.Println("staged params.scid:", params.SCID, ":", fmt.Sprint(staged.Fsi.Height))
 
+	//fmt.Println("staged scid:", staged.TXHash, ":", fmt.Sprint(staged.Fsi.Height))
+	//fmt.Println("staged params.scid:", params.SCID, ":", fmt.Sprint(staged.Fsi.Height))
+	showBlockStatus(-1)
 	// now add the scid to the index
 	Ask()
 	// if the contract already exists, record the interaction
@@ -612,7 +614,16 @@ func getSpeed() int {
 	return int(value)
 }
 
+var status = struct {
+	block int64
+}{
+	block: 0,
+}
+
 func showBlockStatus(bheight int64) {
+	if bheight != -1 {
+		status.block = bheight
+	}
 	speedms := "0"
 	speedbph := "0"
 	s := getSpeed()
@@ -621,7 +632,7 @@ func showBlockStatus(bheight int64) {
 		speedbph = strconv.Itoa((1000 / s) * 60 * 60)
 	}
 	_, text := getOutCounts()
-	show := "Block:" + strconv.Itoa(int(bheight)) +
+	show := "Block:" + strconv.Itoa(int(status.block)) +
 		" Connections " + strconv.Itoa(int(len(api.Outs))) +
 		" " + text +
 		" Speed:" + speedms + "ms" +
