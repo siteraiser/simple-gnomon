@@ -206,9 +206,6 @@ func start_gnomon_indexer() {
 		if (api.BatchCount == 0 && len(api.TXIDSProcessing) == 0) || count > 600 || !api.OK() { // wait for 10 mins
 			break
 		}
-		if len(api.TXIDSProcessing) != 0 {
-			fmt.Println(api.TXIDSProcessing)
-		}
 		w, _ := time.ParseDuration("1s")
 		time.Sleep(w)
 	}
@@ -312,7 +309,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		api.RemoveBlocks(int(bheight))
 	}
 	txidlen := len(api.TXIDSProcessing)
-	if txidlen >= 100 || len(api.Batches) == 0 {
+	if txidlen >= 100 || (len(api.Batches) == 0 && txidlen != 0) {
 		var wga sync.WaitGroup
 		//Find total number of batches
 		batch_count := int(math.Ceil(float64(txidlen) / float64(batchSize)))
@@ -665,11 +662,11 @@ func showBlockStatus(bheight int64) {
 	}
 	_, text := getOutCounts()
 	show := "Block:" + strconv.Itoa(int(status.block)) +
-		" Connections " + strconv.Itoa(int(len(api.Outs))) +
+		" Connections:" + strconv.Itoa(int(len(api.Outs))) +
 		" " + text +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph" +
-		" Processing " + strconv.Itoa(len(api.Blocks)) +
+		" Processing:" + strconv.Itoa(len(api.Blocks)) +
 		" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
 
 	fmt.Print("\r", show)
