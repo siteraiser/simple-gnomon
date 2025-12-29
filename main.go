@@ -61,7 +61,7 @@ type action struct {
 var CustomActions = map[string]action{}
 
 var rcount int32
-var rlimit = int32(1000)
+var rlimit = int32(2000)
 
 func main() {
 	var err error
@@ -312,21 +312,16 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		api.RemoveBlocks(int(bheight))
 	}
 	txidlen := len(api.TXIDSProcessing)
-
-	if txidlen >= 100 || bheight == TargetHeight-1 {
-
+	if txidlen >= 100 || bheight >= TargetHeight-1 {
 		var wga sync.WaitGroup
-
 		//Find total number of batches
 		batch_count := int(math.Ceil(float64(txidlen) / float64(batchSize)))
 		api.Mutex.Unlock()
 		//Go through the array of batches and collect the results
 		for i := range batch_count {
-
 			end := int(batchSize) * i
 			api.Mutex.Lock()
-
-			if (txidlen >= 100 && i == batch_count-1) && bheight != TargetHeight-1 {
+			if (txidlen >= 100 && i == batch_count-1) && len(api.Batches) != 0 {
 				api.Mutex.Unlock()
 				continue
 			}
@@ -334,7 +329,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 			if i == batch_count-1 {
 				end = txidlen
 			}
-
 			txs := api.TXIDSProcessing[start:end]
 			api.TXIDSProcessing = api.TXIDSProcessing[end:]
 			api.Mutex.Unlock()
@@ -342,7 +336,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 			checkGo()
 			wga.Add(1)
 			go DoBatch(&wga, api.Batch{TxIds: txs})
-
 		}
 		wga.Wait()
 	} else {
