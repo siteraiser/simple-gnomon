@@ -218,37 +218,26 @@ func RemoveTXIDs(txids []string) {
 }
 
 func Ask(use string) {
-
+	return
 	for {
 		Mutex.Lock()
-		lowest := uint8(255)
-		target := uint8(PreferredRequests / 2)
-
+		exceeded := 0
+		totouts := 0
 		for id, out := range Outs {
 			if len(Endpoints[id].Errors) == 0 {
-				if out < lowest {
-					lowest = out
+				totouts++
+				if out > uint8(PreferredRequests) {
+					exceeded++
 				}
 			}
 		}
-		if lowest < target {
+		if exceeded == totouts || totouts <= 1 {
 			Mutex.Unlock()
 			return
 		}
 		Mutex.Unlock()
-		time.Sleep(time.Microsecond * 10)
+
 	}
-}
-
-type Int4 uint8
-
-func NewInt4(value int) Int4 {
-	return Int4(uint8(value) & 0x0F)
-}
-
-// Value returns the unsigned value (0–15)
-func (i Int4) Value() uint8 {
-	return uint8(i) & 0x0F
 }
 
 var Outs []uint8
@@ -267,7 +256,7 @@ func AssignConnections(iserror bool) {
 		lasterrcnt := len(Endpoints[i].Errors)
 		var result any
 		var rpcClient jsonrpc.RPCClient
-		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 		fmt.Println("Testing:", nodeaddr)
@@ -296,6 +285,34 @@ func AssignConnections(iserror bool) {
 var priorGBTimes = make(map[uint8][]int64)
 var priorTxTimes = make(map[uint8][]int64)
 var priorSCTimes = make(map[uint8][]int64)
+
+func waitTime(method string, endpoint Connection) time.Time {
+
+	gtxtime := time.Time{}
+	noout := Outs[endpoint.Id]
+	avgspeed := 100
+	target := float64(PreferredRequests / 2)
+	if method == "DERO.GetTransaction" {
+		gtxtime = time.Now()
+		avgspeed = calculateSpeed(endpoint.Id, method)
+
+	} else if noout >= uint8(target) {
+		gtxtime = time.Now()
+		avgspeed = calculateSpeed(endpoint.Id, method)
+	}
+	if avgspeed == 0 {
+		avgspeed = 100
+	}
+	ratio := target / float64(noout)
+	if ratio != float64(1) {
+		avgspeed = int(float64(avgspeed) / float64(ratio))
+	}
+	if avgspeed > 10000 {
+		avgspeed = 10000
+	}
+	time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
+	return gtxtime
+}
 
 func calculateSpeed(id uint8, method string) int {
 	var priorTimes map[uint8][]int64
@@ -356,9 +373,9 @@ func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var rpcClient jsonrpc.RPCClient
 	var endpoint Connection
-
+	//	var gtxtime time.Time
 	done := make(chan error, 1)
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	endpc := len(Outs)
@@ -374,12 +391,12 @@ func getResult[T any](method string, params any) (T, error) {
 					}
 				}
 				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
-					time.Sleep(time.Millisecond * 250)
+					time.Sleep(time.Millisecond * 500)
 				} else {
 					currentEndpoint = endpoint
 				}
 			}
-
+			//	gtxtime = waitTime(method, endpoint)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Outs[endpoint.Id]++
@@ -398,12 +415,12 @@ func getResult[T any](method string, params any) (T, error) {
 					}
 				}
 				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
-					time.Sleep(time.Millisecond * 100)
+					time.Sleep(time.Millisecond * 500)
 				} else {
 					currentEndpoint = endpoint
 				}
 			}
-
+			//	gtxtime = waitTime(method, endpoint)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Outs[endpoint.Id]++
@@ -424,6 +441,10 @@ func getResult[T any](method string, params any) (T, error) {
 	case err := <-done:
 		Mutex.Lock()
 		Outs[endpoint.Id]--
+		/*notime := time.Time{}
+		if gtxtime != notime {
+			updateSpeed(endpoint.Id, method, gtxtime)
+		}*/
 		Mutex.Unlock()
 
 		if err != nil {
