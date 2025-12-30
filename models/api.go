@@ -296,7 +296,7 @@ func waitTime(method string, endpoint Connection) time.Time {
 
 	gtxtime := time.Time{}
 	noout := Outs[endpoint.Id]
-	avgspeed := 10
+	avgspeed := 20
 	target := float64(PreferredRequests / 2)
 	if method == "DERO.GetTransaction" {
 		gtxtime = time.Now()
@@ -307,14 +307,14 @@ func waitTime(method string, endpoint Connection) time.Time {
 		avgspeed = calculateSpeed(endpoint.Id, method)
 	}
 	if avgspeed == 0 {
-		avgspeed = 10
+		avgspeed = 20
 	}
 	ratio := target / float64(noout)
 	if ratio != float64(1) {
 		avgspeed = int(float64(avgspeed) / float64(ratio))
 	}
-	if avgspeed > 1000 {
-		avgspeed = 1000
+	if avgspeed > 2000 {
+		avgspeed = 2000
 	}
 	time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
 	return gtxtime
@@ -372,7 +372,6 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 
 	if !validator(result) {
 		fmt.Println(errors.New("failed validation"), method)
-		fmt.Println(result)
 		var zero t
 		return zero
 	}
@@ -385,7 +384,7 @@ func getResult[T any](method string, params any) (T, error) {
 	var rpcClient jsonrpc.RPCClient
 	var endpoint Connection
 
-	//var gtxtime time.Time
+	var gtxtime time.Time
 	done := make(chan error, 1)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -404,9 +403,9 @@ func getResult[T any](method string, params any) (T, error) {
 				}
 				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
 					if method == "DERO.GetBlock" {
-						time.Sleep(time.Millisecond * 10)
+						time.Sleep(time.Millisecond * 20)
 					} else {
-						time.Sleep(time.Millisecond * 100)
+						time.Sleep(time.Millisecond * 200)
 					}
 
 				} else {
@@ -414,7 +413,7 @@ func getResult[T any](method string, params any) (T, error) {
 				}
 			}
 
-			//	gtxtime = waitTime(method, endpoint)
+			gtxtime = waitTime(method, endpoint)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Outs[endpoint.Id]++
@@ -435,16 +434,16 @@ func getResult[T any](method string, params any) (T, error) {
 				}
 				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
 					if method == "DERO.GetBlock" {
-						time.Sleep(time.Millisecond * 10)
+						time.Sleep(time.Millisecond * 20)
 					} else {
-						time.Sleep(time.Millisecond * 100)
+						time.Sleep(time.Millisecond * 200)
 					}
 				} else {
 					currentEndpoint = endpoint
 				}
 			}
 
-			//	gtxtime = waitTime(method, endpoint)
+			gtxtime = waitTime(method, endpoint)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Outs[endpoint.Id]++
@@ -468,12 +467,12 @@ func getResult[T any](method string, params any) (T, error) {
 
 		Outs[endpoint.Id]--
 
-		/*
-			notime := time.Time{}
-			if gtxtime != notime {
-				updateSpeed(endpoint.Id, method, gtxtime)
-			}
-		*/
+		/*	*/
+		notime := time.Time{}
+		if gtxtime != notime {
+			updateSpeed(endpoint.Id, method, gtxtime)
+		}
+
 		Mutex.Unlock()
 
 		if err != nil {

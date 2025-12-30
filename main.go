@@ -85,10 +85,10 @@ func main() {
 	_, err = fmt.Scanln(&text)
 	mode := text
 	if strings.ToLower(mode) == "y" {
-		memPreferredRequests = int8(6)
-		diskPreferredRequests = int8(4)
-		memBatchSize = 64
-		diskBatchSize = 50
+		memPreferredRequests = int8(4)
+		diskPreferredRequests = int8(2)
+		memBatchSize = 50
+		diskBatchSize = 32
 	}
 	//Add custom actions for scids
 	//	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
