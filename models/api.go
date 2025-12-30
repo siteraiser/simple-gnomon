@@ -21,9 +21,9 @@ import (
 )
 
 var Endpoints = []Connection{
+	//{Address: "node.derofoundation.org:11012"},
 	{Address: "dero-node-ch4k1pu.mysrv.cloud"},
 	{Address: "64.226.81.37:10102"},
-	//{Address: "node.derofoundation.org:11012"},
 }
 var Mutex sync.Mutex
 
@@ -357,7 +357,11 @@ func updateSpeed(id uint8, method string, start time.Time) {
 }
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
-
+	if !OK() {
+		//	log.Fatal(err)
+		var zero t
+		return zero
+	}
 	result, err := getResult[t](method, params)
 
 	if err != nil {
@@ -379,6 +383,7 @@ func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var rpcClient jsonrpc.RPCClient
 	var endpoint Connection
+
 	//var gtxtime time.Time
 	done := make(chan error, 1)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -407,16 +412,14 @@ func getResult[T any](method string, params any) (T, error) {
 					currentEndpoint = endpoint
 				}
 			}
-			if OK() {
-				//	gtxtime = waitTime(method, endpoint)
-				nodeaddr := "http://" + endpoint.Address + "/json_rpc"
-				rpcClient = jsonrpc.NewClient(nodeaddr)
-				Outs[endpoint.Id]++
-				Mutex.Unlock()
-				done <- rpcClient.CallFor(context.Background(), &result, method, params)
-			} else {
-				done <- nil
-			}
+
+			//	gtxtime = waitTime(method, endpoint)
+			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
+			rpcClient = jsonrpc.NewClient(nodeaddr)
+			Outs[endpoint.Id]++
+			Mutex.Unlock()
+			done <- rpcClient.CallFor(context.Background(), &result, method, params)
+
 		}()
 	} else {
 		go func() {
@@ -439,16 +442,13 @@ func getResult[T any](method string, params any) (T, error) {
 					currentEndpoint = endpoint
 				}
 			}
-			if OK() {
-				//	gtxtime = waitTime(method, endpoint)
-				nodeaddr := "http://" + endpoint.Address + "/json_rpc"
-				rpcClient = jsonrpc.NewClient(nodeaddr)
-				Outs[endpoint.Id]++
-				Mutex.Unlock()
-				done <- rpcClient.CallFor(context.Background(), &result, method, params)
-			} else {
-				done <- nil
-			}
+
+			//	gtxtime = waitTime(method, endpoint)
+			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
+			rpcClient = jsonrpc.NewClient(nodeaddr)
+			Outs[endpoint.Id]++
+			Mutex.Unlock()
+			done <- rpcClient.CallFor(context.Background(), &result, method, params)
 
 		}()
 	}
@@ -464,9 +464,9 @@ func getResult[T any](method string, params any) (T, error) {
 		return zero, errors.New("RPC timed out")
 	case err := <-done:
 		Mutex.Lock()
-		if OK() {
-			Outs[endpoint.Id]--
-		}
+
+		Outs[endpoint.Id]--
+
 		/*
 			notime := time.Time{}
 			if gtxtime != notime {
