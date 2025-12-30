@@ -414,7 +414,11 @@ func getResult[T any](method string, params any) (T, error) {
 
 	select {
 	case <-ctx.Done():
+		Mutex.Lock()
+		Outs[endpoint.Id]--
+		Mutex.Unlock()
 		NewError("rpc", method, endpoint.Address, errors.New("RPC timed out"))
+
 	case err := <-done:
 		Mutex.Lock()
 		Outs[endpoint.Id]--
