@@ -522,6 +522,9 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 }
 
 func storeHeight(bheight int64) {
+	if !api.OK() {
+		return
+	}
 	Ask()
 	//fmt.Println("Saving LastIndexHeight: ", bheight)
 	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
