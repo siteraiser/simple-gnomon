@@ -435,10 +435,13 @@ func getResult[T any](method string, params any) (T, error) {
 					currentEndpoint = endpoint
 				}
 			}
-			//	gtxtime = waitTime(method, endpoint)
-			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
-			rpcClient = jsonrpc.NewClient(nodeaddr)
-			Outs[endpoint.Id]++
+			if OK() {
+				//	gtxtime = waitTime(method, endpoint)
+				nodeaddr := "http://" + endpoint.Address + "/json_rpc"
+				rpcClient = jsonrpc.NewClient(nodeaddr)
+				Outs[endpoint.Id]++
+			}
+
 			Mutex.Unlock()
 			done <- rpcClient.CallFor(context.Background(), &result, method, params)
 		}()
