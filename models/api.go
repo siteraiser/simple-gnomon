@@ -232,12 +232,12 @@ func Ask(use string) {
 		for id, out := range Outs {
 			if len(Endpoints[id].Errors) == 0 {
 				totouts++
-				if out > uint8(PreferredRequests) {
+				if out > preferredMax {
 					exceeded++
 				}
 			}
 		}
-		if exceeded != totouts || totouts <= 1 {
+		if exceeded != totouts {
 			Mutex.Unlock()
 			return
 		}
