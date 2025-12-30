@@ -222,19 +222,16 @@ func Ask(use string) {
 	for {
 		Mutex.Lock()
 		lowest := uint8(255)
-		lowest_id := uint8(255)
 		target := uint8(PreferredRequests / 2)
 
 		for id, out := range Outs {
 			if len(Endpoints[id].Errors) == 0 {
 				if out < lowest {
 					lowest = out
-					lowest_id = uint8(id)
 				}
 			}
 		}
 		if lowest < target {
-			currentEndpoint = Endpoints[lowest_id]
 			Mutex.Unlock()
 			return
 		}
