@@ -372,6 +372,7 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 
 	if !validator(result) {
 		fmt.Println(errors.New("failed validation"), method)
+		fmt.Println(result)
 		var zero t
 		return zero
 	}
@@ -418,7 +419,7 @@ func getResult[T any](method string, params any) (T, error) {
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Outs[endpoint.Id]++
 			Mutex.Unlock()
-			done <- rpcClient.CallFor(context.Background(), &result, method, params)
+			done <- rpcClient.CallFor(context.Background(), &result, method)
 
 		}()
 	} else {

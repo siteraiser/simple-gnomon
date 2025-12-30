@@ -610,6 +610,7 @@ func checkGo() {
 	}
 }
 func findStart(start int64, top int64) (block int64) {
+	fmt.Println("finding", start, "-", top)
 	difference := top - start
 	offset := difference / 2
 	if top-start == 1 {
