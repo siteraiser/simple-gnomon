@@ -29,9 +29,9 @@ var SpamLevel = 50
 
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
-var memPreferredRequests = int8(2)
+var memPreferredRequests = int8(8)
 var diskBatchSize = int16(64)
-var diskPreferredRequests = int8(1)
+var diskPreferredRequests = int8(4)
 
 // Program vars
 var TargetHeight = int64(0)
