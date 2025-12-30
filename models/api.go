@@ -218,11 +218,17 @@ func RemoveTXIDs(txids []string) {
 }
 
 func Ask(use string) {
-
+	if use == "height" {
+		return
+	}
 	for {
 		Mutex.Lock()
 		exceeded := 0
 		totouts := 0
+		preferredMax := uint8(PreferredRequests) / 2
+		if use == "height" {
+			preferredMax *= 2
+		}
 		for id, out := range Outs {
 			if len(Endpoints[id].Errors) == 0 {
 				totouts++
@@ -290,7 +296,7 @@ func waitTime(method string, endpoint Connection) time.Time {
 
 	gtxtime := time.Time{}
 	noout := Outs[endpoint.Id]
-	avgspeed := 100
+	avgspeed := 10
 	target := float64(PreferredRequests / 2)
 	if method == "DERO.GetTransaction" {
 		gtxtime = time.Now()
@@ -301,14 +307,14 @@ func waitTime(method string, endpoint Connection) time.Time {
 		avgspeed = calculateSpeed(endpoint.Id, method)
 	}
 	if avgspeed == 0 {
-		avgspeed = 100
+		avgspeed = 10
 	}
 	ratio := target / float64(noout)
 	if ratio != float64(1) {
 		avgspeed = int(float64(avgspeed) / float64(ratio))
 	}
-	if avgspeed > 10000 {
-		avgspeed = 10000
+	if avgspeed > 1000 {
+		avgspeed = 1000
 	}
 	time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
 	return gtxtime
@@ -344,8 +350,8 @@ func updateSpeed(id uint8, method string, start time.Time) {
 	} else if method == "DERO.GetSC" {
 		priorTimes = priorSCTimes
 	}
-	if len(priorTimes[id]) > 100 {
-		priorTimes[id] = priorTimes[id][100:]
+	if len(priorTimes[id]) > 20 {
+		priorTimes[id] = priorTimes[id][20:]
 	}
 	priorTimes[id] = append(priorTimes[id], time.Since(start).Microseconds())
 }
@@ -391,7 +397,7 @@ func getResult[T any](method string, params any) (T, error) {
 					}
 				}
 				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
-					time.Sleep(time.Millisecond * 500)
+					time.Sleep(time.Millisecond * 100)
 				} else {
 					currentEndpoint = endpoint
 				}
@@ -415,7 +421,7 @@ func getResult[T any](method string, params any) (T, error) {
 					}
 				}
 				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
-					time.Sleep(time.Millisecond * 500)
+					time.Sleep(time.Millisecond * 100)
 				} else {
 					currentEndpoint = endpoint
 				}
@@ -445,7 +451,8 @@ func getResult[T any](method string, params any) (T, error) {
 			notime := time.Time{}
 			if gtxtime != notime {
 				updateSpeed(endpoint.Id, method, gtxtime)
-			}*/
+			}
+		*/
 		Mutex.Unlock()
 
 		if err != nil {
