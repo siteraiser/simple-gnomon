@@ -206,6 +206,9 @@ func start_gnomon_indexer() {
 		if (api.BatchCount == 0 && len(api.TXIDSProcessing) == 0) || count > 600 || !api.OK() { // wait for 10 mins
 			break
 		}
+		if len(api.TXIDSProcessing) != 0 {
+			fmt.Println(api.TXIDSProcessing)
+		}
 		w, _ := time.ParseDuration("1s")
 		time.Sleep(w)
 	}
@@ -323,7 +326,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 				continue
 			}
 			start := int(batchSize) * i
-			if i == batch_count-1 {
+			if i == batch_count-1 && len(api.Batches) == 0 && txidlen != 0 {
 				end = txidlen
 			}
 			txs := api.TXIDSProcessing[start:end]
