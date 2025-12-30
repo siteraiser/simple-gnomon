@@ -2,7 +2,10 @@ module github.com/secretnamebasis/simple-gnomon
 
 go 1.24.0
 
-require github.com/deroproject/derohe v0.0.0-20250813215012-9b6a8b82c839
+require (
+	github.com/deroproject/derohe v0.0.0-20250813215012-9b6a8b82c839
+	github.com/ybbus/jsonrpc/v3 v3.1.7
+)
 
 require (
 	github.com/VictoriaMetrics/metrics v1.23.1 // indirect
@@ -41,13 +44,11 @@ require (
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/zapr v1.2.3 // indirect
 	github.com/mattn/go-sqlite3 v1.14.32
-	github.com/onsi/gomega v1.20.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	github.com/ybbus/jsonrpc v2.1.2+incompatible
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect

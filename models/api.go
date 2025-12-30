@@ -17,7 +17,7 @@ import (
 	"github.com/deroproject/derohe/block"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/walletapi"
-	"github.com/ybbus/jsonrpc"
+	"github.com/ybbus/jsonrpc/v3"
 )
 
 var Endpoints = []Connection{
@@ -243,9 +243,20 @@ func Ask(use string) {
 	}
 }
 
+type Int4 uint8
+
+func NewInt4(value int) Int4 {
+	return Int4(uint8(value) & 0x0F)
+}
+
+// Value returns the unsigned value (0–15)
+func (i Int4) Value() uint8 {
+	return uint8(i) & 0x0F
+}
+
 var Outs []uint8
 var EndpointAssignments = make(map[*Connection]int16)
-var PreferredRequests = uint8(0)
+var PreferredRequests = int8(0)
 
 func AssignConnections(iserror bool) {
 	//params := rpc.GetInfo_Params{}
@@ -259,10 +270,12 @@ func AssignConnections(iserror bool) {
 		lasterrcnt := len(Endpoints[i].Errors)
 		var result any
 		var rpcClient jsonrpc.RPCClient
+		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		defer cancel()
 		nodeaddr := "http://" + endpoint.Address + "/json_rpc"
-		fmt.Println("testing:", nodeaddr)
+		fmt.Println("Testing:", nodeaddr)
 		rpcClient = jsonrpc.NewClient(nodeaddr)
-		err := rpcClient.CallFor(&result, "DERO.GetInfo") //, params no params argument
+		err := rpcClient.CallFor(ctx, &result, "DERO.GetInfo") //, params no params argument
 		EndpointAssignments[&endpoint] = int16(i)
 		Endpoints[i].Id = uint8(i)
 		Outs = append(Outs, 0)
@@ -344,80 +357,56 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 
 func getResult[T any](method string, params any) (T, error) {
 	var result T
-	var err error
 	var rpcClient jsonrpc.RPCClient
 	var endpoint Connection
 
 	Mutex.Lock()
-
 	endpoint = currentEndpoint
-
 	nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
-	/*
-		gtxtime := time.Time{}
-		noout := Outs[endpoint.Id]
-		avgspeed := 100
-		target := float64(PreferredRequests / 2)
-		if method == "DERO.GetTransaction" {
-			gtxtime = time.Now()
-			avgspeed = calculateSpeed(endpoint.Id, method)
-
-		} else if noout >= uint8(target) {
-			gtxtime = time.Now()
-			avgspeed = calculateSpeed(endpoint.Id, method)
-		}
-		if avgspeed == 0 {
-			avgspeed = 100
-		}
-		ratio := target / float64(noout)
-		if ratio != float64(1) {
-			avgspeed = int(float64(avgspeed) / float64(ratio))
-		}
-		if avgspeed > 10000 {
-			avgspeed = 10000
-		}
-		time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
-	*/
 	Outs[endpoint.Id]++
-
 	Mutex.Unlock()
-
+	done := make(chan error, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	if params == nil {
-		err = rpcClient.CallFor(&result, method) // no params argument
+		go func() {
+			done <- rpcClient.CallFor(context.Background(), &result, method)
+		}()
 	} else {
-		err = rpcClient.CallFor(&result, method, params)
+		go func() {
+			done <- rpcClient.CallFor(context.Background(), &result, method, params)
+		}()
 	}
 
-	Mutex.Lock()
+	select {
+	case <-ctx.Done():
+		NewError("rpc", method, endpoint.Address, errors.New("RPC timed out"))
+	case err := <-done:
+		Mutex.Lock()
+		Outs[endpoint.Id]--
+		Mutex.Unlock()
 
-	Outs[endpoint.Id]--
-	/*
-		notime := time.Time{}
-		if gtxtime != notime {
-			updateSpeed(endpoint.Id, method, gtxtime)
-		}
-	*/
-	Mutex.Unlock()
+		if err != nil {
 
-	if err != nil {
-
-		if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "mismatch") { //Tx statement roothash mismatch ref blid... skip it
-			fmt.Println(err)
-			var zero T
-			return zero, err
-		} else if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "many parameters") { //Using batching now so this shouldn't occur
-			fmt.Println(err)
-			log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
-		} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+nodeaddr+")") {
-			//maybe handle connection errors here with a cancel / rollback instead.
-			NewError("connection", method, endpoint.Address, err)
-			fmt.Println(err)
-			//	log.Fatal(err)
-		} else {
-			if !strings.Contains(err.Error(), "200") {
-				NewError("rpc", method, endpoint.Address, err)
+			if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "mismatch") { //Tx statement roothash mismatch ref blid... skip it
+				fmt.Println(err)
+				var zero T
+				return zero, err
+			} else if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "many parameters") { //Using batching now so this shouldn't occur
+				fmt.Println(err)
+				log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
+			} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+nodeaddr+")") {
+				//maybe handle connection errors here with a cancel / rollback instead.
+				NewError("connection", method, endpoint.Address, err)
+				fmt.Println(err)
+				//	log.Fatal(err)
+			} else {
+				if !strings.Contains(err.Error(), "200") {
+					NewError("rpc", method, endpoint.Address, err)
+				}
 			}
+
 		}
 	}
 
