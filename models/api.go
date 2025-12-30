@@ -397,7 +397,12 @@ func getResult[T any](method string, params any) (T, error) {
 					}
 				}
 				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
-					time.Sleep(time.Millisecond * 100)
+					if method == "DERO.GetBlock" {
+						time.Sleep(time.Millisecond * 10)
+					} else {
+						time.Sleep(time.Millisecond * 100)
+					}
+
 				} else {
 					currentEndpoint = endpoint
 				}
@@ -421,7 +426,11 @@ func getResult[T any](method string, params any) (T, error) {
 					}
 				}
 				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
-					time.Sleep(time.Millisecond * 100)
+					if method == "DERO.GetBlock" {
+						time.Sleep(time.Millisecond * 10)
+					} else {
+						time.Sleep(time.Millisecond * 100)
+					}
 				} else {
 					currentEndpoint = endpoint
 				}
