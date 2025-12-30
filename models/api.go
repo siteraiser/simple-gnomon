@@ -418,7 +418,9 @@ func getResult[T any](method string, params any) (T, error) {
 		Outs[endpoint.Id]--
 		Mutex.Unlock()
 		NewError("rpc", method, endpoint.Address, errors.New("RPC timed out"))
-
+		fmt.Println(errors.New("RPC timed out"))
+		var zero T
+		return zero, errors.New("RPC timed out")
 	case err := <-done:
 		Mutex.Lock()
 		Outs[endpoint.Id]--
@@ -445,9 +447,9 @@ func getResult[T any](method string, params any) (T, error) {
 			}
 
 		}
+		return result, nil
 	}
 
-	return result, nil
 }
 
 func GetTopoHeight() int64 {
