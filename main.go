@@ -29,7 +29,7 @@ var SpamLevel = 50
 
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
-var memPreferredRequests = int8(20)
+var memPreferredRequests = int8(10)
 var diskBatchSize = int16(64)
 var diskPreferredRequests = int8(10)
 
@@ -81,6 +81,15 @@ func main() {
 	SpamLevel := text
 	fmt.Println("Set to ", SpamLevel)
 
+	fmt.Println("Use Moderate Mode? Enter y or n")
+	_, err = fmt.Scanln(&text)
+	mode := text
+	if strings.ToLower(mode) == "y" {
+		memPreferredRequests = int8(6)
+		diskPreferredRequests = int8(4)
+		memBatchSize = 64
+		diskBatchSize = 50
+	}
 	//Add custom actions for scids
 	//	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
 	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "discard"}
@@ -100,6 +109,7 @@ func main() {
 		filetoobig := RamSizeMB <= filesize
 		if !filetoobig {
 			fmt.Println("loading db into memory ....")
+
 			batchSize = memBatchSize
 			blockBatchSize = blockBatchSizeMem
 			api.PreferredRequests = memPreferredRequests
