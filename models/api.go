@@ -364,17 +364,31 @@ func getResult[T any](method string, params any) (T, error) {
 	endpoint = currentEndpoint
 	nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 	rpcClient = jsonrpc.NewClient(nodeaddr)
-	Outs[endpoint.Id]++
+
 	Mutex.Unlock()
 	done := make(chan error, 1)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if params == nil {
 		go func() {
+			Mutex.Lock()
+			if Outs[endpoint.Id] >= uint8(PreferredRequests) {
+				time.Sleep(time.Millisecond * 100)
+			}
+
+			Outs[endpoint.Id]++
+			Mutex.Unlock()
 			done <- rpcClient.CallFor(context.Background(), &result, method)
 		}()
 	} else {
 		go func() {
+			Mutex.Lock()
+			if Outs[endpoint.Id] >= uint8(PreferredRequests) {
+				time.Sleep(time.Millisecond * 100)
+			}
+
+			Outs[endpoint.Id]++
+			Mutex.Unlock()
 			done <- rpcClient.CallFor(context.Background(), &result, method, params)
 		}()
 	}
