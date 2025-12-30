@@ -369,7 +369,7 @@ func getResult[T any](method string, params any) (T, error) {
 		go func() {
 			Mutex.Lock()
 			endpoint = currentEndpoint
-			if Outs[endpoint.Id] >= uint8(PreferredRequests) {
+			if Outs[endpoint.Id] >= uint8(PreferredRequests) && endpc > 1 {
 				for out := range endpc {
 					eid := uint8(out)
 					if eid != endpoint.Id && Outs[eid] < uint8(PreferredRequests) && len(Endpoints[eid].Errors) == 0 {
@@ -393,7 +393,7 @@ func getResult[T any](method string, params any) (T, error) {
 		go func() {
 			Mutex.Lock()
 			endpoint = currentEndpoint
-			if Outs[endpoint.Id] >= uint8(PreferredRequests) {
+			if Outs[endpoint.Id] >= uint8(PreferredRequests) && endpc > 1 {
 				for out := range endpc {
 					eid := uint8(out)
 					if eid != endpoint.Id && Outs[eid] < uint8(PreferredRequests) && len(Endpoints[eid].Errors) == 0 {
