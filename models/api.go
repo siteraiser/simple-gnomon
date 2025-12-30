@@ -358,7 +358,7 @@ func getResult[T any](method string, params any) (T, error) {
 	var endpoint Connection
 
 	done := make(chan error, 1)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	endpc := len(Outs)
