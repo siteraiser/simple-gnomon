@@ -29,9 +29,9 @@ var SpamLevel = 50
 
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
-var memPreferredRequests = int8(16)
+var memPreferredRequests = int8(2)
 var diskBatchSize = int16(64)
-var diskPreferredRequests = int8(10)
+var diskPreferredRequests = int8(1)
 
 // Program vars
 var TargetHeight = int64(0)
@@ -61,7 +61,7 @@ type action struct {
 var CustomActions = map[string]action{}
 
 var rcount int32
-var rlimit = int32(1000)
+var rlimit = int32(2000)
 
 func main() {
 	var err error
