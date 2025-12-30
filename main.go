@@ -318,15 +318,14 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		//Find total number of batches
 		batch_count := int(math.Ceil(float64(txidlen) / float64(batchSize)))
 		for i := range batch_count {
-			end := int(batchSize) * i
-			if txidlen >= 100 && i == batch_count-1 {
-				continue
+			i++ //lmao
+			end := batchSize
+			if len(api.Batches) == 0 && len(api.TXIDSProcessing) != 0 {
+				if int16(len(api.TXIDSProcessing)) < batchSize {
+					end = int16(len(api.TXIDSProcessing))
+				}
 			}
-			start := int(batchSize) * i
-			if i == batch_count-1 && len(api.Batches) == 0 && txidlen != 0 {
-				end = txidlen
-			}
-			txs := api.TXIDSProcessing[start:end]
+			txs := api.TXIDSProcessing[:end]
 			api.TXIDSProcessing = api.TXIDSProcessing[end:]
 			batches = append(batches, api.Batch{TxIds: txs})
 		}
