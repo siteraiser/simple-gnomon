@@ -407,12 +407,16 @@ func getResult[T any](method string, params any) (T, error) {
 					currentEndpoint = endpoint
 				}
 			}
-			//	gtxtime = waitTime(method, endpoint)
-			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
-			rpcClient = jsonrpc.NewClient(nodeaddr)
-			Outs[endpoint.Id]++
-			Mutex.Unlock()
-			done <- rpcClient.CallFor(context.Background(), &result, method)
+			if OK() {
+				//	gtxtime = waitTime(method, endpoint)
+				nodeaddr := "http://" + endpoint.Address + "/json_rpc"
+				rpcClient = jsonrpc.NewClient(nodeaddr)
+				Outs[endpoint.Id]++
+				Mutex.Unlock()
+				done <- rpcClient.CallFor(context.Background(), &result, method, params)
+			} else {
+				done <- nil
+			}
 		}()
 	} else {
 		go func() {
@@ -440,10 +444,12 @@ func getResult[T any](method string, params any) (T, error) {
 				nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 				rpcClient = jsonrpc.NewClient(nodeaddr)
 				Outs[endpoint.Id]++
+				Mutex.Unlock()
+				done <- rpcClient.CallFor(context.Background(), &result, method, params)
+			} else {
+				done <- nil
 			}
 
-			Mutex.Unlock()
-			done <- rpcClient.CallFor(context.Background(), &result, method, params)
 		}()
 	}
 
@@ -458,7 +464,9 @@ func getResult[T any](method string, params any) (T, error) {
 		return zero, errors.New("RPC timed out")
 	case err := <-done:
 		Mutex.Lock()
-		Outs[endpoint.Id]--
+		if OK() {
+			Outs[endpoint.Id]--
+		}
 		/*
 			notime := time.Time{}
 			if gtxtime != notime {
