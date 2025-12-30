@@ -374,7 +374,7 @@ func getResult[T any](method string, params any) (T, error) {
 					}
 				}
 				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
-					time.Sleep(time.Millisecond * 100)
+					time.Sleep(time.Millisecond * 250)
 				} else {
 					currentEndpoint = endpoint
 				}
