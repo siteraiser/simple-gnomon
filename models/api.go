@@ -360,22 +360,31 @@ func getResult[T any](method string, params any) (T, error) {
 	var rpcClient jsonrpc.RPCClient
 	var endpoint Connection
 
-	Mutex.Lock()
-	endpoint = currentEndpoint
-	nodeaddr := "http://" + endpoint.Address + "/json_rpc"
-	rpcClient = jsonrpc.NewClient(nodeaddr)
-
-	Mutex.Unlock()
 	done := make(chan error, 1)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	endpc := len(Outs)
 	if params == nil {
 		go func() {
 			Mutex.Lock()
+			endpoint = currentEndpoint
 			if Outs[endpoint.Id] >= uint8(PreferredRequests) {
-				time.Sleep(time.Millisecond * 100)
+				for out := range endpc {
+					eid := uint8(out)
+					if eid != endpoint.Id && Outs[eid] < uint8(PreferredRequests) && len(Endpoints[eid].Errors) == 0 {
+						endpoint = Endpoints[eid]
+					}
+				}
+				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
+					time.Sleep(time.Millisecond * 100)
+				} else {
+					currentEndpoint = endpoint
+				}
 			}
 
+			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
+			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Outs[endpoint.Id]++
 			Mutex.Unlock()
 			done <- rpcClient.CallFor(context.Background(), &result, method)
@@ -383,10 +392,23 @@ func getResult[T any](method string, params any) (T, error) {
 	} else {
 		go func() {
 			Mutex.Lock()
+			endpoint = currentEndpoint
 			if Outs[endpoint.Id] >= uint8(PreferredRequests) {
-				time.Sleep(time.Millisecond * 100)
+				for out := range endpc {
+					eid := uint8(out)
+					if eid != endpoint.Id && Outs[eid] < uint8(PreferredRequests) && len(Endpoints[eid].Errors) == 0 {
+						endpoint = Endpoints[eid]
+					}
+				}
+				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
+					time.Sleep(time.Millisecond * 100)
+				} else {
+					currentEndpoint = endpoint
+				}
 			}
 
+			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
+			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Outs[endpoint.Id]++
 			Mutex.Unlock()
 			done <- rpcClient.CallFor(context.Background(), &result, method, params)
@@ -409,8 +431,8 @@ func getResult[T any](method string, params any) (T, error) {
 				return zero, err
 			} else if strings.Contains(err.Error(), "-32098") && strings.Contains(err.Error(), "many parameters") { //Using batching now so this shouldn't occur
 				fmt.Println(err)
-				log.Fatal("Daemon is not compatible (" + nodeaddr + ")")
-			} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+nodeaddr+")") {
+				log.Fatal("Daemon is not compatible (" + endpoint.Address + ")")
+			} else if strings.Contains(err.Error(), "wsarecv: A connection attempt failed("+endpoint.Address+")") {
 				//maybe handle connection errors here with a cancel / rollback instead.
 				NewError("connection", method, endpoint.Address, err)
 				fmt.Println(err)
