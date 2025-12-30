@@ -373,7 +373,7 @@ func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var rpcClient jsonrpc.RPCClient
 	var endpoint Connection
-	var gtxtime time.Time
+	//var gtxtime time.Time
 	done := make(chan error, 1)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -396,7 +396,7 @@ func getResult[T any](method string, params any) (T, error) {
 					currentEndpoint = endpoint
 				}
 			}
-			gtxtime = waitTime(method, endpoint)
+			//	gtxtime = waitTime(method, endpoint)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Outs[endpoint.Id]++
@@ -420,7 +420,7 @@ func getResult[T any](method string, params any) (T, error) {
 					currentEndpoint = endpoint
 				}
 			}
-			gtxtime = waitTime(method, endpoint)
+			//	gtxtime = waitTime(method, endpoint)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Outs[endpoint.Id]++
@@ -441,11 +441,11 @@ func getResult[T any](method string, params any) (T, error) {
 	case err := <-done:
 		Mutex.Lock()
 		Outs[endpoint.Id]--
-		/**/
-		notime := time.Time{}
-		if gtxtime != notime {
-			updateSpeed(endpoint.Id, method, gtxtime)
-		}
+		/*
+			notime := time.Time{}
+			if gtxtime != notime {
+				updateSpeed(endpoint.Id, method, gtxtime)
+			}*/
 		Mutex.Unlock()
 
 		if err != nil {
