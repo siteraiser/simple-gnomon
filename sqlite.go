@@ -386,7 +386,7 @@ func (ss *SqlStore) ViewTables() {
 		if name == "lastindexedheight" && value == "0" {
 			panic("Needs a fix still here")
 		}
-		fmt.Println(name, value)
+		fmt.Println("Last Indexed Height", value)
 	}
 
 	fmt.Println("Showing SCs / Owners: ")

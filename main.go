@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -109,7 +108,7 @@ func main() {
 		filesize := int(fileSizeMB(filepath.Join(db_path, db_name)))
 		filetoobig := RamSizeMB <= filesize
 		if !filetoobig {
-			fmt.Println("loading db into memory ....")
+			fmt.Println("Loading db into memory ....")
 
 			batchSize = memBatchSize
 			blockBatchSize = blockBatchSizeMem
@@ -123,7 +122,7 @@ func main() {
 		}
 	}
 	if !UseMem { //|| memModeSelect(false)
-		fmt.Println("loading db ....")
+		fmt.Println("Loading db ....")
 		batchSize = diskBatchSize
 		blockBatchSize = blockBatchSizeDisk
 		api.PreferredRequests = diskPreferredRequests
@@ -158,7 +157,7 @@ func start_gnomon_indexer() {
 	}
 	api.Blocks = []api.Block{} //clear here
 	api.Batches = []api.Batch{}
-	api.Cancels = map[int]context.CancelFunc{}
+	//api.Cancels = map[int]context.CancelFunc{}
 	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
 	api.Status.ErrorCount = 0
 	api.StartingFrom = int(starting_height)
@@ -212,7 +211,7 @@ func start_gnomon_indexer() {
 		}
 		count++
 		//Mutex.Lock()
-		if (api.BatchCount == 0 && len(api.TXIDSProcessing) == 0) || count > 120 || !api.OK() { // wait for 2 mins
+		if (api.BatchCount == 0 && len(api.TXIDSProcessing) == 0) || count > 240 || !api.OK() { // wait for 4 mins
 			break
 		}
 		if len(api.TXIDSProcessing) != 0 {
@@ -222,7 +221,7 @@ func start_gnomon_indexer() {
 		time.Sleep(w)
 	}
 
-	if count <= 120 && api.OK() {
+	if count <= 240 && api.OK() {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 	}
 

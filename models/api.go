@@ -46,17 +46,17 @@ func NewError(einfo ...any) {
 
 		Status.ApiOk = false
 		/*
-			//if all errors
-			for i, endp := range Endpoints {
-				if endp.Address == einfo[2] {
-					Endpoints[i].Errors = append(Endpoints[i].Errors, einfo[3].(error))
+			if len(Endpoints) > 1 {
+				for i, endp := range Endpoints {
+					if endp.Address == einfo[2] { //only append one for now
+						Endpoints[i].Errors = append(Endpoints[i].Errors, einfo[3].(error))
+						break
+					}
 				}
-			}
-			if len(Endpoints) == 0 {
-				AssignConnections(true)
 			}
 		*/
 	}
+
 	Status.ErrorCount++
 	Status.ErrorType = einfo[0].(string)
 	Status.ErrorName = einfo[1].(string)
@@ -225,7 +225,9 @@ func RemoveTXIDs(txids []string) {
 }
 
 func Ask(use string) {
-
+	if !OK() {
+		return
+	}
 	for {
 		Mutex.Lock()
 		exceeded := 0
@@ -268,16 +270,12 @@ var EndpointAssignments = make(map[*Connection]int16)
 var PreferredRequests = int8(0)
 
 func AssignConnections(iserror bool) {
-	fmt.Println("Assigning conns")
-	//params := rpc.GetInfo_Params{}
-	//if iserror {
 	HeightOuts = HeightOuts[0:0]
 	TxOuts = TxOuts[0:0]
 	SCOuts = SCOuts[0:0]
-	EndpointAssignments = make(map[*Connection]int16)
-	//	}
-
-	//count := 0
+	if iserror {
+		EndpointAssignments = make(map[*Connection]int16)
+	}
 	for i, endpoint := range Endpoints {
 		lasterrcnt := len(Endpoints[i].Errors)
 		var result any
@@ -300,13 +298,21 @@ func AssignConnections(iserror bool) {
 			Endpoints[i].Errors = []error{}
 		}
 	}
-	if len(EndpointAssignments) == 0 {
+	ecount := 0
+	for _, endpoint := range Endpoints {
+		if len(endpoint.Errors) != 0 {
+			ecount++
+		}
+	}
+	if len(Endpoints) == ecount {
+		for i := range Endpoints {
+			Endpoints[i].Errors = []error{}
+		}
 		fmt.Println("Retrying connections")
 		w, _ := time.ParseDuration("10s")
 		time.Sleep(w)
 		AssignConnections(false)
 	}
-	fmt.Println(EndpointAssignments)
 	Reset()
 }
 
@@ -398,7 +404,6 @@ func getOutsByMethod(method string) []uint8 {
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 	if !OK() {
-		//	log.Fatal(err)
 		var zero t
 		return zero
 	}
@@ -427,6 +432,7 @@ func selectEndpoint(method string) Connection { //, time.Time
 	endpc = len(Outs)
 	endpoint := Connection{}
 	endpoint = currentEndpoint
+
 	if len(Outs) != 0 {
 
 		if Outs[endpoint.Id] >= uint8(PreferredRequests) && endpc > 1 {
@@ -475,8 +481,11 @@ func getResult[T any](method string, params any) (T, error) {
 	*/
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) //Cancels[thiscancel]
 	defer cancel()
-	//	defer Cancels[thiscancel]()
 
+	if !OK() {
+		cancel()
+	}
+	//	defer Cancels[thiscancel]()
 	if params == nil {
 		go func() {
 			Mutex.Lock()
@@ -508,20 +517,18 @@ func getResult[T any](method string, params any) (T, error) {
 				Cancels[i]()
 				delete(Cancels, i)
 			}
-			TXIDSProcessing = TXIDSProcessing[:]
-			for _, out := range getOutsByMethod(method) {
-				out++
-				out = 0
-			}
 		*/
+		var zero T
 		Outs := getOutsByMethod(method)
 		if len(Outs) != 0 {
 			Outs[endpoint.Id]--
-		}
-		NewError("rpc", method, endpoint.Address, errors.New("RPC timed out"))
+		} /* else {
+			return zero, errors.New("No outs")
+		}*/
 		Mutex.Unlock()
 		fmt.Println(errors.New("RPC timed out:"), method)
-		var zero T
+		NewError("rpc", method, endpoint.Address, errors.New("RPC timed out"))
+
 		return zero, errors.New("RPC timed out")
 	case err := <-done:
 		Mutex.Lock()
