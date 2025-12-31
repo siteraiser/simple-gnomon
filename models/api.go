@@ -454,7 +454,7 @@ func getResult[T any](method string, params any) (T, error) {
 
 	var gtxtime time.Time
 	done := make(chan error, 1)
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	if params == nil {

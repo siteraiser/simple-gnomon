@@ -213,7 +213,7 @@ func start_gnomon_indexer() {
 		}
 		count++
 		//Mutex.Lock()
-		if (api.BatchCount == 0 && len(api.TXIDSProcessing) == 0) || count > 600 || !api.OK() { // wait for 10 mins
+		if (api.BatchCount == 0 && len(api.TXIDSProcessing) == 0) || count > 120 || !api.OK() { // wait for 2 mins
 			break
 		}
 		if len(api.TXIDSProcessing) != 0 {
@@ -223,7 +223,7 @@ func start_gnomon_indexer() {
 		time.Sleep(w)
 	}
 
-	if count <= 600 && api.OK() {
+	if count <= 120 && api.OK() {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 	}
 
@@ -357,6 +357,9 @@ var laststored = int64(0)
 func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 	defer wga.Done()
 	defer atomic.AddInt32(&rcount, -1)
+	if !api.OK() {
+		return
+	}
 	api.Mutex.Lock()
 
 	api.BatchCount++
@@ -460,7 +463,9 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 
 func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string, params rpc.GetSC_Params, bheight int64, signer string) {
 	defer wg3.Done()
-
+	if !api.OK() {
+		return
+	}
 	api.Ask("sc")
 	sc := api.GetSC(params) //Variables: true,
 
