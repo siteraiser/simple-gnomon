@@ -45,22 +45,17 @@ func NewError(einfo ...any) {
 	case "connection", "rpc":
 
 		Status.ApiOk = false
-
-		errored := 0
-		//if all errors
-		for i := range Endpoints {
-			if len(Endpoints[i].Errors) != 0 {
-				errored++
-			}
-		}
-		for i, endp := range Endpoints {
-			if endp.Address == einfo[2] {
-				if len(Endpoints) != errored || (len(Endpoints) == errored && len(Endpoints[i].Errors) == 0) {
+		/*
+			//if all errors
+			for i, endp := range Endpoints {
+				if endp.Address == einfo[2] {
 					Endpoints[i].Errors = append(Endpoints[i].Errors, einfo[3].(error))
 				}
 			}
-		}
-
+			if len(Endpoints) == 0 {
+				AssignConnections(true)
+			}
+		*/
 	}
 	Status.ErrorCount++
 	Status.ErrorType = einfo[0].(string)
@@ -462,7 +457,7 @@ func selectEndpoint(method string) Connection { //, time.Time
 	return endpoint //, gtxtime
 }
 
-var cancels = map[int]context.CancelFunc{}
+var Cancels = map[int]context.CancelFunc{}
 var cancelids = 0
 
 func getResult[T any](method string, params any) (T, error) {
@@ -474,12 +469,13 @@ func getResult[T any](method string, params any) (T, error) {
 	var thiscancel = 0
 	done := make(chan error, 1)
 
-	Mutex.Lock()
+	/*Mutex.Lock()	Mutex.Unlock()
 	cancelids++
 	thiscancel = cancelids
-	ctx, cancels[thiscancel] = context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancels[thiscancel]()
-	Mutex.Unlock()
+	*/
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) //Cancels[thiscancel]
+	defer cancel()
+	//	defer Cancels[thiscancel]()
 
 	if params == nil {
 		go func() {
@@ -506,18 +502,30 @@ func getResult[T any](method string, params any) (T, error) {
 	select {
 	case <-ctx.Done():
 		Mutex.Lock()
-		delete(cancels, thiscancel)
+
+		/*	delete(Cancels, thiscancel)
+			for i := range Cancels {
+				Cancels[i]()
+				delete(Cancels, i)
+			}
+			TXIDSProcessing = TXIDSProcessing[:]
+			for _, out := range getOutsByMethod(method) {
+				out++
+				out = 0
+			}
+		*/
 		Outs := getOutsByMethod(method)
 		if len(Outs) != 0 {
 			Outs[endpoint.Id]--
 		}
-		Mutex.Unlock()
 		NewError("rpc", method, endpoint.Address, errors.New("RPC timed out"))
+		Mutex.Unlock()
 		fmt.Println(errors.New("RPC timed out:"), method)
 		var zero T
 		return zero, errors.New("RPC timed out")
 	case err := <-done:
 		Mutex.Lock()
+		delete(Cancels, thiscancel)
 		Outs := getOutsByMethod(method)
 		if len(Outs) != 0 {
 			Outs[endpoint.Id]--
