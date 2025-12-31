@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -151,16 +152,15 @@ func start_gnomon_indexer() {
 	if firstRun == true || api.Status.ErrorCount != int64(0) {
 		firstRun = false
 		sqlite.TrimHeight(starting_height)
-		api.Batches = []api.Batch{}
-		api.TXIDSProcessing = []string{}
-		api.BatchCount = 0
 		if api.Status.ErrorCount != int64(0) {
 			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
 		}
 	}
 	api.Blocks = []api.Block{} //clear here
-
+	api.Batches = []api.Batch{}
+	api.Cancels = map[int]context.CancelFunc{}
 	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
+	api.Status.ErrorCount = 0
 	api.StartingFrom = int(starting_height)
 
 	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
@@ -176,7 +176,6 @@ func start_gnomon_indexer() {
 
 	var wg sync.WaitGroup
 	for bheight := starting_height; bheight < TargetHeight; bheight++ {
-
 		if !api.OK() {
 			break
 		}
@@ -279,17 +278,21 @@ func start_gnomon_indexer() {
 
 }
 
+var counter = 0
+
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
-	discarding := false
-
 	if !api.OK() {
 		return
 	}
+	discarding := false
 
 	result := api.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
 	})
+	if !api.OK() {
+		return
+	}
 	bl := api.GetBlockDeserialized(result.Blob)
 
 	if len(bl.Tx_hashes) < 1 {
@@ -361,7 +364,6 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 		return
 	}
 	api.Mutex.Lock()
-
 	api.BatchCount++
 	api.Mutex.Unlock()
 	var wg2 sync.WaitGroup
@@ -370,6 +372,7 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 	r = api.GetTransaction(rpc.GetTransaction_Params{
 		Tx_Hashes: batch.TxIds, //[int(batchSize)*i : end]
 	})
+
 	showBlockStatus(-1)
 	if !api.OK() {
 		return
@@ -408,6 +411,9 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 }
 func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64, signer string, batch api.Batch) { //, large bool
 	defer wg2.Done()
+	if !api.OK() {
+		return
+	}
 	var wg3 sync.WaitGroup
 	var ok = true
 	api.RemoveTXs([]string{tx.GetHash().String()})
@@ -451,6 +457,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 	if (slices.Contains(Spammers, signer)) && params.SCID == Hardcoded_SCIDS[0] { //|| spammy == true
 		ok = false
 	}
+
 	if ok {
 		wg3.Add(1)
 		go processSCs(&wg3, tx, tx_type, params, bheight, signer)
@@ -470,7 +477,9 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 	}
 	api.Ask("sc")
 	sc := api.GetSC(params) //Variables: true,
-
+	if !api.OK() {          //|| sc.Status != "OK"
+		return
+	}
 	vars, err := GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
 	if err != nil { //might be worth investigating what errors could occur
 		return
@@ -709,7 +718,11 @@ func getOutCounts() (int, string) {
 		text += ":" + insert + strconv.Itoa(int(total))
 		tot += int(out)
 	}
-	return tot, text[1:]
+	if len(text) > 1 {
+		text = text[1:]
+	}
+
+	return tot, text
 }
 
 // Supply true to boot from disk, returns true if memory is nearly full
