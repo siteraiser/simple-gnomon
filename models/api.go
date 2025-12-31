@@ -473,7 +473,7 @@ func getResult[T any](method string, params any) (T, error) {
 	cancelids++
 	thiscancel = cancelids
 	*/
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) //Cancels[thiscancel]
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) //Cancels[thiscancel]
 	defer cancel()
 	//	defer Cancels[thiscancel]()
 
