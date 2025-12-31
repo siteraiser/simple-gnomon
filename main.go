@@ -695,13 +695,13 @@ func getOutCounts() (int, string) {
 	}
 	for i, out := range api.HeightOuts {
 		insert := ""
-		if int(api.HeightOuts[i]) < 10 {
+		total := int(api.HeightOuts[i]) + int(api.TxOuts[i]) + int(api.SCOuts[i])
+		if total < 10 {
 			insert = spacer
 		}
-		text += ":" + insert + strconv.Itoa(int(out))
+		text += ":" + insert + strconv.Itoa(int(total))
 		tot += int(out)
 	}
-
 	return tot, text[1:]
 }
 

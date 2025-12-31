@@ -370,8 +370,8 @@ func updateSpeed(id uint8, method string, start time.Time) {
 	} else if method == "DERO.GetSC" {
 		priorTimes = priorSCTimes
 	}
-	if len(priorTimes[id]) > 1000 {
-		priorTimes[id] = priorTimes[id][1000:]
+	if len(priorTimes[id]) > 2000 {
+		priorTimes[id] = priorTimes[id][2000:]
 	}
 	priorTimes[id] = append(priorTimes[id], time.Since(start).Microseconds())
 }
