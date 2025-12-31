@@ -341,9 +341,6 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		}
 		api.Mutex.Unlock()
 		for i := range batches {
-			if !api.OK() {
-				continue
-			}
 			atomic.AddInt32(&rcount, 1)
 			checkGo()
 			wga.Add(1)
@@ -454,16 +451,16 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 	if (slices.Contains(Spammers, signer)) && params.SCID == Hardcoded_SCIDS[0] { //|| spammy == true
 		ok = false
 	}
-	if ok && api.OK() {
+	if ok {
 		wg3.Add(1)
 		go processSCs(&wg3, tx, tx_type, params, bheight, signer)
 		wg3.Wait()
 	}
-	if api.OK() {
-		updateBlocks(api.Batch{
-			TxIds: []string{tx.GetHash().String()},
-		})
-	}
+
+	updateBlocks(api.Batch{
+		TxIds: []string{tx.GetHash().String()},
+	})
+
 }
 
 func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string, params rpc.GetSC_Params, bheight int64, signer string) {

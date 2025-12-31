@@ -43,7 +43,7 @@ func NewError(einfo ...any) {
 	case "database":
 		Status.DbOk = false
 	case "connection", "rpc":
-		fmt.Println("adding errors")
+
 		Status.ApiOk = false
 
 		errored := 0
