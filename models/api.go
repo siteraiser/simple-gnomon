@@ -218,24 +218,17 @@ func RemoveTXIDs(txids []string) {
 }
 
 func Ask(use string) {
-	if use == "height" {
-		return
-	}
+
 	for {
 		Mutex.Lock()
 		exceeded := 0
 		totouts := 0
-		preferredMax := uint8(PreferredRequests) / 2
 		if use == "height" {
-			preferredMax *= 2
-		}
-		for id, out := range Outs {
-			if len(Endpoints[id].Errors) == 0 {
-				totouts++
-				if out > preferredMax {
-					exceeded++
-				}
-			}
+			totouts, exceeded = outs(HeightOuts)
+		} else if use == "tx" {
+			totouts, exceeded = outs(HeightOuts)
+		} else if use == "sc" {
+			totouts, exceeded = outs(HeightOuts)
 		}
 		if exceeded != totouts {
 			Mutex.Unlock()
@@ -246,14 +239,33 @@ func Ask(use string) {
 	}
 }
 
-var Outs []uint8
+var HeightOuts []uint8
+var TxOuts []uint8
+var SCOuts []uint8
+
+func outs(Outs []uint8) (int, int) {
+	totouts := 0
+	exceeded := 0
+	for id, out := range Outs {
+		if len(Endpoints[id].Errors) == 0 {
+			totouts++
+			if out > uint8(PreferredRequests)/2 {
+				exceeded++
+			}
+		}
+	}
+	return totouts, exceeded
+}
+
 var EndpointAssignments = make(map[*Connection]int16)
 var PreferredRequests = int8(0)
 
 func AssignConnections(iserror bool) {
 	//params := rpc.GetInfo_Params{}
 	//if iserror {
-	Outs = Outs[0:0]
+	HeightOuts = HeightOuts[0:0]
+	TxOuts = TxOuts[0:0]
+	SCOuts = SCOuts[0:0]
 	EndpointAssignments = make(map[*Connection]int16)
 	//	}
 
@@ -270,7 +282,9 @@ func AssignConnections(iserror bool) {
 		err := rpcClient.CallFor(ctx, &result, "DERO.GetInfo") //, params no params argument
 		EndpointAssignments[&endpoint] = int16(i)
 		Endpoints[i].Id = uint8(i)
-		Outs = append(Outs, 0)
+		HeightOuts = append(HeightOuts, 0)
+		TxOuts = append(TxOuts, 0)
+		SCOuts = append(SCOuts, 0)
 		if err != nil {
 			fmt.Println("Error endpoint:", endpoint)
 			Endpoints[i].Errors = []error{err}
@@ -284,7 +298,6 @@ func AssignConnections(iserror bool) {
 		AssignConnections(false)
 	}
 	fmt.Println(EndpointAssignments)
-	fmt.Println(Outs)
 	Reset()
 }
 
@@ -295,7 +308,14 @@ var priorSCTimes = make(map[uint8][]int64)
 func waitTime(method string, endpoint Connection) time.Time {
 
 	gtxtime := time.Time{}
-	noout := Outs[endpoint.Id]
+	var noout uint8
+	if method == "DERO.GetBlock" {
+		noout = HeightOuts[endpoint.Id]
+	} else if method == "DERO.GetTransaction" {
+		noout = TxOuts[endpoint.Id]
+	} else if method == "DERO.GetSC" {
+		noout = SCOuts[endpoint.Id]
+	}
 	avgspeed := 20
 	target := float64(PreferredRequests / 2)
 	if method == "DERO.GetTransaction" {
@@ -322,10 +342,10 @@ func waitTime(method string, endpoint Connection) time.Time {
 
 func calculateSpeed(id uint8, method string) int {
 	var priorTimes map[uint8][]int64
-	if method == "DERO.GetTransaction" {
-		priorTimes = priorTxTimes
-	} else if method == "DERO.GetBlock" {
+	if method == "DERO.GetBlock" {
 		priorTimes = priorGBTimes
+	} else if method == "DERO.GetTransaction" {
+		priorTimes = priorTxTimes
 	} else if method == "DERO.GetSC" {
 		priorTimes = priorSCTimes
 	}
@@ -343,17 +363,28 @@ func calculateSpeed(id uint8, method string) int {
 
 func updateSpeed(id uint8, method string, start time.Time) {
 	var priorTimes = make(map[uint8][]int64)
-	if method == "DERO.GetTransaction" {
-		priorTimes = priorTxTimes
-	} else if method == "DERO.GetBlock" {
+	if method == "DERO.GetBlock" {
 		priorTimes = priorGBTimes
+	} else if method == "DERO.GetTransaction" {
+		priorTimes = priorTxTimes
 	} else if method == "DERO.GetSC" {
 		priorTimes = priorSCTimes
 	}
-	if len(priorTimes[id]) > 20 {
-		priorTimes[id] = priorTimes[id][20:]
+	if len(priorTimes[id]) > 1000 {
+		priorTimes[id] = priorTimes[id][1000:]
 	}
 	priorTimes[id] = append(priorTimes[id], time.Since(start).Microseconds())
+}
+
+func getOutsByMethod(method string) []uint8 {
+	if method == "DERO.GetBlock" {
+		return HeightOuts
+	} else if method == "DERO.GetTransaction" {
+		return TxOuts
+	} else if method == "DERO.GetSC" {
+		return SCOuts
+	}
+	return []uint8{}
 }
 
 func callRPC[t any](method string, params any, validator func(t) bool) t {
@@ -378,7 +409,44 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 
 	return result
 }
+func selectEndpoint(method string) (Connection, time.Time) {
 
+	var gtxtime time.Time
+	var Outs []uint8
+	endpc := 0
+	Outs = getOutsByMethod(method)
+	endpc = len(Outs)
+	endpoint := Connection{}
+	endpoint = currentEndpoint
+	if len(Outs) != 0 {
+
+		if Outs[endpoint.Id] >= uint8(PreferredRequests) && endpc > 1 {
+			for out := range endpc {
+				eid := uint8(out)
+				if eid != endpoint.Id && Outs[eid] < uint8(PreferredRequests) && len(Endpoints[eid].Errors) == 0 {
+					endpoint = Endpoints[eid]
+				}
+			}
+			if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
+				if method == "DERO.GetBlock" {
+					time.Sleep(time.Millisecond * 20)
+				} else {
+					time.Sleep(time.Millisecond * 200)
+				}
+
+			} else {
+				currentEndpoint = endpoint
+			}
+		}
+	}
+
+	gtxtime = waitTime(method, endpoint)
+	if len(Outs) != 0 {
+		Outs[endpoint.Id]++
+	}
+
+	return endpoint, gtxtime
+}
 func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var rpcClient jsonrpc.RPCClient
@@ -389,34 +457,12 @@ func getResult[T any](method string, params any) (T, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	endpc := len(Outs)
 	if params == nil {
 		go func() {
 			Mutex.Lock()
-			endpoint = currentEndpoint
-			if Outs[endpoint.Id] >= uint8(PreferredRequests) && endpc > 1 {
-				for out := range endpc {
-					eid := uint8(out)
-					if eid != endpoint.Id && Outs[eid] < uint8(PreferredRequests) && len(Endpoints[eid].Errors) == 0 {
-						endpoint = Endpoints[eid]
-					}
-				}
-				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
-					if method == "DERO.GetBlock" {
-						time.Sleep(time.Millisecond * 20)
-					} else {
-						time.Sleep(time.Millisecond * 200)
-					}
-
-				} else {
-					currentEndpoint = endpoint
-				}
-			}
-
-			gtxtime = waitTime(method, endpoint)
+			endpoint, gtxtime = selectEndpoint(method)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
-			Outs[endpoint.Id]++
 			Mutex.Unlock()
 			done <- rpcClient.CallFor(context.Background(), &result, method)
 
@@ -424,29 +470,9 @@ func getResult[T any](method string, params any) (T, error) {
 	} else {
 		go func() {
 			Mutex.Lock()
-			endpoint = currentEndpoint
-			if Outs[endpoint.Id] >= uint8(PreferredRequests) && endpc > 1 {
-				for out := range endpc {
-					eid := uint8(out)
-					if eid != endpoint.Id && Outs[eid] < uint8(PreferredRequests) && len(Endpoints[eid].Errors) == 0 {
-						endpoint = Endpoints[eid]
-					}
-				}
-				if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
-					if method == "DERO.GetBlock" {
-						time.Sleep(time.Millisecond * 20)
-					} else {
-						time.Sleep(time.Millisecond * 200)
-					}
-				} else {
-					currentEndpoint = endpoint
-				}
-			}
-
-			gtxtime = waitTime(method, endpoint)
+			endpoint, gtxtime = selectEndpoint(method)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
-			Outs[endpoint.Id]++
 			Mutex.Unlock()
 			done <- rpcClient.CallFor(context.Background(), &result, method, params)
 
@@ -456,7 +482,10 @@ func getResult[T any](method string, params any) (T, error) {
 	select {
 	case <-ctx.Done():
 		Mutex.Lock()
-		Outs[endpoint.Id]--
+		Outs := getOutsByMethod(method)
+		if len(Outs) != 0 {
+			Outs[endpoint.Id]--
+		}
 		Mutex.Unlock()
 		NewError("rpc", method, endpoint.Address, errors.New("RPC timed out"))
 		fmt.Println(errors.New("RPC timed out"))
@@ -464,9 +493,10 @@ func getResult[T any](method string, params any) (T, error) {
 		return zero, errors.New("RPC timed out")
 	case err := <-done:
 		Mutex.Lock()
-
-		Outs[endpoint.Id]--
-
+		Outs := getOutsByMethod(method)
+		if len(Outs) != 0 {
+			Outs[endpoint.Id]--
+		}
 		/*	*/
 		notime := time.Time{}
 		if gtxtime != notime {

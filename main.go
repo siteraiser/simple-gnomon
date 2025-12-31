@@ -677,7 +677,7 @@ func showBlockStatus(bheight int64) {
 	}
 	_, text := getOutCounts()
 	show := "Block:" + strconv.Itoa(int(status.block)) +
-		" Connections:" + strconv.Itoa(int(len(api.Outs))) +
+		" Connections:" + strconv.Itoa(int(len(api.TxOuts))) +
 		" " + text +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph" +
@@ -693,9 +693,9 @@ func getOutCounts() (int, string) {
 	if api.PreferredRequests >= 10 {
 		spacer = " "
 	}
-	for i, out := range api.Outs {
+	for i, out := range api.HeightOuts {
 		insert := ""
-		if int(api.Outs[i]) < 10 {
+		if int(api.HeightOuts[i]) < 10 {
 			insert = spacer
 		}
 		text += ":" + insert + strconv.Itoa(int(out))
