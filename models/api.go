@@ -461,15 +461,25 @@ func selectEndpoint(method string) Connection { //, time.Time
 
 	return endpoint //, gtxtime
 }
+
+var cancels = map[int]context.CancelFunc{}
+var cancelids = 0
+
 func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var rpcClient jsonrpc.RPCClient
 	var endpoint Connection
-
+	var ctx context.Context
 	var gtxtime time.Time
+	var thiscancel = 0
 	done := make(chan error, 1)
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
+
+	Mutex.Lock()
+	cancelids++
+	thiscancel = cancelids
+	ctx, cancels[thiscancel] = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancels[thiscancel]()
+	Mutex.Unlock()
 
 	if params == nil {
 		go func() {
@@ -496,6 +506,7 @@ func getResult[T any](method string, params any) (T, error) {
 	select {
 	case <-ctx.Done():
 		Mutex.Lock()
+		delete(cancels, thiscancel)
 		Outs := getOutsByMethod(method)
 		if len(Outs) != 0 {
 			Outs[endpoint.Id]--
