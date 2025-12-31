@@ -43,12 +43,24 @@ func NewError(einfo ...any) {
 	case "database":
 		Status.DbOk = false
 	case "connection", "rpc":
+		fmt.Println("adding errors")
 		Status.ApiOk = false
-		for i, endp := range Endpoints {
-			if endp.Address == einfo[2] {
-				Endpoints[i].Errors = append(Endpoints[i].Errors, einfo[3].(error))
+
+		errored := 0
+		//if all errors
+		for i := range Endpoints {
+			if len(Endpoints[i].Errors) != 0 {
+				errored++
 			}
 		}
+		for i, endp := range Endpoints {
+			if endp.Address == einfo[2] {
+				if len(Endpoints) != errored || (len(Endpoints) == errored && len(Endpoints[i].Errors) == 0) {
+					Endpoints[i].Errors = append(Endpoints[i].Errors, einfo[3].(error))
+				}
+			}
+		}
+
 	}
 	Status.ErrorCount++
 	Status.ErrorType = einfo[0].(string)
@@ -261,6 +273,7 @@ var EndpointAssignments = make(map[*Connection]int16)
 var PreferredRequests = int8(0)
 
 func AssignConnections(iserror bool) {
+	fmt.Println("Assigning conns")
 	//params := rpc.GetInfo_Params{}
 	//if iserror {
 	HeightOuts = HeightOuts[0:0]
@@ -293,6 +306,7 @@ func AssignConnections(iserror bool) {
 		}
 	}
 	if len(EndpointAssignments) == 0 {
+		fmt.Println("Retrying connections")
 		w, _ := time.ParseDuration("10s")
 		time.Sleep(w)
 		AssignConnections(false)
@@ -409,9 +423,9 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 
 	return result
 }
-func selectEndpoint(method string) (Connection, time.Time) {
+func selectEndpoint(method string) Connection { //, time.Time
 
-	var gtxtime time.Time
+	//var gtxtime time.Time
 	var Outs []uint8
 	endpc := 0
 	Outs = getOutsByMethod(method)
@@ -440,12 +454,12 @@ func selectEndpoint(method string) (Connection, time.Time) {
 		}
 	}
 
-	gtxtime = waitTime(method, endpoint)
+	//gtxtime = waitTime(method, endpoint)
 	if len(Outs) != 0 {
 		Outs[endpoint.Id]++
 	}
 
-	return endpoint, gtxtime
+	return endpoint //, gtxtime
 }
 func getResult[T any](method string, params any) (T, error) {
 	var result T
@@ -460,7 +474,7 @@ func getResult[T any](method string, params any) (T, error) {
 	if params == nil {
 		go func() {
 			Mutex.Lock()
-			endpoint, gtxtime = selectEndpoint(method)
+			endpoint = selectEndpoint(method)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Mutex.Unlock()
@@ -470,7 +484,7 @@ func getResult[T any](method string, params any) (T, error) {
 	} else {
 		go func() {
 			Mutex.Lock()
-			endpoint, gtxtime = selectEndpoint(method)
+			endpoint = selectEndpoint(method)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Mutex.Unlock()
@@ -488,7 +502,7 @@ func getResult[T any](method string, params any) (T, error) {
 		}
 		Mutex.Unlock()
 		NewError("rpc", method, endpoint.Address, errors.New("RPC timed out"))
-		fmt.Println(errors.New("RPC timed out"))
+		fmt.Println(errors.New("RPC timed out:"), method)
 		var zero T
 		return zero, errors.New("RPC timed out")
 	case err := <-done:
