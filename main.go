@@ -97,7 +97,9 @@ func main() {
 
 	//Add custom actions for scids
 	//CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
-	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard"}
+	if SpamLevel == "0" {
+		CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard"}
+	}
 	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "discard"}
 	CustomActions["bb43c3eb626ee767c9f305772a6666f7c7300441a0ad8538a0799eb4f12ebcd2"] = action{Type: "SC", Act: "discard"}
 	fmt.Println("starting ....")
