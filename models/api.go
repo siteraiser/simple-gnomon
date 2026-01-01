@@ -228,23 +228,40 @@ func Ask(use string) {
 	if !OK() {
 		return
 	}
+	//fmt.Println("now:", time.Now())
+	//fmt.Println("time:", time.Now())
 	for {
 		Mutex.Lock()
+		ok := false
+		if use == "height" {
+			if time.Now().After(sheduledh) {
+				ok = true
+			}
+		} else if use == "tx" {
+			if time.Now().After(sheduledt) {
+				ok = true
+			}
+		} else if use == "sc" {
+			if time.Now().After(sheduleds) {
+				ok = true
+			}
+		}
+
 		exceeded := 0
 		totouts := 0
 		if use == "height" {
 			totouts, exceeded = outs(HeightOuts)
 		} else if use == "tx" {
-			totouts, exceeded = outs(HeightOuts)
+			totouts, exceeded = outs(TxOuts)
 		} else if use == "sc" {
-			totouts, exceeded = outs(HeightOuts)
+			totouts, exceeded = outs(SCOuts)
 		}
-		if exceeded != totouts {
+		if exceeded != totouts && ok {
 			Mutex.Unlock()
 			return
+
 		}
 		Mutex.Unlock()
-
 	}
 }
 
@@ -320,7 +337,7 @@ var priorGBTimes = make(map[uint8][]int64)
 var priorTxTimes = make(map[uint8][]int64)
 var priorSCTimes = make(map[uint8][]int64)
 
-func waitTime(method string, endpoint Connection) time.Time {
+func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
 
 	gtxtime := time.Time{}
 	var noout uint8
@@ -332,27 +349,31 @@ func waitTime(method string, endpoint Connection) time.Time {
 		noout = SCOuts[endpoint.Id]
 	}
 	avgspeed := 20
-	target := float64(PreferredRequests / 2)
-	if method == "DERO.GetTransaction" {
+	target := float64(PreferredRequests) // / 2
+	/*if method == "DERO.GetTransaction" {
 		gtxtime = time.Now()
 		avgspeed = calculateSpeed(endpoint.Id, method)
 
-	} else if noout >= uint8(target) {
-		gtxtime = time.Now()
-		avgspeed = calculateSpeed(endpoint.Id, method)
+	} else
+	*/
+	if noout >= uint8(target) {
+
 	}
+
+	gtxtime = time.Now()
+	avgspeed = calculateSpeed(endpoint.Id, method)
 	if avgspeed == 0 {
-		avgspeed = 20
+		avgspeed = 100
 	}
 	ratio := target / float64(noout)
 	if ratio != float64(1) {
 		avgspeed = int(float64(avgspeed) / float64(ratio))
 	}
-	if avgspeed > 2000 {
-		avgspeed = 2000
+	if avgspeed > 100000 {
+		avgspeed = 100000
 	}
-	time.Sleep(time.Microsecond * time.Duration(int(avgspeed)))
-	return gtxtime
+	var waittime = time.Microsecond * time.Duration(int(avgspeed))
+	return gtxtime, waittime
 }
 
 func calculateSpeed(id uint8, method string) int {
@@ -425,9 +446,8 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 
 	return result
 }
-func selectEndpoint(method string) (Connection, time.Time) { //
+func selectEndpoint(method string) Connection { //
 
-	var gtxtime time.Time
 	var Outs []uint8
 	endpc := 0
 	Outs = getOutsByMethod(method)
@@ -445,10 +465,13 @@ func selectEndpoint(method string) (Connection, time.Time) { //
 				}
 			}
 			if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
+
 				if method == "DERO.GetBlock" {
-					time.Sleep(time.Millisecond * 20)
-				} else {
-					time.Sleep(time.Millisecond * 200)
+					sheduledh.Add(time.Millisecond * 500)
+				} else if method == "DERO.GetTransaction" {
+					sheduledt.Add(time.Millisecond * 500)
+				} else if method == "DERO.GetSC" {
+					sheduleds.Add(time.Millisecond * 500)
 				}
 
 			} else {
@@ -457,41 +480,59 @@ func selectEndpoint(method string) (Connection, time.Time) { //
 		}
 	}
 
-	gtxtime = waitTime(method, endpoint)
 	if len(Outs) != 0 {
 		Outs[endpoint.Id]++
 	}
 
-	return endpoint, gtxtime //
+	return endpoint
 }
 
 var Cancels = map[int]context.CancelFunc{}
 var cancelids = 0
+var sheduledh = time.Now()
+var sheduledt = time.Now()
+var sheduleds = time.Now()
 
 func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var rpcClient jsonrpc.RPCClient
 	var endpoint Connection
 	var ctx context.Context
-	var gtxtime time.Time
+	//	var gtxtime time.Time
 	var thiscancel = 0
-	done := make(chan error, 1)
 
 	/*Mutex.Lock()	Mutex.Unlock()
 	cancelids++
-	thiscancel = cancelids
-	*/
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) //Cancels[thiscancel]
-	defer cancel()
-
-	if !OK() {
+	thiscancel = cancelids	if !OK() {
 		cancel()
 	}
+	*/
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) //Cancels[thiscancel]
+	defer cancel()
+	Mutex.Lock()
+	endpoint = selectEndpoint(method)
+	gtxtime, wait := waitTime(method, endpoint)
+
+	sheduled := time.Now()
+	if method == "DERO.GetBlock" {
+		sheduled = sheduledh
+	} else if method == "DERO.GetTransaction" {
+		sheduled = sheduledt
+	} else if method == "DERO.GetSC" {
+		sheduled = sheduleds
+	}
+
+	//	if time.Now().Before(sheduled) {
+	sheduled.Add(wait)
+	Mutex.Unlock()
+	//	}
+	done := make(chan error, 1)
+
 	//	defer Cancels[thiscancel]()
 	if params == nil {
 		go func() {
 			Mutex.Lock()
-			endpoint, gtxtime = selectEndpoint(method)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Mutex.Unlock()
@@ -500,8 +541,8 @@ func getResult[T any](method string, params any) (T, error) {
 		}()
 	} else {
 		go func() {
+
 			Mutex.Lock()
-			endpoint, gtxtime = selectEndpoint(method)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Mutex.Unlock()
