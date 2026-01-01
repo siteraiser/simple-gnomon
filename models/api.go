@@ -353,7 +353,7 @@ func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
 		noout = SCOuts[endpoint.Id]
 	}
 
-	target := float64(PreferredRequests) // / 2
+	target := float64(PreferredRequests) / 2
 
 	/*if method == "DERO.GetTransaction" {
 		gtxtime = time.Now()
@@ -361,7 +361,7 @@ func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
 
 	} else
 	*/
-	if noout >= uint8(target) && method != "DERO.GetBlock" {
+	if noout >= uint8(target) || (method != "DERO.GetBlock" && noout >= uint8(target)) {
 		gtxtime = time.Now()
 		avgspeed = calculateSpeed(endpoint.Id, method)
 	}
