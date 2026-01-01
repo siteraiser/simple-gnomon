@@ -342,7 +342,7 @@ var priorTxTimes = make(map[uint8][]int64)
 var priorSCTimes = make(map[uint8][]int64)
 
 func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
-	avgspeed := 20
+	avgspeed := 0
 	gtxtime := time.Time{}
 	var noout uint8
 	if method == "DERO.GetBlock" {
@@ -353,21 +353,21 @@ func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
 		noout = SCOuts[endpoint.Id]
 	}
 
-	target := float64(PreferredRequests) / 2 //
-	/*	gtxtime = time.Now()
-		if method == "DERO.GetTransaction" {
-					avgspeed = calculateSpeed(endpoint.Id, method)
+	target := float64(PreferredRequests) // / 2
 
-				} else if noout >= uint8(target) {
-					gtxtime = time.Now()
-					avgspeed = calculateSpeed(endpoint.Id, method)
-				}
+	/*if method == "DERO.GetTransaction" {
+		gtxtime = time.Now()
+		avgspeed = calculateSpeed(endpoint.Id, method)
+
+	} else
 	*/
-	gtxtime = time.Now()
-	avgspeed = calculateSpeed(endpoint.Id, method)
+	if noout >= uint8(target) && method != "DERO.GetBlock" {
+		gtxtime = time.Now()
+		avgspeed = calculateSpeed(endpoint.Id, method)
+	}
 
 	if avgspeed == 0 {
-		avgspeed = 100
+		return gtxtime, time.Microsecond * 0
 	}
 	ratio := target / float64(noout)
 	if ratio != float64(1) {
