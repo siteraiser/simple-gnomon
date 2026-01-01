@@ -231,18 +231,22 @@ func Ask(use string) {
 	//fmt.Println("now:", time.Now())
 	//fmt.Println("time:", time.Now())
 	for {
+
 		Mutex.Lock()
 		ok := false
 		if use == "height" {
-			if time.Now().After(sheduledh) {
+			currentEndpoint = selectEndpoint("DERO.GetBlock")
+			if time.Now().After(sheduledh[currentEndpoint.Id]) {
 				ok = true
 			}
 		} else if use == "tx" {
-			if time.Now().After(sheduledt) {
+			currentEndpoint = selectEndpoint("DERO.GetTransaction")
+			if time.Now().After(sheduledt[currentEndpoint.Id]) {
 				ok = true
 			}
 		} else if use == "sc" {
-			if time.Now().After(sheduleds) {
+			currentEndpoint = selectEndpoint("DERO.GetSC")
+			if time.Now().After(sheduleds[currentEndpoint.Id]) {
 				ok = true
 			}
 		}
@@ -455,7 +459,6 @@ func selectEndpoint(method string) Connection { //
 	endpoint = currentEndpoint
 
 	if len(Outs) != 0 {
-
 		if Outs[endpoint.Id] >= uint8(PreferredRequests) && endpc > 1 {
 			for out := range endpc {
 				eid := uint8(out)
@@ -466,11 +469,11 @@ func selectEndpoint(method string) Connection { //
 			if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
 
 				if method == "DERO.GetBlock" {
-					sheduledh.Add(time.Millisecond * 10)
+					sheduledh[endpoint.Id].Add(time.Millisecond * 10)
 				} else if method == "DERO.GetTransaction" {
-					sheduledt.Add(time.Millisecond * 50)
+					sheduledt[endpoint.Id].Add(time.Millisecond * 50)
 				} else if method == "DERO.GetSC" {
-					sheduleds.Add(time.Millisecond * 50)
+					sheduleds[endpoint.Id].Add(time.Millisecond * 50)
 				}
 
 			} else {
@@ -479,18 +482,14 @@ func selectEndpoint(method string) Connection { //
 		}
 	}
 
-	if len(Outs) != 0 {
-		Outs[endpoint.Id]++
-	}
-
 	return endpoint
 }
 
 var Cancels = map[int]context.CancelFunc{}
 var cancelids = 0
-var sheduledh = time.Now()
-var sheduledt = time.Now()
-var sheduleds = time.Now()
+var sheduledh map[uint8]time.Time //time.Now()
+var sheduledt map[uint8]time.Time // = time.Now()
+var sheduleds map[uint8]time.Time // = time.Now()
 
 func getResult[T any](method string, params any) (T, error) {
 	var result T
@@ -515,15 +514,19 @@ func getResult[T any](method string, params any) (T, error) {
 
 	//sheduled := time.Now()
 	if method == "DERO.GetBlock" {
-		sheduledh.Add(wait)
+		sheduleds[endpoint.Id].Add(wait)
 	} else if method == "DERO.GetTransaction" {
-		sheduledt.Add(wait)
+		sheduledt[endpoint.Id].Add(wait)
 	} else if method == "DERO.GetSC" {
-		sheduleds.Add(wait)
+		sheduleds[endpoint.Id].Add(wait)
 	}
 	/*	*/
 
 	//	if time.Now().Before(sheduled) {
+	Outs := getOutsByMethod(method)
+	if len(Outs) != 0 {
+		Outs[endpoint.Id]++
+	}
 
 	Mutex.Unlock()
 	//	}
