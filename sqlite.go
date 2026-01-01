@@ -349,7 +349,7 @@ func (ss *SqlStore) RidSpam() {
 	}
 	spamtxs := strings.TrimRight(in, ",")
 
-	fmt.Println("deleting invokes:", spamaddrs)
+	fmt.Println("Deleting invokes:", spamaddrs)
 	_, err = ss.DB.Exec("DELETE FROM invokes WHERE signer IN (" + spamaddrs + ") AND scid = '0000000000000000000000000000000000000000000000000000000000000001';")
 	if err != nil {
 		log.Fatal(err)
@@ -389,8 +389,8 @@ func (ss *SqlStore) ViewTables() {
 		fmt.Println("Last Indexed Height", value)
 	}
 
-	fmt.Println("Showing SCs / Owners: ")
-	rows, err = hard.Query("SELECT scid, owner, scname,class, tags FROM scs WHERE class !=''", nil)
+	fmt.Println("Showing 20 Latest SCs / Owners: ")
+	rows, err = hard.Query("SELECT scid, owner, scname,class, tags FROM scs WHERE class !='' LIMIT 20", nil)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -431,7 +431,7 @@ func (ss *SqlStore) ViewTables() {
 	)
 	for rows.Next() {
 		rows.Scan(&count)
-		fmt.Println("count ", count)
+		fmt.Println("Count ", count)
 	}
 
 	/*
