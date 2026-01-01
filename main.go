@@ -90,6 +90,12 @@ func main() {
 		memBatchSize = 50
 		diskBatchSize = 32
 	}
+
+	fmt.Print("Enter number smoothing period (int 0,1,200...): ")
+	_, err = fmt.Scanln(&text)
+	api.Smoothing, _ = strconv.Atoi(text)
+	fmt.Println("Set to ", SpamLevel)
+
 	//Add custom actions for scids
 	//	CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
 	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "discard"}

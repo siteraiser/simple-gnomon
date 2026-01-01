@@ -376,6 +376,8 @@ func calculateSpeed(id uint8, method string) int {
 	return int(value)
 }
 
+var Smoothing = 2000
+
 func updateSpeed(id uint8, method string, start time.Time) {
 	var priorTimes = make(map[uint8][]int64)
 	if method == "DERO.GetBlock" {
@@ -385,8 +387,8 @@ func updateSpeed(id uint8, method string, start time.Time) {
 	} else if method == "DERO.GetSC" {
 		priorTimes = priorSCTimes
 	}
-	if len(priorTimes[id]) > 2000 {
-		priorTimes[id] = priorTimes[id][2000:]
+	if len(priorTimes[id]) > Smoothing {
+		priorTimes[id] = priorTimes[id][Smoothing:]
 	}
 	priorTimes[id] = append(priorTimes[id], time.Since(start).Microseconds())
 }
@@ -423,9 +425,9 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 
 	return result
 }
-func selectEndpoint(method string) Connection { //, time.Time
+func selectEndpoint(method string) (Connection, time.Time) { //
 
-	//var gtxtime time.Time
+	var gtxtime time.Time
 	var Outs []uint8
 	endpc := 0
 	Outs = getOutsByMethod(method)
@@ -455,12 +457,12 @@ func selectEndpoint(method string) Connection { //, time.Time
 		}
 	}
 
-	//gtxtime = waitTime(method, endpoint)
+	gtxtime = waitTime(method, endpoint)
 	if len(Outs) != 0 {
 		Outs[endpoint.Id]++
 	}
 
-	return endpoint //, gtxtime
+	return endpoint, gtxtime //
 }
 
 var Cancels = map[int]context.CancelFunc{}
@@ -489,7 +491,7 @@ func getResult[T any](method string, params any) (T, error) {
 	if params == nil {
 		go func() {
 			Mutex.Lock()
-			endpoint = selectEndpoint(method)
+			endpoint, gtxtime = selectEndpoint(method)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Mutex.Unlock()
@@ -499,7 +501,7 @@ func getResult[T any](method string, params any) (T, error) {
 	} else {
 		go func() {
 			Mutex.Lock()
-			endpoint = selectEndpoint(method)
+			endpoint, gtxtime = selectEndpoint(method)
 			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
 			rpcClient = jsonrpc.NewClient(nodeaddr)
 			Mutex.Unlock()
