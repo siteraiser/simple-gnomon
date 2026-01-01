@@ -72,10 +72,10 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
-
 	RamSizeMB, _ = strconv.Atoi(text)
 	RamSizeMB *= int(1000)
-	fmt.Println("SC spam threshold 50-100 recommended")
+
+	fmt.Println("SC spam threshold 0-50 recommended")
 	fmt.Print("Enter number of name registrations allowed per wallet: ")
 	_, err = fmt.Scanln(&text)
 	SpamLevel := text
@@ -89,6 +89,11 @@ func main() {
 		diskPreferredRequests = int8(2)
 		memBatchSize = 50
 		diskBatchSize = 32
+	} else if strings.ToLower(mode) == "o" {
+		memPreferredRequests = int8(10)
+		diskPreferredRequests = int8(4)
+		memBatchSize = 250
+		diskBatchSize = 100
 	}
 
 	fmt.Print("Enter number smoothing period (int 0,1,200...): ")
@@ -222,7 +227,7 @@ func start_gnomon_indexer() {
 		}
 		count++
 		//Mutex.Lock()
-		if (api.BatchCount == 0 && len(api.TXIDSProcessing) == 0) || count > 240 || !api.OK() { // wait for 4 mins
+		if (api.BatchCount == 0 && len(api.TXIDSProcessing) == 0) || count > 120 || !api.OK() { // wait for 2 mins(longer than timeout etc...)
 			break
 		}
 		if len(api.TXIDSProcessing) != 0 {
@@ -232,7 +237,7 @@ func start_gnomon_indexer() {
 		time.Sleep(w)
 	}
 
-	if count <= 240 && api.OK() {
+	if count <= 120 && api.OK() {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 	}
 
@@ -255,34 +260,31 @@ func start_gnomon_indexer() {
 
 	var switching = false
 	if UseMem {
-		fmt.Println("Saving Batch.............................................................")
+		fmt.Println("Saving Batch...... ", fileSizeMB(sqlite.db_path), "MB")
 		sqlite.BackupToDisk()
 		//Check size
 		if int64(RamSizeMB) <= fileSizeMB(sqlite.db_path) {
 			switching = true
 			sqlite.DB.Close()
-			fmt.Println("Switching to disk mode..............................", TargetHeight)
+			fmt.Println("Switching to disk mode...... ", TargetHeight)
 		}
 	}
 
 	if TargetHeight == last || switching {
-
 		if !switching {
-			fmt.Println("All caught up..............................", TargetHeight)
+			fmt.Println("All caught up...... ", TargetHeight)
 			t, _ := time.ParseDuration("5s")
 			time.Sleep(t)
 		}
-
+		//Don't use mem when caught up or over limit
 		UseMem = false
 		blockBatchSize = blockBatchSizeDisk
-		// Extract filename
 		filename := filepath.Base(sqlite.db_path)
 		dir := filepath.Dir(sqlite.db_path)
-		// Start disk mode
 		sqlite, err = NewDiskDB(dir, filename)
 	}
 
-	fmt.Println("Saving phase over...............................................................")
+	fmt.Println("Saving phase over......")
 	sqlite.ViewTables()
 
 	start_gnomon_indexer()
