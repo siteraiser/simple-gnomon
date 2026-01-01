@@ -342,7 +342,7 @@ var priorTxTimes = make(map[uint8][]int64)
 var priorSCTimes = make(map[uint8][]int64)
 
 func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
-
+	avgspeed := 20
 	gtxtime := time.Time{}
 	var noout uint8
 	if method == "DERO.GetBlock" {
@@ -352,19 +352,20 @@ func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
 	} else if method == "DERO.GetSC" {
 		noout = SCOuts[endpoint.Id]
 	}
-	avgspeed := 20
+
 	target := float64(PreferredRequests) / 2 //
 	/*	gtxtime = time.Now()
 		if method == "DERO.GetTransaction" {
-			avgspeed = calculateSpeed(endpoint.Id, method)
+					avgspeed = calculateSpeed(endpoint.Id, method)
 
-		} else if noout >= uint8(target) {
-			gtxtime = time.Now()
-			avgspeed = calculateSpeed(endpoint.Id, method)
-		}
+				} else if noout >= uint8(target) {
+					gtxtime = time.Now()
+					avgspeed = calculateSpeed(endpoint.Id, method)
+				}
 	*/
 	gtxtime = time.Now()
 	avgspeed = calculateSpeed(endpoint.Id, method)
+
 	if avgspeed == 0 {
 		avgspeed = 100
 	}
@@ -375,6 +376,7 @@ func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
 	if avgspeed > 100000 {
 		avgspeed = 100000
 	}
+
 	var waittime = time.Microsecond * time.Duration(int(avgspeed))
 	return gtxtime, waittime
 }
@@ -467,15 +469,15 @@ func selectEndpoint(method string) Connection { //
 				}
 			}
 			if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
-
-				if method == "DERO.GetBlock" {
-					sheduledh[endpoint.Id].Add(time.Millisecond * 10)
-				} else if method == "DERO.GetTransaction" {
-					sheduledt[endpoint.Id].Add(time.Millisecond * 50)
-				} else if method == "DERO.GetSC" {
-					sheduleds[endpoint.Id].Add(time.Millisecond * 50)
-				}
-
+				/*
+					if method == "DERO.GetBlock" {
+						sheduledh[endpoint.Id].Add(time.Millisecond * 10)
+					} else if method == "DERO.GetTransaction" {
+						sheduledt[endpoint.Id].Add(time.Millisecond * 50)
+					} else if method == "DERO.GetSC" {
+						sheduleds[endpoint.Id].Add(time.Millisecond * 50)
+					}
+				*/
 			} else {
 				currentEndpoint = endpoint
 			}
