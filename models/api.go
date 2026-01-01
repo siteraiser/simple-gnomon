@@ -235,17 +235,17 @@ func Ask(use string) {
 		Mutex.Lock()
 		ok := false
 		if use == "height" {
-			currentEndpoint = selectEndpoint("DERO.GetBlock")
+			//currentEndpoint = selectEndpoint("DERO.GetBlock")
 			if time.Now().After(sheduledh[currentEndpoint.Id]) {
 				ok = true
 			}
 		} else if use == "tx" {
-			currentEndpoint = selectEndpoint("DERO.GetTransaction")
+			//currentEndpoint = selectEndpoint("DERO.GetTransaction")
 			if time.Now().After(sheduledt[currentEndpoint.Id]) {
 				ok = true
 			}
 		} else if use == "sc" {
-			currentEndpoint = selectEndpoint("DERO.GetSC")
+			//currentEndpoint = selectEndpoint("DERO.GetSC")
 			if time.Now().After(sheduleds[currentEndpoint.Id]) {
 				ok = true
 			}
