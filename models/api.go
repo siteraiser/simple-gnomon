@@ -466,11 +466,11 @@ func selectEndpoint(method string) Connection { //
 			if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
 
 				if method == "DERO.GetBlock" {
-					sheduledh.Add(time.Millisecond * 100)
+					sheduledh.Add(time.Millisecond * 10)
 				} else if method == "DERO.GetTransaction" {
-					sheduledt.Add(time.Millisecond * 500)
+					sheduledt.Add(time.Millisecond * 50)
 				} else if method == "DERO.GetSC" {
-					sheduleds.Add(time.Millisecond * 500)
+					sheduleds.Add(time.Millisecond * 50)
 				}
 
 			} else {
