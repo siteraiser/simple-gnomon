@@ -513,19 +513,17 @@ func getResult[T any](method string, params any) (T, error) {
 	Mutex.Lock()
 	endpoint = selectEndpoint(method)
 	gtxtime, wait := waitTime(method, endpoint)
-	/*
-		sheduled := time.Now()
-		if method == "DERO.GetBlock" {
-			sheduled = sheduledh
-		} else if method == "DERO.GetTransaction" {
-			sheduled = sheduledt
-		} else if method == "DERO.GetSC" {
-			sheduled = sheduleds
-		}
-	*/
-	sheduledh.Add(wait)
-	sheduledt.Add(wait)
-	sheduleds.Add(wait)
+
+	//sheduled := time.Now()
+	if method == "DERO.GetBlock" {
+		sheduledh.Add(wait)
+	} else if method == "DERO.GetTransaction" {
+		sheduledt.Add(wait)
+	} else if method == "DERO.GetSC" {
+		sheduleds.Add(wait)
+	}
+	/*	*/
+
 	//	if time.Now().Before(sheduled) {
 
 	Mutex.Unlock()
