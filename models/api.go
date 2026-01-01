@@ -349,17 +349,16 @@ func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
 		noout = SCOuts[endpoint.Id]
 	}
 	avgspeed := 20
-	target := float64(PreferredRequests) // / 2
-	/*if method == "DERO.GetTransaction" {
-		gtxtime = time.Now()
-		avgspeed = calculateSpeed(endpoint.Id, method)
+	target := float64(PreferredRequests) / 2 //
+	/*	gtxtime = time.Now()
+		if method == "DERO.GetTransaction" {
+			avgspeed = calculateSpeed(endpoint.Id, method)
 
-	} else
+		} else if noout >= uint8(target) {
+			gtxtime = time.Now()
+			avgspeed = calculateSpeed(endpoint.Id, method)
+		}
 	*/
-	if noout >= uint8(target) {
-
-	}
-
 	gtxtime = time.Now()
 	avgspeed = calculateSpeed(endpoint.Id, method)
 	if avgspeed == 0 {
@@ -467,7 +466,7 @@ func selectEndpoint(method string) Connection { //
 			if currentEndpoint.Id == endpoint.Id && Outs[endpoint.Id] >= uint8(PreferredRequests) {
 
 				if method == "DERO.GetBlock" {
-					sheduledh.Add(time.Millisecond * 500)
+					sheduledh.Add(time.Millisecond * 100)
 				} else if method == "DERO.GetTransaction" {
 					sheduledt.Add(time.Millisecond * 500)
 				} else if method == "DERO.GetSC" {
