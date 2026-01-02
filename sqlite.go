@@ -79,14 +79,11 @@ func (ss *SqlStore) WriteToDisk() error {
 
 	if scs_count > 0 {
 		query += "INSERT INTO diskdb.scs (scs_id,scid,owner,height,scname,scdescr,scimgurl,class,tags) SELECT * FROM main.scs WHERE height >= " + height + ";"
-	}
-	if invokes_count > 0 {
+
 		query += "INSERT INTO diskdb.invokes (scid,signer,txid,height,entrypoint) SELECT * FROM invokes WHERE height >= " + height + ";"
-	}
-	if interactions_count > 0 {
+
 		query += "INSERT INTO diskdb.interactions (height,txid,sc_id) SELECT * FROM interactions WHERE height >= " + height + ";"
-	}
-	if variables_count > 0 {
+
 		query += "INSERT INTO diskdb.variables (v_id,height,scid,vars) SELECT * FROM variables WHERE height >= " + height + ";"
 	}
 
