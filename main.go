@@ -79,27 +79,6 @@ func main() {
 	fmt.Print("Enter number of name registrations allowed per wallet: ")
 	_, err = fmt.Scanln(&text)
 	SpamLevel := text
-	fmt.Println("Set to ", SpamLevel)
-	/*
-		fmt.Println("Use Moderate Mode? Enter y or n")
-		_, err = fmt.Scanln(&text)
-		mode := text
-		if strings.ToLower(mode) == "y" {
-			memPreferredRequests = int8(4)
-			diskPreferredRequests = int8(2)
-			memBatchSize = 50
-			diskBatchSize = 32
-		} else if strings.ToLower(mode) == "o" {
-			memPreferredRequests = int8(10)
-			diskPreferredRequests = int8(4)
-			memBatchSize = 250
-			diskBatchSize = 100
-		}
-
-		fmt.Print("Enter number smoothing period (int 0,1,200...): ")
-		_, err = fmt.Scanln(&text)
-		api.Smoothing, _ = strconv.Atoi(text)
-	*/
 	//Add custom actions for scids
 	//CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
 	if SpamLevel == "0" {
@@ -710,8 +689,6 @@ func showBlockStatus(bheight int64) {
 		" " + text +
 		" Speed:" + speedms + "ms" +
 		" " + speedbph + "bph" +
-		" Blocks:" + strconv.Itoa(len(api.Blocks)) +
-		" Batches:" + strconv.Itoa(api.BatchCount) +
 		" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
 
 	fmt.Print("\r", show)

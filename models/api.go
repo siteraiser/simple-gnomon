@@ -221,42 +221,14 @@ func RemoveTXIDs(txids []string) {
 		}
 	}
 	TXIDSProcessing = newlist
-
 }
 
 func Ask(use string) {
 	if !OK() {
 		return
 	}
-	//fmt.Println("now:", time.Now())
-	//fmt.Println("time:", time.Now())
 	for {
-
 		Mutex.Lock()
-
-		/*	ok := true
-				if use == "height" {
-					//currentEndpoint = selectEndpoint("DERO.GetBlock")
-					if time.Now().After(sheduledh[currentEndpoint.Id]) {
-						ok = true
-					}
-				} else if use == "tx" {
-					//currentEndpoint = selectEndpoint("DERO.GetTransaction")
-					if time.Now().Add(time.Millisecond).After(sheduledt[currentEndpoint.Id]) {
-						ok = true
-					}
-				} else if use == "sc" {
-					//currentEndpoint = selectEndpoint("DERO.GetSC")
-					if time.Now().After(sheduleds[currentEndpoint.Id]) {
-						ok = true
-					}
-				}
-			if use == "tx" || use == "sc" {
-				if BatchCount < 100 {
-					ok = false
-				}
-
-			}*/
 		exceeded := 0
 		totouts := 0
 		if use == "height" {
@@ -266,10 +238,9 @@ func Ask(use string) {
 		} else if use == "sc" {
 			totouts, exceeded = outs(SCOuts)
 		}
-		if exceeded != totouts { //&& ok
+		if exceeded != totouts {
 			Mutex.Unlock()
 			return
-
 		}
 		Mutex.Unlock()
 	}
@@ -350,34 +321,9 @@ var priorSCTimes = make(map[uint8][]int64)
 func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
 	avgspeed := 0
 	gtxtime := time.Time{}
-	/*var noout uint8
-	if method == "DERO.GetBlock" {
-		noout = HeightOuts[endpoint.Id]
-	} else if method == "DERO.GetTransaction" {
-		noout = TxOuts[endpoint.Id]
-	} else if method == "DERO.GetSC" {
-		noout = SCOuts[endpoint.Id]
-	}
-
-	target := float64(PreferredRequests)
-
-	if method == "DERO.GetTransaction" {
-		gtxtime = time.Now()
-		avgspeed = calculateSpeed(endpoint.Id, method)
-
-	} else
-
-	if noout >= uint8(target) || (method != "DERO.GetBlock" && noout >= uint8(target)) {
-	}
-	*/
 	gtxtime = time.Now()
 	avgspeed = calculateSpeed(endpoint.Id, method)
 	ratio := 1.0
-	if avgspeed == 0 || method == "DERO.GetBlock" && BatchCount < 20 {
-		return gtxtime, time.Microsecond * 0
-	} else if BatchCount < 20 {
-		ratio = .8
-	}
 	var waittime = time.Microsecond * time.Duration(int(int(float64(avgspeed)/float64(ratio))))
 	return gtxtime, waittime
 }
