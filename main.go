@@ -165,6 +165,11 @@ func start_gnomon_indexer() {
 	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
 	api.Status.ErrorCount = 0
 	api.StartingFrom = int(starting_height)
+	if starting_height >= 150000 && starting_height < 170000 {
+		memBatchSize = int16(500)
+	} else {
+		memBatchSize = int16(100)
+	}
 
 	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
 
@@ -416,37 +421,29 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 		return
 	}
 	var wg3 sync.WaitGroup
-	var ok = true
-	api.RemoveTXs([]string{tx.GetHash().String()})
+	ok := true
+	txhash := tx.GetHash().String()
+	api.RemoveTXs([]string{txhash})
 
 	if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
 		ok = false
 	}
+
 	tx_type := ""
 	//fmt.Print("scid found at height:", fmt.Sprint(bheight)+"\n")
 	params := rpc.GetSC_Params{}
 	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
 		tx_type = "install"
 		fmt.Println("\nSC Code:\n", tx.SCDATA.Value(rpc.SCCODE, rpc.DataString))
+		params.SCID = txhash
 
-		params = rpc.GetSC_Params{
-			SCID:       tx.GetHash().String(),
-			Code:       true,
-			Variables:  true,
-			TopoHeight: bheight,
-		}
 	} else if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
 		tx_type = "invoke"
 		//	fmt.Println("invoke:", tx)
 		scid, ok := tx.SCDATA.Value(rpc.SCID, rpc.DataHash).(crypto.Hash)
-		if !ok || scid.String() == "" {
+		params.SCID = scid.String()
+		if !ok || params.SCID == "" {
 			ok = false
-		}
-		params = rpc.GetSC_Params{
-			SCID:       scid.String(),
-			Code:       false,
-			Variables:  CustomActions[tx.GetHash().String()].Act != "saveasinteraction", //no name spams
-			TopoHeight: bheight,
 		}
 	}
 
@@ -454,9 +451,19 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 	if CustomActions[params.SCID].Act == "discard" ||
 		(CustomActions[params.SCID].Act == "discard-before" && CustomActions[params.SCID].Block >= bheight) {
 		ok = false
-	}
-	if (slices.Contains(Spammers, signer)) && params.SCID == Hardcoded_SCIDS[0] { //|| spammy == true
+	} else if (slices.Contains(Spammers, signer)) && params.SCID == Hardcoded_SCIDS[0] { //|| spammy == true
 		ok = false
+	}
+
+	// Finish filling the required values
+	if tx_type == "install" {
+		params.Code = true
+		params.Variables = true
+		params.TopoHeight = bheight
+	} else if tx_type == "invoke" {
+		params.Code = false
+		params.Variables = CustomActions[txhash].Act != "saveasinteraction"
+		params.TopoHeight = bheight
 	}
 
 	if ok {
@@ -466,7 +473,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 	}
 
 	updateBlocks(api.Batch{
-		TxIds: []string{tx.GetHash().String()},
+		TxIds: []string{txhash},
 	})
 
 }
