@@ -357,7 +357,7 @@ func schedule(method string, endpoint Connection, wait time.Duration) {
 		sheduleds[endpoint.Id] = time.Now()
 	}
 	if method == "DERO.GetBlock" {
-		sheduledb[endpoint.Id].Add(wait)
+		sheduledb[endpoint.Id].Add(wait / 2)
 	} else if method == "DERO.GetTransaction" {
 		sheduledt[endpoint.Id].Add(wait)
 	} else if method == "DERO.GetSC" {
