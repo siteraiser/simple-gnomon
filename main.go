@@ -79,6 +79,13 @@ func main() {
 	fmt.Print("Enter number of name registrations allowed per wallet: ")
 	_, err = fmt.Scanln(&text)
 	SpamLevel := text
+
+	fmt.Println("Use smoothing? 0-1000")
+	_, err = fmt.Scanln(&text)
+	if text == "0" {
+		api.Smoothing, _ = strconv.Atoi(text)
+	}
+
 	//Add custom actions for scids
 	//CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
 	if SpamLevel == "0" {
