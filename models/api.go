@@ -247,7 +247,7 @@ func Ask(use string) {
 }
 
 func isReady(use string) bool {
-	if Smoothing != 0 {
+	if Smoothing == 0 {
 		return true
 	}
 	ok := true
