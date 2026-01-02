@@ -22,7 +22,7 @@ import (
 
 var startAt = int64(0) // Start at Block Height, will be auto-set when using 0
 var blockBatchSize int64
-var blockBatchSizeMem = int64(25000)
+var blockBatchSizeMem = int64(10000)
 var blockBatchSizeDisk = int64(5000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                    // Use in-memory db
 var SpamLevel = 50
@@ -111,6 +111,10 @@ func main() {
 			batchSize = memBatchSize
 			blockBatchSize = blockBatchSizeMem
 			api.PreferredRequests = memPreferredRequests
+			//Create the tables now...
+			sqlite, err = NewDiskDB(db_path, db_name)
+			CreateTables(sqlite.DB)
+			sqlite.DB.Close()
 			sqlite, err = NewSqlDB(db_path, db_name)
 		}
 
@@ -245,7 +249,7 @@ func start_gnomon_indexer() {
 	var switching = false
 	if UseMem {
 		fmt.Println("Saving Batch...... ", fileSizeMB(sqlite.db_path), "MB")
-		sqlite.BackupToDisk()
+		sqlite.WriteToDisk()
 		//Check size
 		if int64(RamSizeMB) <= fileSizeMB(sqlite.db_path) {
 			switching = true

@@ -47,6 +47,62 @@ func Ask() bool {
 		}
 	}
 }
+func (ss *SqlStore) WriteToDisk() error {
+
+	//	var SqlBackend *SqlStore = &SqlStore{}
+
+	dest, err := sql.Open("sqlite3", ss.db_path)
+	if err != nil {
+		return fmt.Errorf("failed to open destination DB: %w", err)
+	}
+	defer dest.Close()
+	var lastindexedheight int
+	dest.QueryRow("SELECT value FROM state WHERE name = 'lastindexedheight' ").Scan(&lastindexedheight)
+	height := ""
+	if lastindexedheight >= 0 {
+		height = strconv.Itoa(lastindexedheight)
+	}
+
+	var scs_count int
+	dest.QueryRow("SELECT count(*) as scs_count FROM scs").Scan(&scs_count)
+	var invokes_count int
+	dest.QueryRow("SELECT count(*) as invokes_count FROM scs").Scan(&invokes_count)
+	var interactions_count int
+	dest.QueryRow("SELECT count(*) as interactions_count FROM interactions").Scan(&interactions_count)
+	var variables_count int
+	dest.QueryRow("SELECT count(*) as variables_count FROM variables").Scan(&variables_count)
+
+	/**/
+	_, err = ss.DB.Exec(fmt.Sprintf("ATTACH DATABASE '%s' AS diskdb", ss.db_path))
+	if err != nil {
+		log.Fatalf("attach disk DB: %v", err)
+	}
+
+	query := "UPDATE diskdb.state SET value = (SELECT value FROM main.state WHERE name = 'lastindexedheight');"
+
+	if scs_count > 0 {
+		fmt.Println("scs_count lol wtf", scs_count)
+		query += "INSERT INTO diskdb.scs (scs_id,scid,owner,height,scname,scdescr,scimgurl,class,tags) SELECT * FROM main.scs WHERE height >= " + height + ";"
+	}
+	if invokes_count > 0 {
+		query += "INSERT INTO diskdb.invokes (scid,signer,txid,height,entrypoint) SELECT * FROM invokes WHERE height >= " + height + ";"
+	}
+	if interactions_count > 0 {
+		query += "INSERT INTO diskdb.interactions (height,txid,sc_id) SELECT * FROM interactions WHERE height >= " + height + ";"
+	}
+	if variables_count > 0 {
+		query += "INSERT INTO diskdb.variables (v_id,height,scid,vars) SELECT * FROM variables WHERE height >= " + height + ";"
+	}
+	fmt.Println(query)
+	_, err = ss.DB.Exec(query)
+	if err != nil {
+		log.Printf("No existing table to copy: %v", err)
+	}
+	_, _ = ss.DB.Exec("DETACH DATABASE diskdb")
+
+	return err
+}
+
 func (ss *SqlStore) BackupToDisk() error {
 
 	// Open destination database
