@@ -455,18 +455,18 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 		ok = false
 	}
 
-	// Finish filling the required values
-	if tx_type == "install" {
-		params.Code = true
-		params.Variables = true
-		params.TopoHeight = bheight
-	} else if tx_type == "invoke" {
-		params.Code = false
-		params.Variables = CustomActions[txhash].Act != "saveasinteraction"
-		params.TopoHeight = bheight
-	}
-
 	if ok {
+		// Finish filling the required values
+		if tx_type == "install" {
+			params.Code = true
+			params.Variables = true
+			params.TopoHeight = bheight
+		} else if tx_type == "invoke" {
+			params.Code = false
+			params.Variables = CustomActions[txhash].Act != "saveasinteraction"
+			params.TopoHeight = bheight
+		}
+
 		wg3.Add(1)
 		go processSCs(&wg3, tx, tx_type, params, bheight, signer)
 		wg3.Wait()
