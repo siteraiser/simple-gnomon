@@ -49,8 +49,6 @@ func Ask() bool {
 }
 func (ss *SqlStore) WriteToDisk() error {
 
-	//	var SqlBackend *SqlStore = &SqlStore{}
-
 	dest, err := sql.Open("sqlite3", ss.db_path)
 	if err != nil {
 		return fmt.Errorf("failed to open destination DB: %w", err)
@@ -72,7 +70,6 @@ func (ss *SqlStore) WriteToDisk() error {
 	var variables_count int
 	dest.QueryRow("SELECT count(*) as variables_count FROM variables").Scan(&variables_count)
 
-	/**/
 	_, err = ss.DB.Exec(fmt.Sprintf("ATTACH DATABASE '%s' AS diskdb", ss.db_path))
 	if err != nil {
 		log.Fatalf("attach disk DB: %v", err)
@@ -81,7 +78,6 @@ func (ss *SqlStore) WriteToDisk() error {
 	query := "UPDATE diskdb.state SET value = (SELECT value FROM main.state WHERE name = 'lastindexedheight');"
 
 	if scs_count > 0 {
-		fmt.Println("scs_count lol wtf", scs_count)
 		query += "INSERT INTO diskdb.scs (scs_id,scid,owner,height,scname,scdescr,scimgurl,class,tags) SELECT * FROM main.scs WHERE height >= " + height + ";"
 	}
 	if invokes_count > 0 {
@@ -93,7 +89,7 @@ func (ss *SqlStore) WriteToDisk() error {
 	if variables_count > 0 {
 		query += "INSERT INTO diskdb.variables (v_id,height,scid,vars) SELECT * FROM variables WHERE height >= " + height + ";"
 	}
-	fmt.Println(query)
+
 	_, err = ss.DB.Exec(query)
 	if err != nil {
 		log.Printf("No existing table to copy: %v", err)
