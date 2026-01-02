@@ -233,24 +233,30 @@ func Ask(use string) {
 	for {
 
 		Mutex.Lock()
-		ok := false
-		if use == "height" {
-			//currentEndpoint = selectEndpoint("DERO.GetBlock")
-			if time.Now().After(sheduledh[currentEndpoint.Id]) {
-				ok = true
-			}
-		} else if use == "tx" {
-			//currentEndpoint = selectEndpoint("DERO.GetTransaction")
-			if time.Now().After(sheduledt[currentEndpoint.Id]) {
-				ok = true
-			}
-		} else if use == "sc" {
-			//currentEndpoint = selectEndpoint("DERO.GetSC")
-			if time.Now().After(sheduleds[currentEndpoint.Id]) {
-				ok = true
-			}
-		}
 
+		/*	ok := true
+				if use == "height" {
+					//currentEndpoint = selectEndpoint("DERO.GetBlock")
+					if time.Now().After(sheduledh[currentEndpoint.Id]) {
+						ok = true
+					}
+				} else if use == "tx" {
+					//currentEndpoint = selectEndpoint("DERO.GetTransaction")
+					if time.Now().Add(time.Millisecond).After(sheduledt[currentEndpoint.Id]) {
+						ok = true
+					}
+				} else if use == "sc" {
+					//currentEndpoint = selectEndpoint("DERO.GetSC")
+					if time.Now().After(sheduleds[currentEndpoint.Id]) {
+						ok = true
+					}
+				}
+			if use == "tx" || use == "sc" {
+				if BatchCount < 100 {
+					ok = false
+				}
+
+			}*/
 		exceeded := 0
 		totouts := 0
 		if use == "height" {
@@ -260,7 +266,7 @@ func Ask(use string) {
 		} else if use == "sc" {
 			totouts, exceeded = outs(SCOuts)
 		}
-		if exceeded != totouts && ok {
+		if exceeded != totouts { //&& ok
 			Mutex.Unlock()
 			return
 
@@ -366,11 +372,13 @@ func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
 	*/
 	gtxtime = time.Now()
 	avgspeed = calculateSpeed(endpoint.Id, method)
-
-	if avgspeed == 0 {
+	ratio := 1.0
+	if avgspeed == 0 || method == "DERO.GetBlock" && BatchCount < 20 {
 		return gtxtime, time.Microsecond * 0
+	} else if BatchCount < 20 {
+		ratio = .8
 	}
-	var waittime = time.Microsecond * time.Duration(int(int(float64(avgspeed)/float64(1))))
+	var waittime = time.Microsecond * time.Duration(int(int(float64(avgspeed)/float64(ratio))))
 	return gtxtime, waittime
 }
 
@@ -505,17 +513,17 @@ func getResult[T any](method string, params any) (T, error) {
 	defer cancel()
 	Mutex.Lock()
 	endpoint = selectEndpoint(method)
-	gtxtime, wait := waitTime(method, endpoint)
+	//gtxtime, wait := waitTime(method, endpoint)
 
 	//sheduled := time.Now()
-	if method == "DERO.GetBlock" {
-		sheduleds[endpoint.Id].Add(wait)
-	} else if method == "DERO.GetTransaction" {
-		sheduledt[endpoint.Id].Add(wait)
-	} else if method == "DERO.GetSC" {
-		sheduleds[endpoint.Id].Add(wait)
-	}
-	/*	*/
+	/*	if method == "DERO.GetBlock" {
+			sheduleds[endpoint.Id].Add(wait)
+		} else if method == "DERO.GetTransaction" {
+			sheduledt[endpoint.Id].Add(wait)
+		} else if method == "DERO.GetSC" {
+			sheduleds[endpoint.Id].Add(wait)
+		}
+	*/
 
 	//	if time.Now().Before(sheduled) {
 	Outs := getOutsByMethod(method)
@@ -578,11 +586,11 @@ func getResult[T any](method string, params any) (T, error) {
 		if len(Outs) != 0 {
 			Outs[endpoint.Id]--
 		}
-		/*	*/
-		notime := time.Time{}
-		if gtxtime != notime {
-			updateSpeed(endpoint.Id, method, gtxtime)
-		}
+		/*
+			notime := time.Time{}
+			if gtxtime != notime {
+				updateSpeed(endpoint.Id, method, gtxtime)
+			}	*/
 
 		Mutex.Unlock()
 
