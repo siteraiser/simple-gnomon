@@ -267,12 +267,13 @@ func isReady(use string) bool {
 			ok = true
 		}
 	}
-	if use == "tx" || use == "sc" {
+	/*if use == "tx" || use == "sc" {
 		if BatchCount < 100 {
 			ok = false
 		}
 
 	}
+	*/
 	return ok
 }
 
@@ -342,12 +343,25 @@ func AssignConnections(iserror bool) {
 		AssignConnections(false)
 	}
 	Reset()
+
 }
-func ResetScheduled() {
-	for id, _ := range sheduledb {
-		sheduledb[id] = time.Now()
-		sheduledt[id] = time.Now()
-		sheduleds[id] = time.Now()
+
+var sheduledb = make(map[uint8]time.Time)
+var sheduledt = make(map[uint8]time.Time)
+var sheduleds = make(map[uint8]time.Time)
+
+func schedule(method string, endpoint Connection, wait time.Duration) {
+	if sheduledb[endpoint.Id].Year() < 2000 {
+		sheduledb[endpoint.Id] = time.Now()
+		sheduledt[endpoint.Id] = time.Now()
+		sheduleds[endpoint.Id] = time.Now()
+	}
+	if method == "DERO.GetBlock" {
+		sheduledb[endpoint.Id].Add(wait)
+	} else if method == "DERO.GetTransaction" {
+		sheduledt[endpoint.Id].Add(wait)
+	} else if method == "DERO.GetSC" {
+		sheduleds[endpoint.Id].Add(wait)
 	}
 }
 
@@ -441,9 +455,7 @@ func selectEndpoint(method string) Connection { //
 
 // var Cancels = map[int]context.CancelFunc{}
 // var cancelids = 0
-var sheduledb = make(map[uint8]time.Time) //time.Now()
-var sheduledt = make(map[uint8]time.Time) // = time.Now()
-var sheduleds = make(map[uint8]time.Time) // = time.Now()
+
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 	if !OK() {
 		var zero t
@@ -489,13 +501,7 @@ func getResult[T any](method string, params any) (T, error) {
 
 	if Smoothing != 0 {
 		gtxtime, wait = waitTime(method, endpoint)
-		if method == "DERO.GetBlock" {
-			sheduleds[endpoint.Id].Add(wait)
-		} else if method == "DERO.GetTransaction" {
-			sheduledt[endpoint.Id].Add(wait)
-		} else if method == "DERO.GetSC" {
-			sheduleds[endpoint.Id].Add(wait)
-		}
+		schedule(method, endpoint, wait)
 	}
 	//	if time.Now().Before(sheduled) {
 	Outs := getOutsByMethod(method)
