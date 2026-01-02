@@ -253,7 +253,7 @@ func isReady(use string) bool {
 	ok := true
 	if use == "height" {
 		//currentEndpoint = selectEndpoint("DERO.GetBlock")
-		if time.Now().After(sheduledh[currentEndpoint.Id]) {
+		if time.Now().After(sheduledb[currentEndpoint.Id]) {
 			ok = true
 		}
 	} else if use == "tx" {
@@ -343,6 +343,13 @@ func AssignConnections(iserror bool) {
 	}
 	Reset()
 }
+func ResetScheduled() {
+	for id, _ := range sheduledb {
+		sheduledb[id] = time.Now()
+		sheduledt[id] = time.Now()
+		sheduleds[id] = time.Now()
+	}
+}
 
 var priorGBTimes = make(map[uint8][]int64)
 var priorTxTimes = make(map[uint8][]int64)
@@ -389,6 +396,7 @@ func updateSpeed(id uint8, method string, start time.Time) {
 	} else if method == "DERO.GetSC" {
 		priorTimes = priorSCTimes
 	}
+
 	if len(priorTimes[id]) > Smoothing {
 		priorTimes[id] = priorTimes[id][Smoothing:]
 	}
@@ -433,9 +441,9 @@ func selectEndpoint(method string) Connection { //
 
 // var Cancels = map[int]context.CancelFunc{}
 // var cancelids = 0
-var sheduledh map[uint8]time.Time //time.Now()
-var sheduledt map[uint8]time.Time // = time.Now()
-var sheduleds map[uint8]time.Time // = time.Now()
+var sheduledb = make(map[uint8]time.Time) //time.Now()
+var sheduledt = make(map[uint8]time.Time) // = time.Now()
+var sheduleds = make(map[uint8]time.Time) // = time.Now()
 func callRPC[t any](method string, params any, validator func(t) bool) t {
 	if !OK() {
 		var zero t
@@ -478,6 +486,7 @@ func getResult[T any](method string, params any) (T, error) {
 	endpoint = selectEndpoint(method)
 
 	var wait time.Duration
+
 	if Smoothing != 0 {
 		gtxtime, wait = waitTime(method, endpoint)
 		if method == "DERO.GetBlock" {

@@ -82,10 +82,9 @@ func main() {
 
 	fmt.Println("Use smoothing? 0-1000")
 	_, err = fmt.Scanln(&text)
-	if text == "0" {
-		api.Smoothing, _ = strconv.Atoi(text)
-	}
-
+	api.Smoothing, _ = strconv.Atoi(text)
+	fmt.Println("smoothing", api.Smoothing)
+	api.ResetScheduled() //set some starting times to use for smoothing
 	//Add custom actions for scids
 	//CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
 	if SpamLevel == "0" {
@@ -95,6 +94,7 @@ func main() {
 	CustomActions["bb43c3eb626ee767c9f305772a6666f7c7300441a0ad8538a0799eb4f12ebcd2"] = action{Type: "SC", Act: "discard"}
 	fmt.Println("starting ....")
 	api.AssignConnections(false)
+
 	HighestKnownHeight = api.GetTopoHeight()
 	if HighestKnownHeight < 1 {
 		fmt.Println("Error getting height ....", HighestKnownHeight)
