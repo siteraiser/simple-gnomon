@@ -780,17 +780,17 @@ func bigDisplay(n int64) {
 		}
 		lines = append(lines, line)
 	}
-	//fmt.Println(lines[2])
-	fmt.Printf(" \n")
+	pad := strings.Repeat(" ", len(lines[0]))
+	fmt.Printf(pad + " \n")
 	fmt.Printf(" %v\n", lines[0])
 	fmt.Printf(" %v\n", lines[1])
 	fmt.Printf(" %v\n", lines[2])
 	fmt.Printf(" %v\n", lines[3])
 	fmt.Printf(" %v\n", lines[4])
 	fmt.Printf(" %v\n", lines[5])
-	fmt.Printf(" \n")
+	fmt.Printf(pad + " \n")
 	fmt.Print("\033[8A")
-	/**/
+
 }
 
 var numbers = [10][6]string{
