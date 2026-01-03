@@ -810,8 +810,9 @@ func bigDisplay(n int64, show string) {
 	fmt.Printf(" %v\n", lines[3])
 	fmt.Printf(" %v\n", lines[4])
 	fmt.Printf(" %v\n", lines[5])
-	fmt.Printf(pad + " \n")
+
 	if show != "" {
+		fmt.Printf(pad + " \n")
 		fmt.Printf(show)
 	}
 
