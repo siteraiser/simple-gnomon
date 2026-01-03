@@ -806,12 +806,12 @@ func bigDisplay(n int64, show string) {
 	}
 	fmt.Printf(pad + " \n")
 	fmt.Printf(pad + " \n")
-	fmt.Printf(" %v\n", lines[0])
-	fmt.Printf(" %v\n", lines[1])
-	fmt.Printf(" %v\n", lines[2])
-	fmt.Printf(" %v\n", lines[3])
-	fmt.Printf(" %v\n", lines[4])
-	fmt.Printf(" %v\n", lines[5])
+	fmt.Printf(" %v \n", lines[0])
+	fmt.Printf(" %v \n", lines[1])
+	fmt.Printf(" %v \n", lines[2])
+	fmt.Printf(" %v \n", lines[3])
+	fmt.Printf(" %v \n", lines[4])
+	fmt.Printf(" %v \n", lines[5])
 
 	if show != "" {
 		fmt.Printf(pad + " \n")
