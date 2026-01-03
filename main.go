@@ -742,7 +742,7 @@ func showBlockStatus(bheight int64) {
 			" " + text +
 			" Speed:" + speedms + "ms" +
 			" " + speedbph + "bph" +
-			" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
+			" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors)) + "  "
 		if DisplayMode == 0 {
 			fmt.Print("\r", show)
 		}
