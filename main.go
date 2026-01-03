@@ -775,7 +775,7 @@ func bigDisplay(n int64) {
 	for l := 0; l < 6; l++ {
 		line := ""
 		for _, r := range chars {
-			line += " " + numbers[r][l]
+			line += " " + numbers[r][l] + " "
 		}
 		lines = append(lines, line)
 	}
