@@ -790,6 +790,7 @@ func bigDisplay(n int64, show string) {
 		lines = append(lines, line)
 	}
 	pad := strings.Repeat(" ", len(lines[0]))
+	fmt.Print("\033[7A")
 	fmt.Printf(pad + " \n")
 	fmt.Printf(" %v\n", lines[0])
 	fmt.Printf(" %v\n", lines[1])
@@ -800,8 +801,7 @@ func bigDisplay(n int64, show string) {
 	if show == "" {
 		show = pad
 	}
-	fmt.Printf(show + " \n")
-	fmt.Print("\033[8A")
+	fmt.Printf(show)
 
 }
 
