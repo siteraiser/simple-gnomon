@@ -734,8 +734,10 @@ func showBlockStatus(bheight int64) {
 	show := ""
 	if DisplayMode == 0 || DisplayMode == 1 {
 		_, text := getOutCounts()
-		show = "Block:" + strconv.Itoa(int(status.block)) +
-			" Conns:" + strconv.Itoa(int(len(api.TxOuts))) +
+		if DisplayMode != 1 {
+			show = "Block:" + strconv.Itoa(int(status.block))
+		}
+		show += " Conns:" + strconv.Itoa(int(len(api.TxOuts))) +
 			" " + text +
 			" Speed:" + speedms + "ms" +
 			" " + speedbph + "bph" +
@@ -815,7 +817,6 @@ func bigDisplay(n int64, show string) {
 		fmt.Printf(pad + " \n")
 		fmt.Printf(show)
 	}
-
 }
 
 var numbers = [10][6]string{
