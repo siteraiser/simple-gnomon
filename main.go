@@ -17,6 +17,7 @@ import (
 	"github.com/deroproject/derohe/globals"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/transaction"
+	"github.com/mattn/go-tty"
 	api "github.com/secretnamebasis/simple-gnomon/models"
 )
 
@@ -85,6 +86,22 @@ func main() {
 	api.Smoothing, _ = strconv.Atoi(text)
 	fmt.Println("smoothing", api.Smoothing)
 
+	go func() {
+		tty, err := tty.Open()
+		if err != nil {
+			panic(err)
+		}
+		defer tty.Close()
+		for {
+			r, err := tty.ReadRune()
+			if err != nil {
+				panic(err)
+			}
+			if string(r) == "d" {
+				UserBigDisplay = !UserBigDisplay
+			}
+		}
+	}()
 	//Add custom actions for scids
 	//CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
 	if SpamLevel == "0" {
@@ -428,15 +445,14 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 	if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
 		ok = false
 	}
+	//fmt.Print("scid found at height:", fmt.Sprint(bheight)+"\n")
 
 	tx_type := ""
-	//fmt.Print("scid found at height:", fmt.Sprint(bheight)+"\n")
 	params := rpc.GetSC_Params{}
 	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
 		tx_type = "install"
 		fmt.Println("\nSC Code:\n", tx.SCDATA.Value(rpc.SCCODE, rpc.DataString))
 		params.SCID = txhash
-
 	} else if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
 		tx_type = "invoke"
 		//	fmt.Println("invoke:", tx)
@@ -689,6 +705,7 @@ var status = struct {
 }
 
 func showBlockStatus(bheight int64) {
+
 	if bheight != -1 {
 		status.block = bheight
 	}
@@ -699,15 +716,20 @@ func showBlockStatus(bheight int64) {
 		speedms = strconv.Itoa(s)
 		speedbph = strconv.Itoa((1000 / s) * 60 * 60)
 	}
-	_, text := getOutCounts()
-	show := "Block:" + strconv.Itoa(int(status.block)) +
-		" Conns:" + strconv.Itoa(int(len(api.TxOuts))) +
-		" " + text +
-		" Speed:" + speedms + "ms" +
-		" " + speedbph + "bph" +
-		" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
+	if UserBigDisplay {
+		bigDisplay(status.block)
+	} else {
+		_, text := getOutCounts()
+		show := "Block:" + strconv.Itoa(int(status.block)) +
+			" Conns:" + strconv.Itoa(int(len(api.TxOuts))) +
+			" " + text +
+			" Speed:" + speedms + "ms" +
+			" " + speedbph + "bph" +
+			" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
 
-	fmt.Print("\r", show)
+		fmt.Print("\r", show)
+	}
+
 }
 func getOutCounts() (int, string) {
 	text := ""
@@ -730,6 +752,127 @@ func getOutCounts() (int, string) {
 	}
 
 	return tot, text
+}
+func fileSizeMB(filePath string) int64 {
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return 0
+	}
+	sizeBytes := fileInfo.Size()
+	return int64(float64(sizeBytes) / (1024 * 1024))
+}
+
+var UserBigDisplay = false
+
+func bigDisplay(n int64) {
+	chars := []int{}
+	ns := strconv.FormatInt(n, 10)
+	for _, ch := range ns {
+		integer, _ := strconv.Atoi(string(ch))
+		chars = append(chars, integer)
+	}
+	lines := []string{}
+	for l := 0; l < 6; l++ {
+		line := ""
+		for _, r := range chars {
+			line += " " + numbers[r][l]
+		}
+		lines = append(lines, line)
+	}
+	//fmt.Println(lines[2])
+	fmt.Printf(" \n")
+	fmt.Printf(" %v\n", lines[0])
+	fmt.Printf(" %v\n", lines[1])
+	fmt.Printf(" %v\n", lines[2])
+	fmt.Printf(" %v\n", lines[3])
+	fmt.Printf(" %v\n", lines[4])
+	fmt.Printf(" %v\n", lines[5])
+	fmt.Printf(" \n")
+	fmt.Print("\033[8A")
+	/**/
+}
+
+var numbers = [10][6]string{
+	[6]string{
+		" 00 ",
+		"0  0",
+		"0 00",
+		"00 0",
+		"0  0",
+		" 00 ",
+	},
+	[6]string{
+		"  0 ",
+		"0 0 ",
+		"  0 ",
+		"  0 ",
+		"  0 ",
+		"0000",
+	},
+	[6]string{
+		" 00 ",
+		"0  0",
+		"  0 ",
+		" 0  ",
+		"0   ",
+		"0000",
+	},
+	[6]string{
+		"0000",
+		"   0",
+		"  0 ",
+		" 000",
+		"   0",
+		"000 ",
+	},
+	[6]string{
+		"  00",
+		" 0 0",
+		"0  0",
+		"0000",
+		"   0",
+		"   0",
+	},
+	[6]string{
+		"0000",
+		"0   ",
+		"000 ",
+		"   0",
+		"0  0",
+		" 00 ",
+	},
+	[6]string{
+		" 00 ",
+		"0  0",
+		"0   ",
+		"000 ",
+		"0  0",
+		" 00 ",
+	},
+	[6]string{
+		"0000",
+		"0  0",
+		"  0 ",
+		" 00 ",
+		" 0  ",
+		"00  ",
+	},
+	[6]string{
+		" 00 ",
+		"0  0",
+		" 00 ",
+		"0  0",
+		"0  0",
+		" 00 ",
+	},
+	[6]string{
+		" 00 ",
+		"0  0",
+		" 000",
+		"   0",
+		"0  0",
+		" 00 ",
+	},
 }
 
 // Supply true to boot from disk, returns true if memory is nearly full
@@ -756,11 +899,3 @@ func mbFree() int64 {
 	return int64(memStats.HeapIdle-memStats.HeapSys) / 1024 / 1024
 }
 */
-func fileSizeMB(filePath string) int64 {
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		return 0
-	}
-	sizeBytes := fileInfo.Size()
-	return int64(float64(sizeBytes) / (1024 * 1024))
-}

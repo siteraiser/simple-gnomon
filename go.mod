@@ -26,6 +26,7 @@ require (
 	github.com/klauspost/reedsolomon v1.11.5 // indirect
 	github.com/lesismal/llib v1.1.10 // indirect
 	github.com/lesismal/nbio v1.3.9 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/segmentio/fasthash v1.0.3 // indirect
@@ -44,6 +45,7 @@ require (
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/zapr v1.2.3 // indirect
 	github.com/mattn/go-sqlite3 v1.14.32
+	github.com/mattn/go-tty v0.0.7
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
