@@ -720,10 +720,11 @@ var status = struct {
 }
 
 func showBlockStatus(bheight int64) {
-
 	if bheight != -1 {
 		status.block = bheight
+
 	}
+	//	else if DisplayMode > 0{return}
 	speedms := "0"
 	speedbph := "0"
 	s := getSpeed()
@@ -793,19 +794,24 @@ func bigDisplay(n int64, show string) {
 	lines := []string{}
 	for l := 0; l < 6; l++ {
 		line := ""
-		for _, r := range chars {
+		for i, r := range chars {
+			if i == 0 {
+				line += logo[l]
+			}
 			line += " " + numbers[r][l] + " "
 		}
 		lines = append(lines, line)
 	}
-	pad := strings.Repeat(" ", len(lines[0]))
+	pad := " " + strings.Repeat(" ", len(lines[0])) + " "
+	pad2 := pad
 	if show != "" {
+		pad2 = "     _    " + pad2
 		fmt.Print("\033[9A")
 	} else {
 		fmt.Print("\033[8A")
 	}
 	fmt.Printf(pad + " \n")
-	fmt.Printf(pad + " \n")
+	fmt.Printf(pad2 + " \n")
 	fmt.Printf(" %v \n", lines[0])
 	fmt.Printf(" %v \n", lines[1])
 	fmt.Printf(" %v \n", lines[2])
@@ -900,6 +906,15 @@ var numbers = [10][6]string{
 		"0  0",
 		" 00 ",
 	},
+}
+
+var logo = [6]string{
+	`  // \   `,
+	` // _ \  `,
+	`|| ( ) | `,
+	`||  I  | `,
+	` \\   /  `,
+	`  \\_/   `,
 }
 
 // Supply true to boot from disk, returns true if memory is nearly full
