@@ -733,8 +733,9 @@ func showBlockStatus(bheight int64) {
 			" Speed:" + speedms + "ms" +
 			" " + speedbph + "bph" +
 			" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors))
-
-		fmt.Print("\r", show)
+		if DisplayMode == 0 {
+			fmt.Print("\r", show)
+		}
 	}
 	if DisplayMode == 1 || DisplayMode == 2 {
 		bigDisplay(status.block, show)
