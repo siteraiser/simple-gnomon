@@ -17,7 +17,6 @@ import (
 	"github.com/deroproject/derohe/globals"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/transaction"
-	"github.com/mattn/go-tty"
 	api "github.com/secretnamebasis/simple-gnomon/models"
 )
 
@@ -86,19 +85,26 @@ func main() {
 	api.Smoothing, _ = strconv.Atoi(text)
 	fmt.Println("smoothing", api.Smoothing)
 
-	fmt.Println("Press \"d\" to toggle large height display.")
-	go func() {
-		tty, err := tty.Open()
-		if err != nil {
-			panic(err)
-		}
-		defer tty.Close()
+	fmt.Println("choose display mode, 0, 1 or 2")
+	_, err = fmt.Scanln(&text)
+	DisplayMode, _ = strconv.Atoi(text)
+
+	/*go func() {
+
+		reader := bufio.NewReader(os.Stdin)
 		for {
-			r, err := tty.ReadRune()
+			char, err := reader.ReadByte()
 			if err != nil {
-				panic(err)
+				fmt.Println("Error reading key:", err)
+
 			}
-			if string(r) == "d" {
+
+			// Print the key pressed
+			//fmt.Printf("You pressed: %q (ASCII: %d)\n", char, char)
+
+			// Exit on 'q'
+			if char == 'd' {
+				panic(char)
 				if DisplayMode == 0 {
 					DisplayMode = 1
 				} else if DisplayMode == 1 {
@@ -110,6 +116,7 @@ func main() {
 			}
 		}
 	}()
+	*/
 	//Add custom actions for scids
 	//CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
 	if SpamLevel == "0" {
@@ -790,7 +797,12 @@ func bigDisplay(n int64, show string) {
 		lines = append(lines, line)
 	}
 	pad := strings.Repeat(" ", len(lines[0]))
-	fmt.Print("\033[7A")
+	if show != "" {
+		fmt.Print("\033[9A")
+	} else {
+		fmt.Print("\033[8A")
+	}
+	fmt.Printf(pad + " \n")
 	fmt.Printf(pad + " \n")
 	fmt.Printf(" %v\n", lines[0])
 	fmt.Printf(" %v\n", lines[1])
@@ -798,10 +810,10 @@ func bigDisplay(n int64, show string) {
 	fmt.Printf(" %v\n", lines[3])
 	fmt.Printf(" %v\n", lines[4])
 	fmt.Printf(" %v\n", lines[5])
-	if show == "" {
-		show = pad
+	fmt.Printf(pad + " \n")
+	if show != "" {
+		fmt.Printf(show)
 	}
-	fmt.Printf(show)
 
 }
 
