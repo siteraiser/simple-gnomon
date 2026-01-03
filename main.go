@@ -99,7 +99,14 @@ func main() {
 				panic(err)
 			}
 			if string(r) == "d" {
-				UserBigDisplay = !UserBigDisplay
+				if DisplayMode == 0 {
+					DisplayMode = 1
+				} else if DisplayMode == 1 {
+					DisplayMode = 2
+				} else if DisplayMode == 2 {
+					DisplayMode = 0
+				}
+				showBlockStatus(-1)
 			}
 		}
 	}()
@@ -717,11 +724,10 @@ func showBlockStatus(bheight int64) {
 		speedms = strconv.Itoa(s)
 		speedbph = strconv.Itoa((1000 / s) * 60 * 60)
 	}
-	if UserBigDisplay {
-		bigDisplay(status.block)
-	} else {
+	show := ""
+	if DisplayMode == 0 || DisplayMode == 1 {
 		_, text := getOutCounts()
-		show := "Block:" + strconv.Itoa(int(status.block)) +
+		show = "Block:" + strconv.Itoa(int(status.block)) +
 			" Conns:" + strconv.Itoa(int(len(api.TxOuts))) +
 			" " + text +
 			" Speed:" + speedms + "ms" +
@@ -730,7 +736,9 @@ func showBlockStatus(bheight int64) {
 
 		fmt.Print("\r", show)
 	}
-
+	if DisplayMode == 1 || DisplayMode == 2 {
+		bigDisplay(status.block, show)
+	}
 }
 func getOutCounts() (int, string) {
 	text := ""
@@ -763,9 +771,9 @@ func fileSizeMB(filePath string) int64 {
 	return int64(float64(sizeBytes) / (1024 * 1024))
 }
 
-var UserBigDisplay = false
+var DisplayMode = 0
 
-func bigDisplay(n int64) {
+func bigDisplay(n int64, show string) {
 	chars := []int{}
 	ns := strconv.FormatInt(n, 10)
 	for _, ch := range ns {
@@ -788,7 +796,10 @@ func bigDisplay(n int64) {
 	fmt.Printf(" %v\n", lines[3])
 	fmt.Printf(" %v\n", lines[4])
 	fmt.Printf(" %v\n", lines[5])
-	fmt.Printf(pad + " \n")
+	if show == "" {
+		show = pad
+	}
+	fmt.Printf(show + " \n")
 	fmt.Print("\033[8A")
 
 }
