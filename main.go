@@ -86,6 +86,7 @@ func main() {
 	api.Smoothing, _ = strconv.Atoi(text)
 	fmt.Println("smoothing", api.Smoothing)
 
+	fmt.Println("Press \"d\" to toggle large height display.", api.Smoothing)
 	go func() {
 		tty, err := tty.Open()
 		if err != nil {
