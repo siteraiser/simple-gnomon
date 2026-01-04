@@ -732,14 +732,15 @@ type message struct {
 var messages = []message{}
 
 func NewMessage(message message) {
+	Mutex.Lock()
 	messages = append(messages, message)
+	Mutex.Unlock()
 }
 
 func showBlockStatus(bheight int64) {
+	Mutex.Lock()
 	if bheight != -1 {
 		status.block = bheight
-	} else if len(messages) == 0 {
-		return
 	}
 	for _, msg := range messages {
 		vs := []any{msg.text}
@@ -753,6 +754,7 @@ func showBlockStatus(bheight int64) {
 		skipreturn = true
 	}
 	messages = []message{}
+
 	speedms := "0"
 	speedbph := "0"
 	s := getSpeed()
@@ -771,7 +773,7 @@ func showBlockStatus(bheight int64) {
 			" " + text +
 			" Speed:" + speedms + "ms" +
 			" " + speedbph + "bph" +
-			" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors)) + "  "
+			" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors)) + "    "
 		if DisplayMode == 0 {
 			fmt.Print("\r", show)
 		}
@@ -779,6 +781,7 @@ func showBlockStatus(bheight int64) {
 	if DisplayMode == 1 || DisplayMode == 2 {
 		bigDisplay(status.block, show, skipreturn)
 	}
+	Mutex.Unlock()
 }
 func getOutCounts() (int, string) {
 	text := ""
@@ -947,6 +950,14 @@ var logo = [6]string{
 	`||  \  / | `,
 	` \\  || /  `,
 	`  \\___/   `,
+}
+var logo2 = [6]string{
+	`  // \   `,
+	` // _ \  `,
+	`|| / \ | `,
+	`|| \ / | `,
+	` \\ U /  `,
+	`  \\_/   `,
 }
 
 // Supply true to boot from disk, returns true if memory is nearly full
