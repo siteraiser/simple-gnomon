@@ -846,7 +846,7 @@ func bigDisplay(n int64, show string, skipreturn bool) {
 	}
 
 	fmt.Printf(pad + " \n")
-	fmt.Printf("     ___  " + pad + " \n")
+	fmt.Printf("       " + pad + " \n")
 	fmt.Printf(" %v \n", lines[0])
 	fmt.Printf(" %v \n", lines[1])
 	fmt.Printf(" %v \n", lines[2])
@@ -944,20 +944,12 @@ var numbers = [10][6]string{
 }
 
 var logo = [6]string{
-	`  //   \   `,
-	` //  __ \  `,
-	`||  /  \ | `,
-	`||  \  / | `,
-	` \\  || /  `,
-	`  \\___/   `,
-}
-var logo2 = [6]string{
-	`  // \   `,
-	` // _ \  `,
-	`|| / \ | `,
-	`|| \ / | `,
-	` \\ U /  `,
-	`  \\_/   `,
+	`   ____   `,
+	` // __ \  `,
+	`// /  \ \ `,
+	`\\ \  / / `,
+	` \\_||_/  `,
+	`          `,
 }
 
 // Supply true to boot from disk, returns true if memory is nearly full
