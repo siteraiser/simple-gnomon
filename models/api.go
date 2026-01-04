@@ -609,7 +609,7 @@ func GetTopoHeight() int64 {
 func GetTransaction(params rpc.GetTransaction_Params) rpc.GetTransaction_Result {
 	validator := func(r rpc.GetTransaction_Result) bool {
 		if r.Status == "" {
-			fmt.Println(r)
+			//fmt.Println(r)
 		}
 		return r.Status != ""
 	}

@@ -138,8 +138,7 @@ func main() {
 		filesize := int(fileSizeMB(filepath.Join(db_path, db_name)))
 		filetoobig := RamSizeMB <= filesize
 		if !filetoobig {
-			fmt.Println("Loading db into memory ....")
-
+			fmt.Println("Loading db into memory")
 			batchSize = memBatchSize
 			blockBatchSize = blockBatchSizeMem
 			api.PreferredRequests = memPreferredRequests
@@ -178,7 +177,7 @@ func start_gnomon_indexer() {
 		if startAt == 0 {
 			starting_height = findStart(0, HighestKnownHeight) //if it isn't set then find it
 		}
-		fmt.Println("err: ", err)
+		NewMessage(message{text: "err: ", err: err})
 	}
 
 	//Errors
@@ -188,7 +187,12 @@ func start_gnomon_indexer() {
 		api.BatchCount = 0
 		sqlite.TrimHeight(starting_height)
 		if api.Status.ErrorCount != int64(0) {
-			fmt.Println(strconv.Itoa(int(api.Status.ErrorCount))+" Error(s) detected! Type:", api.Status.ErrorType+" Name:"+api.Status.ErrorName+" Details:"+api.Status.ErrorDetail)
+			NewMessage(message{
+				vars: []any{
+					strconv.Itoa(int(api.Status.ErrorCount)) + " Error(s) detected! Type:",
+					api.Status.ErrorType + " Name:" + api.Status.ErrorName + " Details:" + api.Status.ErrorDetail,
+				},
+			})
 		}
 	}
 	api.Blocks = []api.Block{} //clear here
@@ -204,9 +208,8 @@ func start_gnomon_indexer() {
 	}
 
 	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
-
-	fmt.Println("Topo Height ", HighestKnownHeight)
-	fmt.Println("Last Height ", fmt.Sprint(starting_height))
+	NewMessage(message{text: "Topo Height ", vars: []any{HighestKnownHeight}})
+	NewMessage(message{text: "Last Height ", vars: []any{fmt.Sprint(starting_height)}})
 
 	if TargetHeight < HighestKnownHeight-blockBatchSize && starting_height+blockBatchSize < HighestKnownHeight {
 		TargetHeight = starting_height + blockBatchSize
@@ -238,8 +241,7 @@ func start_gnomon_indexer() {
 		return
 	}
 	// Wait for all requests to finish
-	fmt.Println("Batch completing, count:", blockBatchSize)
-
+	NewMessage(message{text: "Batch completing, count:", vars: []any{blockBatchSize}})
 	place := 0
 	count := 0
 	for {
@@ -270,34 +272,36 @@ func start_gnomon_indexer() {
 	HighestKnownHeight = api.GetTopoHeight()
 	if HighestKnownHeight < 1 {
 		api.AssignConnections(true)
-		fmt.Println("Error getting height ....", HighestKnownHeight)
+
+		NewMessage(message{text: "Error getting height ....", vars: []any{HighestKnownHeight}})
 		HighestKnownHeight = api.GetTopoHeight()
 		if HighestKnownHeight < 1 {
 			panic("Too many failed connections")
 		}
 	}
+	NewMessage(message{text: "Last:", vars: []any{last}})
+	NewMessage(message{text: "TargetHeight:", vars: []any{TargetHeight}})
 
-	fmt.Println("Last:", last)
-	fmt.Println("TargetHeight:", TargetHeight)
 	//maybe skip when caught up
-	fmt.Println("Purging spam:", Spammers)
+	NewMessage(message{text: "Purging spam:", vars: []any{Spammers}})
+
 	sqlite.RidSpam()
 
 	var switching = false
 	if UseMem {
-		fmt.Println("Saving Batch...... ", fileSizeMB(sqlite.db_path), "MB")
+		NewMessage(message{text: "Saving Batch...... ", vars: []any{fileSizeMB(sqlite.db_path), "MB"}})
 		sqlite.WriteToDisk()
 		//Check size
 		if int64(RamSizeMB) <= fileSizeMB(sqlite.db_path) {
 			switching = true
 			sqlite.DB.Close()
-			fmt.Println("Switching to disk mode...... ", TargetHeight)
+			NewMessage(message{text: "Switching to disk mode...... ", vars: []any{TargetHeight}})
 		}
 	}
 
 	if TargetHeight == last || switching {
 		if !switching {
-			fmt.Println("All caught up...... ", TargetHeight)
+			NewMessage(message{text: "All caught up...... ", vars: []any{TargetHeight}})
 			t, _ := time.ParseDuration("5s")
 			time.Sleep(t)
 		}
@@ -308,8 +312,7 @@ func start_gnomon_indexer() {
 		dir := filepath.Dir(sqlite.db_path)
 		sqlite, err = NewDiskDB(dir, filename)
 	}
-
-	fmt.Println("Saving phase over......")
+	NewMessage(message{text: "Saving phase over......"})
 	sqlite.ViewTables()
 
 	start_gnomon_indexer()
@@ -466,7 +469,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 	params := rpc.GetSC_Params{}
 	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
 		tx_type = "install"
-		fmt.Println("\nSC Code:\n", tx.SCDATA.Value(rpc.SCCODE, rpc.DataString))
+		NewMessage(message{text: "SC Code:", vars: []any{tx.SCDATA.Value(rpc.SCCODE, rpc.DataString)}})
 		params.SCID = txhash
 	} else if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
 		tx_type = "invoke"
@@ -572,13 +575,13 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 
 	//fmt.Println("staged scid:", staged.TXHash, ":", fmt.Sprint(staged.Fsi.Height))
 	//fmt.Println("staged params.scid:", params.SCID, ":", fmt.Sprint(staged.Fsi.Height))
-	showBlockStatus(-1)
+
 	// now add the scid to the index
 	Ask()
 	// if the contract already exists, record the interaction
 	ready(false)
 	if err := sqlindexer.AddSCIDToIndex(staged); err != nil {
-		fmt.Println(err, " ", staged.TXHash, " ", staged.Fsi.Height)
+		NewMessage(message{vars: []any{err, " ", staged.TXHash, " ", staged.Fsi.Height}})
 		if strings.Contains(err.Error(), "database is locked") {
 			api.NewError("database", "db lock", "Adding index")
 		}
@@ -593,7 +596,7 @@ func storeHeight(bheight int64) {
 	Ask()
 	//fmt.Println("Saving LastIndexHeight: ", bheight)
 	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
-		fmt.Println("Error Saving LastIndexHeight: ", err)
+		NewMessage(message{text: "Error Saving LastIndexHeight: ", vars: []any{err}})
 		if strings.Contains(err.Error(), "database is locked") {
 			api.NewError("database", "db lock", "Storing last index")
 		}
@@ -608,7 +611,7 @@ func decodeTx(tx_hex string) (transaction.Transaction, error) {
 	}
 	var tx transaction.Transaction
 	if err := tx.Deserialize(b); err != nil {
-		fmt.Println("\nTX Height: ", tx.Height)
+		NewMessage(message{text: "TX Height:", vars: []any{tx.Height}})
 		if strings.Contains(err.Error(), "Invalid Version in Transaction") ||
 			strings.Contains(err.Error(), "Transaction version unknown") {
 			return tx, err
@@ -719,10 +722,37 @@ var status = struct {
 	block: 0,
 }
 
+type message struct {
+	text   string
+	ofType string
+	vars   []any
+	err    error
+}
+
+var messages = []message{}
+
+func NewMessage(message message) {
+	messages = append(messages, message)
+}
 func showBlockStatus(bheight int64) {
 	if bheight != -1 {
 		status.block = bheight
+	} else if len(messages) == 0 {
+		return
+	}
 
+	for _, msg := range messages {
+		v := []any{msg.text}
+		v = append(v, msg.vars...)
+		fmt.Println(v)
+	}
+	messages = []message{}
+	if len(messages) > 0 && DisplayMode > 0 {
+		fmt.Print("\n\n\n\n\n\n\n\n")
+		if DisplayMode == 1 {
+			fmt.Print("\n")
+		}
+		return
 	}
 	//	else if DisplayMode > 0{return}
 	speedms := "0"
@@ -732,6 +762,7 @@ func showBlockStatus(bheight int64) {
 		speedms = strconv.Itoa(s)
 		speedbph = strconv.Itoa((1000 / s) * 60 * 60)
 	}
+
 	show := ""
 	if DisplayMode == 0 || DisplayMode == 1 {
 		_, text := getOutCounts()

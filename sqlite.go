@@ -319,8 +319,7 @@ func handleError(err error) {
 }
 
 func (ss *SqlStore) TrimHeight(height int64) int64 {
-
-	fmt.Println("Trimming loose ends from:", height)
+	NewMessage(message{text: "Trimming loose ends from:", vars: []any{height}})
 
 	statement, err := ss.DB.Prepare("DELETE FROM scs WHERE height >= " + strconv.Itoa(int(height)) + ";")
 	handleError(err)
@@ -397,8 +396,8 @@ func (ss *SqlStore) RidSpam() {
 		in += "'" + spammertx + "',"
 	}
 	spamtxs := strings.TrimRight(in, ",")
+	NewMessage(message{text: "Deleting invokes:", vars: []any{spamaddrs}})
 
-	fmt.Println("Deleting invokes:", spamaddrs)
 	_, err = ss.DB.Exec("DELETE FROM invokes WHERE signer IN (" + spamaddrs + ") AND scid = '0000000000000000000000000000000000000000000000000000000000000001';")
 	if err != nil {
 		log.Fatal(err)
@@ -413,14 +412,14 @@ func (ss *SqlStore) RidSpam() {
 
 // --- extras...
 func (ss *SqlStore) ViewTables() {
-	fmt.Println("\nOpen: ", sqlite.db_path)
+	NewMessage(message{text: "Open: ", vars: []any{sqlite.db_path}})
 	hard, err := sql.Open("sqlite3", sqlite.db_path)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer hard.Close()
 	/// check tables
-	fmt.Println("\nShowing State: ")
+	NewMessage(message{text: "Showing State: "})
 	rows, err := hard.Query("SELECT name, value FROM state WHERE name = 'lastindexedheight'", nil)
 	if err != nil {
 		fmt.Println(err)
@@ -435,10 +434,10 @@ func (ss *SqlStore) ViewTables() {
 		if name == "lastindexedheight" && value == "0" {
 			panic("Needs a fix still here")
 		}
-		fmt.Println("Last Indexed Height", value)
+		NewMessage(message{text: "Last Indexed Height", vars: []any{value}})
 	}
 
-	fmt.Println("Showing 20 Latest SCs / Owners: ")
+	NewMessage(message{text: "Showing 20 Latest SCs / Owners: "})
 	rows, err = hard.Query("SELECT scid, owner, scname,class, tags FROM scs WHERE class !='' LIMIT 20", nil)
 	if err != nil {
 		fmt.Println(err)
@@ -453,10 +452,9 @@ func (ss *SqlStore) ViewTables() {
 
 	for rows.Next() {
 		rows.Scan(&scid, &owner, &scname, &class, &tags)
-		fmt.Println("owner - scid - scname - class - tags", owner+"--"+scid+"--"+scname+"--"+class+"--"+tags)
+		NewMessage(message{text: owner + "--" + scid + "--" + scname + "--" + class + "--" + tags})
 	}
-
-	fmt.Println("Showing Vars: ")
+	NewMessage(message{text: "Showing Vars: "})
 	rows, err = hard.Query("SELECT count(*) FROM variables", nil)
 	if err != nil {
 		fmt.Println(err)
@@ -466,11 +464,10 @@ func (ss *SqlStore) ViewTables() {
 	)
 	for rows.Next() {
 		rows.Scan(&vcount)
-		fmt.Println("Count ", vcount)
+		NewMessage(message{text: "Count: ", vars: []any{vcount}})
 	}
 
-	fmt.Println("Showing Interactions: ")
-
+	NewMessage(message{text: "Showing Interactions: "})
 	rows, err = hard.Query("SELECT count(*) FROM interactions", nil)
 	if err != nil {
 		fmt.Println(err)
@@ -480,7 +477,7 @@ func (ss *SqlStore) ViewTables() {
 	)
 	for rows.Next() {
 		rows.Scan(&count)
-		fmt.Println("Count ", count)
+		NewMessage(message{text: "Count: ", vars: []any{count}})
 	}
 
 	/*
