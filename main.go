@@ -773,7 +773,7 @@ func showBlockStatus(bheight int64) {
 			" " + text +
 			" Speed:" + speedms + "ms" +
 			" " + speedbph + "bph" +
-			" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors)) + "    "
+			" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors)) + "     "
 		if DisplayMode == 0 {
 			fmt.Print("\r", show)
 		}
@@ -846,7 +846,7 @@ func bigDisplay(n int64, show string, skipreturn bool) {
 	}
 
 	fmt.Printf(pad + " \n")
-	fmt.Printf("       " + pad + " \n")
+	fmt.Printf("   ______" + pad + " \n")
 	fmt.Printf(" %v \n", lines[0])
 	fmt.Printf(" %v \n", lines[1])
 	fmt.Printf(" %v \n", lines[2])
@@ -944,11 +944,11 @@ var numbers = [10][6]string{
 }
 
 var logo = [6]string{
-	`    ____    `,
-	`D // __ \   `,
-	`E// /  \ \  `,
-	`R\\ \  / /  `,
-	`O \\_||_/   `,
+	` / ____ \   `,
+	`D / __ \ \  `,
+	`E/ /  \ \ \ `,
+	`R\ \  / / / `,
+	`O \_||_/ /  `,
 	`G N O M O N `,
 }
 

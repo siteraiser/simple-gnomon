@@ -42,9 +42,12 @@ func Ask() bool {
 		return true
 	}
 	for {
+		Mutex.Lock()
 		if dbready {
+			Mutex.Unlock()
 			return true
 		}
+		Mutex.Unlock()
 	}
 }
 func (ss *SqlStore) WriteToDisk() error {
