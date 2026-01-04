@@ -246,7 +246,7 @@ func start_gnomon_indexer() {
 	count := 0
 	for {
 		loading := []string{" .. .", ". .. ", ".. .."}
-		fmt.Print("\r", loading[place])
+		fmt.Print("\n", loading[place], "\r")
 
 		place++
 		if place == 3 {
@@ -734,27 +734,25 @@ var messages = []message{}
 func NewMessage(message message) {
 	messages = append(messages, message)
 }
+
 func showBlockStatus(bheight int64) {
 	if bheight != -1 {
 		status.block = bheight
 	} else if len(messages) == 0 {
 		return
 	}
-
 	for _, msg := range messages {
-		v := []any{msg.text}
-		v = append(v, msg.vars...)
-		fmt.Println(v)
+		vs := []any{msg.text}
+		for _, v := range msg.vars {
+			vs = append(vs, v)
+		}
+		fmt.Println(vs)
+	}
+	skipreturn := false
+	if len(messages) > 0 && DisplayMode > 0 {
+		skipreturn = true
 	}
 	messages = []message{}
-	if len(messages) > 0 && DisplayMode > 0 {
-		fmt.Print("\n\n\n\n\n\n\n\n")
-		if DisplayMode == 1 {
-			fmt.Print("\n")
-		}
-		return
-	}
-	//	else if DisplayMode > 0{return}
 	speedms := "0"
 	speedbph := "0"
 	s := getSpeed()
@@ -779,7 +777,7 @@ func showBlockStatus(bheight int64) {
 		}
 	}
 	if DisplayMode == 1 || DisplayMode == 2 {
-		bigDisplay(status.block, show)
+		bigDisplay(status.block, show, skipreturn)
 	}
 }
 func getOutCounts() (int, string) {
@@ -815,7 +813,7 @@ func fileSizeMB(filePath string) int64 {
 
 var DisplayMode = 0
 
-func bigDisplay(n int64, show string) {
+func bigDisplay(n int64, show string, skipreturn bool) {
 	chars := []int{}
 	ns := strconv.FormatInt(n, 10)
 	for _, ch := range ns {
@@ -834,15 +832,18 @@ func bigDisplay(n int64, show string) {
 		lines = append(lines, line)
 	}
 	pad := " " + strings.Repeat(" ", len(lines[0])) + " "
-	pad2 := pad
+	moveup := "8"
 	if show != "" {
-		pad2 = "     _    " + pad2
-		fmt.Print("\033[9A")
+		moveup = "9"
 	} else {
-		fmt.Print("\033[8A")
+		moveup = "8"
 	}
+	if !skipreturn {
+		fmt.Print("\033[" + moveup + "A")
+	}
+
 	fmt.Printf(pad + " \n")
-	fmt.Printf(pad2 + " \n")
+	fmt.Printf("     _    " + pad + " \n")
 	fmt.Printf(" %v \n", lines[0])
 	fmt.Printf(" %v \n", lines[1])
 	fmt.Printf(" %v \n", lines[2])
