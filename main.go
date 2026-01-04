@@ -944,12 +944,12 @@ var numbers = [10][6]string{
 }
 
 var logo = [6]string{
-	`    ____   `,
-	`D // __ \  `,
-	`E// /  \ \ `,
-	`R\\ \  / / `,
-	`O \\_||_/  `,
-	`G N O M O N`,
+	`    ____    `,
+	`D // __ \   `,
+	`E// /  \ \  `,
+	`R\\ \  / /  `,
+	`O \\_||_/   `,
+	`G N O M O N `,
 }
 
 // Supply true to boot from disk, returns true if memory is nearly full
