@@ -441,7 +441,7 @@ func (ss *SqlStore) ViewTables() {
 	}
 
 	NewMessage(message{text: "Showing 20 Latest SCs / Owners: "})
-	rows, err = hard.Query("SELECT scid, owner, scname,class, tags FROM scs WHERE class !='' LIMIT 20", nil)
+	rows, err = hard.Query("SELECT scid, owner, scname,class, tags FROM scs WHERE class !='' ORDER BY scs_id DESC LIMIT 10", nil)
 	if err != nil {
 		fmt.Println(err)
 	}
