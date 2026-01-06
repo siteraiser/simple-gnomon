@@ -213,6 +213,7 @@ func RemoveTXs(txids []string) {
 	Blocks = blocklist
 
 }
+
 func RemoveTXIDs(txids []string) {
 	var newlist []string
 	for _, txid := range TXIDSProcessing {
@@ -223,6 +224,10 @@ func RemoveTXIDs(txids []string) {
 	TXIDSProcessing = newlist
 }
 
+/*
+** Daemon Connection / request management
+ */
+// The indexer is asking if the request queue is low enough
 func Ask(use string) {
 	if !OK() {
 		return
@@ -246,6 +251,7 @@ func Ask(use string) {
 	}
 }
 
+// Determines if the the scheduled time has been reached
 func isReady(use string) bool {
 	if Smoothing == 0 {
 		return true
@@ -281,6 +287,7 @@ var HeightOuts []uint8
 var TxOuts []uint8
 var SCOuts []uint8
 
+// Returns the total amount of active request counters and if there are more than there needs to be
 func outs(Outs []uint8) (int, int) {
 	totouts := 0
 	exceeded := 0
@@ -295,16 +302,14 @@ func outs(Outs []uint8) (int, int) {
 	return totouts, exceeded
 }
 
-var EndpointAssignments = make(map[*Connection]int16)
 var PreferredRequests = int8(0)
 
+// Check supplied connections, manage errors and intitialize request counters
 func AssignConnections(iserror bool) {
 	HeightOuts = HeightOuts[0:0]
 	TxOuts = TxOuts[0:0]
 	SCOuts = SCOuts[0:0]
-	if iserror {
-		EndpointAssignments = make(map[*Connection]int16)
-	}
+
 	for i, endpoint := range Endpoints {
 		lasterrcnt := len(Endpoints[i].Errors)
 		var result any
@@ -315,13 +320,12 @@ func AssignConnections(iserror bool) {
 		fmt.Println("Testing:", nodeaddr)
 		rpcClient = jsonrpc.NewClient(nodeaddr)
 		err := rpcClient.CallFor(ctx, &result, "DERO.GetInfo") //, params no params argument
-		EndpointAssignments[&endpoint] = int16(i)
 		Endpoints[i].Id = uint8(i)
 		HeightOuts = append(HeightOuts, 0)
 		TxOuts = append(TxOuts, 0)
 		SCOuts = append(SCOuts, 0)
 		if err != nil {
-			fmt.Println("Error endpoint:", endpoint)
+			fmt.Println("Error endpoint:", endpoint, " Error:", err)
 			Endpoints[i].Errors = []error{err}
 		} else if lasterrcnt == 1 {
 			Endpoints[i].Errors = []error{}
@@ -350,6 +354,7 @@ var sheduledb = make(map[uint8]time.Time)
 var sheduledt = make(map[uint8]time.Time)
 var sheduleds = make(map[uint8]time.Time)
 
+// Set the next time that is available for sending
 func schedule(method string, endpoint Connection, wait time.Duration) {
 	if sheduledb[endpoint.Id].Year() < 2000 {
 		sheduledb[endpoint.Id] = time.Now()
@@ -369,6 +374,7 @@ var priorGBTimes = make(map[uint8][]int64)
 var priorTxTimes = make(map[uint8][]int64)
 var priorSCTimes = make(map[uint8][]int64)
 
+// Returns an adjusted average wait time
 func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
 	avgspeed := 0
 	gtxtime := time.Time{}
@@ -379,6 +385,7 @@ func waitTime(method string, endpoint Connection) (time.Time, time.Duration) {
 	return gtxtime, waittime
 }
 
+// Returns the average wait time
 func calculateSpeed(id uint8, method string) int {
 	var priorTimes map[uint8][]int64
 	if method == "DERO.GetBlock" {
@@ -401,6 +408,7 @@ func calculateSpeed(id uint8, method string) int {
 
 var Smoothing = 0
 
+// Individually saves the last wait time for the requests (might be better to test individually to have a more accurate measurement)
 func updateSpeed(id uint8, method string, start time.Time) {
 	var priorTimes = make(map[uint8][]int64)
 	if method == "DERO.GetBlock" {
@@ -417,6 +425,7 @@ func updateSpeed(id uint8, method string, start time.Time) {
 	priorTimes[id] = append(priorTimes[id], time.Since(start).Microseconds())
 }
 
+// Returns the handle for the corresponding counts
 func getOutsByMethod(method string) []uint8 {
 	if method == "DERO.GetBlock" {
 		return HeightOuts
@@ -428,7 +437,8 @@ func getOutsByMethod(method string) []uint8 {
 	return []uint8{}
 }
 
-func selectEndpoint(method string) Connection { //
+// Tries to select the endpoint with the fewest en-route requesets
+func selectEndpoint(method string) Connection {
 
 	var Outs []uint8
 	endpc := 0
@@ -477,6 +487,7 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 
 	return result
 }
+
 func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var rpcClient jsonrpc.RPCClient
@@ -514,6 +525,15 @@ func getResult[T any](method string, params any) (T, error) {
 
 	done := make(chan error, 1)
 
+	/*  Try this when it can be tested...
+	// Make a call to rpc
+	func call[T any](rpcClient jsonrpc.RPCClient, params any, method string, result T) error {
+		if params == nil {
+			return rpcClient.CallFor(context.Background(), &result, method)
+		}
+		return rpcClient.CallFor(context.Background(), &result, method, params)
+	}
+	*/
 	if params == nil {
 		go func() {
 			Mutex.Lock()

@@ -60,6 +60,13 @@ type action struct {
 
 var CustomActions = map[string]action{}
 
+var Filters = map[string][]string{
+	"g45":   {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
+	"nfa":   {"ART-NFA-MS1"},
+	"swaps": {"StartSwap"},
+	"tela":  {"docVersion", "telaVersion"},
+}
+
 var rcount int32
 var rlimit = int32(2000)
 
@@ -538,12 +545,7 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 	if params.SCID != Hardcoded_SCIDS[0] { //only need the name for these
 		scdesc = api.GetSCDescriptionFromVars(kv)
 		scimgurl = api.GetSCIDImageURLFromVars(kv)
-		for key, name := range map[string][]string{
-			"g45":   {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
-			"nfa":   {"ART-NFA-MS1"},
-			"swaps": {"StartSwap"},
-			"tela":  {"docVersion", "telaVersion"},
-		} {
+		for key, name := range Filters {
 			for _, filter := range name {
 				if !strings.Contains(sc.Code, filter) { //fmt.Sprintf("%.1000s",)
 					continue
