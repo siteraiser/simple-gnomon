@@ -90,9 +90,9 @@ func main() {
 	fmt.Println("Use smoothing? 0-1000")
 	_, err = fmt.Scanln(&text)
 	api.Smoothing, _ = strconv.Atoi(text)
-	fmt.Println("smoothing", api.Smoothing)
+	fmt.Println("Smoothing period: ", api.Smoothing)
 
-	fmt.Println("choose display mode, 0, 1 or 2")
+	fmt.Println("Choose display mode, 0, 1 or 2")
 	_, err = fmt.Scanln(&text)
 	DisplayMode, _ = strconv.Atoi(text)
 
@@ -131,7 +131,9 @@ func main() {
 	}
 	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "discard"}
 	CustomActions["bb43c3eb626ee767c9f305772a6666f7c7300441a0ad8538a0799eb4f12ebcd2"] = action{Type: "SC", Act: "discard"}
-	fmt.Println("starting ....")
+
+	fmt.Println("Waking the GNOMON ...")
+
 	HighestKnownHeight = api.GetTopoHeight()
 	if HighestKnownHeight < 1 {
 		fmt.Println("Error getting height ....", HighestKnownHeight)
@@ -373,7 +375,7 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		api.RemoveBlocks(int(bheight))
 	}
 	txidlen := len(api.TXIDSProcessing)
-	if txidlen >= 100 || (len(api.Batches) == 0 && txidlen != 0) {
+	if int16(txidlen) >= batchSize || (len(api.Batches) == 0 && txidlen != 0) {
 		var batches = []api.Batch{}
 		var wga sync.WaitGroup
 		//Find total number of batches
