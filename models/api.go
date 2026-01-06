@@ -472,19 +472,15 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 		return zero
 	}
 	result, err := getResult[t](method, params)
-
 	if err != nil {
-		//	log.Fatal(err)
 		var zero t
 		return zero
 	}
-
 	if !validator(result) {
 		fmt.Println(errors.New("failed validation"), method)
 		var zero t
 		return zero
 	}
-
 	return result
 }
 
@@ -509,7 +505,6 @@ func getResult[T any](method string, params any) (T, error) {
 	endpoint = selectEndpoint(method)
 
 	var wait time.Duration
-
 	if Smoothing != 0 {
 		gtxtime, wait = waitTime(method, endpoint)
 		schedule(method, endpoint, wait)

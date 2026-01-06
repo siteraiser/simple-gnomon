@@ -644,32 +644,6 @@ func updateBlocks(batch api.Batch) {
 }
 
 /********************************/
-/********************************/
-/*
-fmt.Println("batch.TxIds:", len(batch.TxIds))
-
-	fmt.Println("api.BlockByHeight(bheight).TxIds:", len(api.BlockByHeight(bheight).TxIds))
-	for _, t := range batch.TxIds {
-
-		if slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
-			fmt.Println(bheight, " (bheight).TxIds Contains:", t)
-		}
-		if !slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
-			fmt.Println(bheight, " (bheight).TxIds NOT Contains:", t)
-		}
-
-		api.ProcessBlocks(t) //api.RemoveTXs(batch.TxIds)
-}
-	if len(tx.Txs_as_hex) != len(batch.TxIds) {
-		fmt.Println(len(r.Txs_as_hex), " fffffff ", len(batch.TxIds))
-		for i, _ := range r.Txs_as_hex {
-			fmt.Println(int64(r.Txs[i].Block_Height), " - ", r.Txs[i])
-		}
-		panic(r)
-	}
-
-*/
-/********************************/
 /*********** Helpers ************/
 /********************************/
 func checkGo() {
@@ -694,30 +668,23 @@ func findStart(start int64, top int64) (block int64) {
 		return findStart(offset+start, top)
 	}
 }
+func fileSizeMB(filePath string) int64 {
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return 0
+	}
+	sizeBytes := fileInfo.Size()
+	return int64(float64(sizeBytes) / (1024 * 1024))
+}
 
+// Display mode selector
+var DisplayMode = 0
+
+// vars for speed calulations
 var lastTime = time.Now()
 var priorTimes []int64
 
-func getSpeed() int {
-	t := time.Now()
-
-	if len(priorTimes) > 1000 {
-		priorTimes = priorTimes[1000:]
-	}
-	priorTimes = append(priorTimes, time.Since(lastTime).Milliseconds())
-	total := int64(0)
-	for _, ti := range priorTimes {
-		total += ti
-	}
-
-	lastTime = t
-	value := int64(0)
-	if len(priorTimes) != 0 {
-		value = int64(total) / int64(len(priorTimes))
-	}
-	return int(value)
-}
-
+// Store block number to display for when there is no new height to use
 var status = struct {
 	block int64
 }{
@@ -733,12 +700,14 @@ type message struct {
 
 var messages = []message{}
 
+// Print through this so that it can be coordinated with the large display
 func NewMessage(message message) {
 	Mutex.Lock()
 	messages = append(messages, message)
 	Mutex.Unlock()
 }
 
+// Prints out the block being requested and other stats needed for the display mode selected
 func showBlockStatus(bheight int64) {
 	Mutex.Lock()
 	if bheight != -1 {
@@ -785,6 +754,23 @@ func showBlockStatus(bheight int64) {
 	}
 	Mutex.Unlock()
 }
+func getSpeed() int {
+	t := time.Now()
+	if len(priorTimes) > 1000 {
+		priorTimes = priorTimes[1000:]
+	}
+	priorTimes = append(priorTimes, time.Since(lastTime).Milliseconds())
+	total := int64(0)
+	for _, ti := range priorTimes {
+		total += ti
+	}
+	lastTime = t
+	value := int64(0)
+	if len(priorTimes) != 0 {
+		value = int64(total) / int64(len(priorTimes))
+	}
+	return int(value)
+}
 func getOutCounts() (int, string) {
 	text := ""
 	spacer := ""
@@ -804,20 +790,8 @@ func getOutCounts() (int, string) {
 	if len(text) > 1 {
 		text = text[1:]
 	}
-
 	return tot, text
 }
-func fileSizeMB(filePath string) int64 {
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		return 0
-	}
-	sizeBytes := fileInfo.Size()
-	return int64(float64(sizeBytes) / (1024 * 1024))
-}
-
-var DisplayMode = 0
-
 func bigDisplay(n int64, show string, skipreturn bool) {
 	chars := []int{}
 	ns := strconv.FormatInt(n, 10)
@@ -840,8 +814,6 @@ func bigDisplay(n int64, show string, skipreturn bool) {
 	moveup := "8"
 	if show != "" {
 		moveup = "9"
-	} else {
-		moveup = "8"
 	}
 	if !skipreturn {
 		fmt.Print("\033[" + moveup + "A")
@@ -954,6 +926,33 @@ var logo = [6]string{
 	`G N O M O N `,
 }
 
+/********************************/
+// ...
+/********************************/
+/*
+fmt.Println("batch.TxIds:", len(batch.TxIds))
+
+	fmt.Println("api.BlockByHeight(bheight).TxIds:", len(api.BlockByHeight(bheight).TxIds))
+	for _, t := range batch.TxIds {
+
+		if slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
+			fmt.Println(bheight, " (bheight).TxIds Contains:", t)
+		}
+		if !slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
+			fmt.Println(bheight, " (bheight).TxIds NOT Contains:", t)
+		}
+
+		api.ProcessBlocks(t) //api.RemoveTXs(batch.TxIds)
+}
+	if len(tx.Txs_as_hex) != len(batch.TxIds) {
+		fmt.Println(len(r.Txs_as_hex), " fffffff ", len(batch.TxIds))
+		for i, _ := range r.Txs_as_hex {
+			fmt.Println(int64(r.Txs[i].Block_Height), " - ", r.Txs[i])
+		}
+		panic(r)
+	}
+
+*/
 // Supply true to boot from disk, returns true if memory is nearly full
 /*func memModeSelect(boot bool) bool {
 	if mbFree() < 1000 {
