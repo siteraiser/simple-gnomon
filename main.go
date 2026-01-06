@@ -494,7 +494,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 	if CustomActions[params.SCID].Act == "discard" ||
 		(CustomActions[params.SCID].Act == "discard-before" && CustomActions[params.SCID].Block >= bheight) {
 		ok = false
-	} else if (slices.Contains(Spammers, signer)) && params.SCID == Hardcoded_SCIDS[0] { //|| spammy == true
+	} else if (slices.Contains(Spammers, signer)) && params.SCID == Hardcoded_SCIDS[0] { //Not great
 		ok = false
 	}
 
@@ -604,7 +604,6 @@ func storeHeight(bheight int64) {
 		if strings.Contains(err.Error(), "database is locked") {
 			api.NewError("database", "db lock", "Storing last index")
 		}
-		return
 	}
 }
 
@@ -624,6 +623,8 @@ func decodeTx(tx_hex string) (transaction.Transaction, error) {
 	}
 	return tx, err
 }
+
+// Save at a contiguous point
 func updateBlocks(batch api.Batch) {
 	api.Mutex.Lock()
 	var remove = []int64{}
@@ -648,6 +649,7 @@ func updateBlocks(batch api.Batch) {
 /********************************/
 /*********** Helpers ************/
 /********************************/
+// Can be used to limit the amount of some of the waitgroups
 func checkGo() {
 	for {
 		current := atomic.LoadInt32(&rcount)
@@ -658,6 +660,8 @@ func checkGo() {
 		}
 	}
 }
+
+// Check indexable height at daemon
 func findStart(start int64, top int64) (block int64) {
 	difference := top - start
 	offset := difference / 2
