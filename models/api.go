@@ -120,10 +120,6 @@ type Connection struct {
 	Address string
 	Errors  []error
 }
-type MockRequest struct {
-	Txs_as_hex []string
-	Txs        []rpc.Tx_Related_Info
-}
 
 var currentEndpoint = Endpoints[0]
 
@@ -147,14 +143,7 @@ func BlockByHeight(height int64) *Block {
 	}
 	return &Block{}
 }
-func BatchById(Id int) *Batch {
-	for i, batch := range Batches {
-		if batch.Id == Id {
-			return &Batches[i]
-		}
-	}
-	return nil
-}
+
 func ProcessBlocks(txid string) {
 	for i, _ := range Blocks {
 		if len(Blocks[i].TxIds) != 0 {
