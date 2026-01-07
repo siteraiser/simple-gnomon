@@ -218,12 +218,13 @@ func start_gnomon_indexer() {
 	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
 	api.Status.ErrorCount = 0
 	api.StartingFrom = int(starting_height)
-	if starting_height >= 150000 && starting_height < 170000 {
-		memBatchSize = int16(500)
-	} else {
-		memBatchSize = int16(100)
-	}
-
+	/*
+		if starting_height >= 150000 && starting_height < 170000 {
+			memBatchSize = int16(500)
+		} else {
+			memBatchSize = int16(100)
+		}
+	*/
 	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
 	NewMessage(message{text: "Topo Height ", vars: []any{HighestKnownHeight}})
 	NewMessage(message{text: "Last Height ", vars: []any{fmt.Sprint(starting_height)}})
@@ -591,14 +592,14 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 	// now add the scid to the index
 	Ask()
 	// if the contract already exists, record the interaction
-	ready(false)
+
 	if err := sqlindexer.AddSCIDToIndex(staged); err != nil {
 		NewMessage(message{vars: []any{err, " ", staged.TXHash, " ", staged.Fsi.Height}})
 		if strings.Contains(err.Error(), "database is locked") {
 			api.NewError("database", "db lock", "Adding index")
 		}
 	}
-	ready(true)
+
 }
 
 func storeHeight(bheight int64) {
