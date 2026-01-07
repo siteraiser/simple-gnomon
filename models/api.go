@@ -472,7 +472,12 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 	}
 	return result
 }
-
+func call[T any](rpcClient jsonrpc.RPCClient, params any, method string, result *T) error {
+	if params == nil {
+		return rpcClient.CallFor(context.Background(), &result, method)
+	}
+	return rpcClient.CallFor(context.Background(), &result, method, params)
+}
 func getResult[T any](method string, params any) (T, error) {
 	var result T
 	var rpcClient jsonrpc.RPCClient
@@ -509,35 +514,16 @@ func getResult[T any](method string, params any) (T, error) {
 
 	done := make(chan error, 1)
 
-	/*  Try this when it can be tested...
 	// Make a call to rpc
-	func call[T any](rpcClient jsonrpc.RPCClient, params any, method string, result T) error {
-		if params == nil {
-			return rpcClient.CallFor(context.Background(), &result, method)
-		}
-		return rpcClient.CallFor(context.Background(), &result, method, params)
-	}
-	*/
-	if params == nil {
-		go func() {
-			Mutex.Lock()
-			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
-			rpcClient = jsonrpc.NewClient(nodeaddr)
-			Mutex.Unlock()
-			done <- rpcClient.CallFor(context.Background(), &result, method)
 
-		}()
-	} else {
-		go func() {
+	go func() {
+		Mutex.Lock()
+		nodeaddr := "http://" + endpoint.Address + "/json_rpc"
+		rpcClient = jsonrpc.NewClient(nodeaddr)
+		Mutex.Unlock()
+		done <- call[T](rpcClient, params, method, &result) //rpcClient.CallFor(context.Background(), &result, method)
 
-			Mutex.Lock()
-			nodeaddr := "http://" + endpoint.Address + "/json_rpc"
-			rpcClient = jsonrpc.NewClient(nodeaddr)
-			Mutex.Unlock()
-			done <- rpcClient.CallFor(context.Background(), &result, method, params)
-
-		}()
-	}
+	}()
 
 	select {
 	case <-ctx.Done():
