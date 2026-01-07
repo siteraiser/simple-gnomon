@@ -28,6 +28,7 @@ type SqlStore struct {
 
 var dbready = true
 var callers = 0
+var waiting = 0
 
 func ready(ready bool, caller string) {
 	if UseMem {
@@ -35,31 +36,14 @@ func ready(ready bool, caller string) {
 	}
 	Mutex.Lock()
 	if ready == false {
-		if callers == 0 {
-			callers++
-			dbready = false
-			Mutex.Unlock()
-			return
-		} else if callers > 0 {
-			Mutex.Unlock()
-			for {
-				Mutex.Lock()
-				if dbready {
-					callers++
-					Mutex.Unlock()
-					return
-				}
-				Mutex.Unlock()
-			}
-		}
+		callers++
 	} else if ready == true {
 		callers--
-		dbready = true
-		Mutex.Unlock()
-		return
-	} else {
-		Mutex.Unlock()
+		if callers == 0 {
+			dbready = true
+		}
 	}
+	Mutex.Unlock()
 }
 
 func Ask() bool {
@@ -69,6 +53,7 @@ func Ask() bool {
 	for {
 		Mutex.Lock()
 		if dbready {
+			dbready = false
 			Mutex.Unlock()
 			return true
 		}
