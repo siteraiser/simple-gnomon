@@ -214,7 +214,7 @@ func RemoveTXIDs(txids []string) {
 }
 
 /*
-** Daemon Connection / request management
+** Daemon connection / request management
  */
 // The indexer is asking if the request queue is low enough
 func Ask(use string) {
@@ -240,7 +240,7 @@ func Ask(use string) {
 	}
 }
 
-// Determines if the the scheduled time has been reached
+// Determines if the scheduled time has been reached
 func isReady(use string) bool {
 	if Smoothing == 0 {
 		return true

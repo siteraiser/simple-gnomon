@@ -96,6 +96,14 @@ func main() {
 	_, err = fmt.Scanln(&text)
 	DisplayMode, _ = strconv.Atoi(text)
 
+	fmt.Println("Enter custom connection or press n to use the default remote connections eg. node.derofoundation.org:10102")
+	_, err = fmt.Scanln(&text)
+	if text != "n" {
+		api.Endpoints = []api.Connection{
+			{Address: text},
+		}
+	}
+
 	/*go func() {
 
 		reader := bufio.NewReader(os.Stdin)
