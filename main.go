@@ -17,15 +17,20 @@ import (
 	"github.com/deroproject/derohe/globals"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/transaction"
-	api "github.com/secretnamebasis/simple-gnomon/models"
+	"github.com/secretnamebasis/simple-gnomon/api"
+	"github.com/secretnamebasis/simple-gnomon/daemon"
+	sql "github.com/secretnamebasis/simple-gnomon/db"
+	"github.com/secretnamebasis/simple-gnomon/show"
+	"github.com/secretnamebasis/simple-gnomon/structs"
 )
 
+var Mutex sync.Mutex
 var startAt = int64(0) // Start at Block Height, will be auto-set when using 0
 var blockBatchSize int64
 var blockBatchSizeMem = int64(10000)
 var blockBatchSizeDisk = int64(5000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                    // Use in-memory db
-var SpamLevel = 50
+//var SpamLevel = 50
 
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
@@ -36,7 +41,7 @@ var diskPreferredRequests = int8(10)
 // Program vars
 var TargetHeight = int64(0)
 var HighestKnownHeight = int64(0)
-var sqlite = &SqlStore{}
+var sqlite = &sql.SqlStore{}
 var sqlindexer = &Indexer{}
 var batchSize = int16(0)
 var firstRun = true
@@ -89,21 +94,21 @@ func main() {
 
 	fmt.Println("Use smoothing? 0-1000")
 	_, err = fmt.Scanln(&text)
-	api.Smoothing, _ = strconv.Atoi(text)
-	fmt.Println("Smoothing period: ", api.Smoothing)
+	daemon.Smoothing, _ = strconv.Atoi(text)
+	fmt.Println("Smoothing period: ", daemon.Smoothing)
 
 	fmt.Println("Choose display mode, 0, 1 or 2")
 	_, err = fmt.Scanln(&text)
-	DisplayMode, _ = strconv.Atoi(text)
+	show.DisplayMode, _ = strconv.Atoi(text)
 
 	fmt.Println("Enter custom connection or press n to use the default remote connections eg. node.derofoundation.org:10102")
 	_, err = fmt.Scanln(&text)
 	if text != "n" {
-		api.Endpoints = []api.Connection{
+		daemon.Endpoints = []daemon.Connection{
 			{Address: text},
 		}
 	}
-
+	go api.Start()
 	/*go func() {
 
 		reader := bufio.NewReader(os.Stdin)
@@ -142,7 +147,7 @@ func main() {
 
 	fmt.Println("Waking the GNOMON ...")
 
-	HighestKnownHeight = api.GetTopoHeight()
+	HighestKnownHeight = daemon.GetTopoHeight()
 	if HighestKnownHeight < 1 {
 		fmt.Println("Error getting height ....", HighestKnownHeight)
 	}
@@ -158,12 +163,12 @@ func main() {
 			fmt.Println("Loading db into memory")
 			batchSize = memBatchSize
 			blockBatchSize = blockBatchSizeMem
-			api.PreferredRequests = memPreferredRequests
+			daemon.PreferredRequests = memPreferredRequests
 			//Create the tables now...
-			sqlite, err = NewDiskDB(db_path, db_name)
-			CreateTables(sqlite.DB)
+			sqlite, err = sql.NewDiskDB(db_path, db_name)
+			sql.CreateTables(sqlite.DB)
 			sqlite.DB.Close()
-			sqlite, err = NewSqlDB(db_path, db_name)
+			sqlite, err = sql.NewSqlDB(db_path, db_name)
 		}
 
 		if filetoobig {
@@ -175,15 +180,20 @@ func main() {
 		fmt.Println("Loading db ....")
 		batchSize = diskBatchSize
 		blockBatchSize = blockBatchSizeDisk
-		api.PreferredRequests = diskPreferredRequests
-		sqlite, err = NewDiskDB(db_path, db_name)
-		CreateTables(sqlite.DB)
+		daemon.PreferredRequests = diskPreferredRequests
+		sqlite, err = sql.NewDiskDB(db_path, db_name)
+		sql.CreateTables(sqlite.DB)
 	}
 
 	if err != nil {
 		fmt.Println("[Main] Err creating sqlite:", err)
 		return
 	}
+
+	sql.StartAt = startAt
+	sql.SpamLevel = SpamLevel
+	show.PreferredRequests = &daemon.PreferredRequests
+	show.Status = *daemon.Status
 	start_gnomon_indexer()
 }
 
@@ -191,33 +201,33 @@ func start_gnomon_indexer() {
 	var starting_height int64
 	starting_height, err := sqlite.GetLastIndexHeight()
 	if err != nil {
-		if startAt == 0 {
+		if sql.StartAt == 0 {
 			starting_height = findStart(0, HighestKnownHeight) //if it isn't set then find it
 		}
-		NewMessage(message{text: "err: ", err: err})
+		show.NewMessage(show.Message{Text: "err: ", Err: err})
 	}
 
 	//Errors
-	if firstRun == true || api.Status.ErrorCount != int64(0) {
+	if firstRun == true || daemon.Status.ErrorCount != int64(0) {
 		firstRun = false
-		api.TXIDSProcessing = []string{}
-		api.BatchCount = 0
+		daemon.TXIDSProcessing = []string{}
+		daemon.BatchCount = 0
 		sqlite.TrimHeight(starting_height)
-		if api.Status.ErrorCount != int64(0) {
-			NewMessage(message{
-				vars: []any{
-					strconv.Itoa(int(api.Status.ErrorCount)) + " Error(s) detected! Type:",
-					api.Status.ErrorType + " Name:" + api.Status.ErrorName + " Details:" + api.Status.ErrorDetail,
+		if daemon.Status.ErrorCount != int64(0) {
+			show.NewMessage(show.Message{
+				Vars: []any{
+					strconv.Itoa(int(daemon.Status.ErrorCount)) + " Error(s) detected! Type:",
+					daemon.Status.ErrorType + " Name:" + daemon.Status.ErrorName + " Details:" + daemon.Status.ErrorDetail,
 				},
 			})
 		}
 	}
-	api.Blocks = []api.Block{} //clear here
-	api.Batches = []api.Batch{}
-	//api.Cancels = map[int]context.CancelFunc{}
-	api.AssignConnections(api.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
-	api.Status.ErrorCount = 0
-	api.StartingFrom = int(starting_height)
+	daemon.Blocks = []daemon.Block{} //clear here
+	daemon.Batches = []daemon.Batch{}
+	//daemon.Cancels = map[int]context.CancelFunc{}
+	daemon.AssignConnections(daemon.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
+	daemon.Status.ErrorCount = 0
+	daemon.StartingFrom = int(starting_height)
 	/*
 		if starting_height >= 150000 && starting_height < 170000 {
 			memBatchSize = int16(500)
@@ -226,8 +236,8 @@ func start_gnomon_indexer() {
 		}
 	*/
 	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
-	NewMessage(message{text: "Topo Height ", vars: []any{HighestKnownHeight}})
-	NewMessage(message{text: "Last Height ", vars: []any{fmt.Sprint(starting_height)}})
+	show.NewMessage(show.Message{Text: "Topo Height ", Vars: []any{HighestKnownHeight}})
+	show.NewMessage(show.Message{Text: "Last Height ", Vars: []any{fmt.Sprint(starting_height)}})
 
 	if TargetHeight < HighestKnownHeight-blockBatchSize && starting_height+blockBatchSize < HighestKnownHeight {
 		TargetHeight = starting_height + blockBatchSize
@@ -237,16 +247,16 @@ func start_gnomon_indexer() {
 
 	var wg sync.WaitGroup
 	for bheight := starting_height; bheight < TargetHeight; bheight++ {
-		if !api.OK() {
+		if !daemon.OK() {
 			break
 		}
 		//---- MAIN PRINTOUT
 		showBlockStatus(bheight)
-		api.Ask("height")
+		daemon.Ask("height")
 		wg.Add(1)
-		api.Mutex.Lock()
-		api.Blocks = append(api.Blocks, api.Block{Height: bheight})
-		api.Mutex.Unlock()
+		daemon.Mutex.Lock()
+		daemon.Blocks = append(daemon.Blocks, daemon.Block{Height: bheight})
+		daemon.Mutex.Unlock()
 		go ProcessBlock(&wg, bheight)
 		checkGo()
 	}
@@ -254,12 +264,12 @@ func start_gnomon_indexer() {
 	wg.Wait()
 
 	//check if there was a missing request or a db error
-	if !api.OK() { //Start over from last saved.
+	if !daemon.OK() { //Start over from last saved.
 		start_gnomon_indexer() //without saving index height
 		return
 	}
 	// Wait for all requests to finish
-	NewMessage(message{text: "Batch completing, count:", vars: []any{blockBatchSize}})
+	show.NewMessage(show.Message{Text: "Batch completing, count:", Vars: []any{blockBatchSize}})
 	place := 0
 	count := 0
 	for {
@@ -272,65 +282,65 @@ func start_gnomon_indexer() {
 		}
 		count++
 		//Mutex.Lock()
-		if (api.BatchCount == 0 && len(api.TXIDSProcessing) == 0) || count > 120 || !api.OK() { // wait for 2 mins(longer than timeout etc...)
+		if (daemon.BatchCount == 0 && len(daemon.TXIDSProcessing) == 0) || count > 120 || !daemon.OK() { // wait for 2 mins(longer than timeout etc...)
 			break
 		}
-		if len(api.TXIDSProcessing) != 0 {
-			fmt.Println(api.TXIDSProcessing)
+		if len(daemon.TXIDSProcessing) != 0 {
+			fmt.Println(daemon.TXIDSProcessing)
 		}
 		w, _ := time.ParseDuration("1s")
 		time.Sleep(w)
 	}
 
-	if count <= 120 && api.OK() {
+	if count <= 120 && daemon.OK() {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 	}
 
 	last := HighestKnownHeight
-	HighestKnownHeight = api.GetTopoHeight()
+	HighestKnownHeight = daemon.GetTopoHeight()
 	if HighestKnownHeight < 1 {
-		api.AssignConnections(true)
+		daemon.AssignConnections(true)
 
-		NewMessage(message{text: "Error getting height ....", vars: []any{HighestKnownHeight}})
-		HighestKnownHeight = api.GetTopoHeight()
+		show.NewMessage(show.Message{Text: "Error getting height ....", Vars: []any{HighestKnownHeight}})
+		HighestKnownHeight = daemon.GetTopoHeight()
 		if HighestKnownHeight < 1 {
 			panic("Too many failed connections")
 		}
 	}
-	NewMessage(message{text: "Last:", vars: []any{last}})
-	NewMessage(message{text: "TargetHeight:", vars: []any{TargetHeight}})
+	show.NewMessage(show.Message{Text: "Last:", Vars: []any{last}})
+	show.NewMessage(show.Message{Text: "TargetHeight:", Vars: []any{TargetHeight}})
 
 	//maybe skip when caught up
-	NewMessage(message{text: "Purging spam:", vars: []any{Spammers}})
+	show.NewMessage(show.Message{Text: "Purging spam:", Vars: []any{sql.Spammers}})
 
 	sqlite.RidSpam()
 
 	var switching = false
 	if UseMem {
-		NewMessage(message{text: "Saving Batch...... ", vars: []any{fileSizeMB(sqlite.db_path), "MB"}})
+		show.NewMessage(show.Message{Text: "Saving Batch...... ", Vars: []any{fileSizeMB(sqlite.Db_path), "MB"}})
 		sqlite.WriteToDisk()
 		//Check size
-		if int64(RamSizeMB) <= fileSizeMB(sqlite.db_path) {
+		if int64(RamSizeMB) <= fileSizeMB(sqlite.Db_path) {
 			switching = true
 			sqlite.DB.Close()
-			NewMessage(message{text: "Switching to disk mode...... ", vars: []any{TargetHeight}})
+			show.NewMessage(show.Message{Text: "Switching to disk mode...... ", Vars: []any{TargetHeight}})
 		}
 	}
 
 	if TargetHeight == last || switching {
 		if !switching {
-			NewMessage(message{text: "All caught up...... ", vars: []any{TargetHeight}})
+			show.NewMessage(show.Message{Text: "All caught up...... ", Vars: []any{TargetHeight}})
 			t, _ := time.ParseDuration("5s")
 			time.Sleep(t)
 		}
 		//Don't use mem when caught up or over limit
 		UseMem = false
 		blockBatchSize = blockBatchSizeDisk
-		filename := filepath.Base(sqlite.db_path)
-		dir := filepath.Dir(sqlite.db_path)
-		sqlite, err = NewDiskDB(dir, filename)
+		filename := filepath.Base(sqlite.Db_path)
+		dir := filepath.Dir(sqlite.Db_path)
+		sqlite, err = sql.NewDiskDB(dir, filename)
 	}
-	NewMessage(message{text: "Saving phase over......"})
+	show.NewMessage(show.Message{Text: "Saving phase over......"})
 	sqlite.ViewTables()
 
 	start_gnomon_indexer()
@@ -341,18 +351,18 @@ var counter = 0
 
 func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	defer wg.Done()
-	if !api.OK() {
+	if !daemon.OK() {
 		return
 	}
 	discarding := false
 
-	result := api.GetBlockInfo(rpc.GetBlock_Params{
+	result := daemon.GetBlockInfo(rpc.GetBlock_Params{
 		Height: uint64(bheight),
 	})
-	if !api.OK() {
+	if !daemon.OK() {
 		return
 	}
-	bl := api.GetBlockDeserialized(result.Blob)
+	bl := daemon.GetBlockDeserialized(result.Blob)
 
 	if len(bl.Tx_hashes) < 1 {
 		discarding = true
@@ -376,32 +386,32 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 	}
 	//good place to set large block flag if needed
 
-	api.Mutex.Lock()
+	daemon.Mutex.Lock()
 	if !discarding {
-		api.BlockByHeight(bheight).TxIds = append(api.BlockByHeight(bheight).TxIds, tx_str_list...)
-		api.TXIDSProcessing = append(api.TXIDSProcessing, tx_str_list...)
+		daemon.BlockByHeight(bheight).TxIds = append(daemon.BlockByHeight(bheight).TxIds, tx_str_list...)
+		daemon.TXIDSProcessing = append(daemon.TXIDSProcessing, tx_str_list...)
 	} else {
-		api.RemoveBlocks(int(bheight))
+		daemon.RemoveBlocks(int(bheight))
 	}
-	txidlen := len(api.TXIDSProcessing)
-	if int16(txidlen) >= batchSize || (len(api.Batches) == 0 && txidlen != 0) {
-		var batches = []api.Batch{}
+	txidlen := len(daemon.TXIDSProcessing)
+	if int16(txidlen) >= batchSize || (len(daemon.Batches) == 0 && txidlen != 0) {
+		var batches = []daemon.Batch{}
 		var wga sync.WaitGroup
 		//Find total number of batches
 		batch_count := int(math.Ceil(float64(txidlen) / float64(batchSize)))
 		for i := range batch_count {
 			i++ //lmao
 			end := batchSize
-			if len(api.Batches) == 0 && len(api.TXIDSProcessing) != 0 {
-				if int16(len(api.TXIDSProcessing)) < batchSize {
-					end = int16(len(api.TXIDSProcessing))
+			if len(daemon.Batches) == 0 && len(daemon.TXIDSProcessing) != 0 {
+				if int16(len(daemon.TXIDSProcessing)) < batchSize {
+					end = int16(len(daemon.TXIDSProcessing))
 				}
 			}
-			txs := api.TXIDSProcessing[:end]
-			api.TXIDSProcessing = api.TXIDSProcessing[end:]
-			batches = append(batches, api.Batch{TxIds: txs})
+			txs := daemon.TXIDSProcessing[:end]
+			daemon.TXIDSProcessing = daemon.TXIDSProcessing[end:]
+			batches = append(batches, daemon.Batch{TxIds: txs})
 		}
-		api.Mutex.Unlock()
+		daemon.Mutex.Unlock()
 		for i := range batches {
 			atomic.AddInt32(&rcount, 1)
 			checkGo()
@@ -410,30 +420,30 @@ func ProcessBlock(wg *sync.WaitGroup, bheight int64) {
 		}
 		wga.Wait()
 	} else {
-		api.Mutex.Unlock()
+		daemon.Mutex.Unlock()
 	}
 }
 
 var laststored = int64(0)
 
-func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
+func DoBatch(wga *sync.WaitGroup, batch daemon.Batch) {
 	defer wga.Done()
 	defer atomic.AddInt32(&rcount, -1)
-	if !api.OK() {
+	if !daemon.OK() {
 		return
 	}
-	api.Mutex.Lock()
-	api.BatchCount++
-	api.Mutex.Unlock()
+	daemon.Mutex.Lock()
+	daemon.BatchCount++
+	daemon.Mutex.Unlock()
 	var wg2 sync.WaitGroup
 	var r rpc.GetTransaction_Result
-	api.Ask("tx")
-	r = api.GetTransaction(rpc.GetTransaction_Params{
+	daemon.Ask("tx")
+	r = daemon.GetTransaction(rpc.GetTransaction_Params{
 		Tx_Hashes: batch.TxIds, //[int(batchSize)*i : end]
 	})
 
 	showBlockStatus(-1)
-	if !api.OK() {
+	if !daemon.OK() {
 		return
 	}
 	//var tx transaction.Transaction
@@ -452,31 +462,31 @@ func DoBatch(wga *sync.WaitGroup, batch api.Batch) {
 					remove = append(remove, tx.GetHash().String())
 				}
 			}
-			api.RemoveTXs(remove)
-			updateBlocks(api.Batch{
+			daemon.RemoveTXs(remove)
+			updateBlocks(daemon.Batch{
 				TxIds: remove,
 			})
 		}
 	}
 	wg2.Wait()
 
-	if api.OK() {
-		api.Mutex.Lock()
-		api.BatchCount--
-		api.RemoveTXs(batch.TxIds)
-		api.Mutex.Unlock()
+	if daemon.OK() {
+		daemon.Mutex.Lock()
+		daemon.BatchCount--
+		daemon.RemoveTXs(batch.TxIds)
+		daemon.Mutex.Unlock()
 		updateBlocks(batch)
 	}
 }
-func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64, signer string, batch api.Batch) { //, large bool
+func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64, signer string, batch daemon.Batch) { //, large bool
 	defer wg2.Done()
-	if !api.OK() {
+	if !daemon.OK() {
 		return
 	}
 	var wg3 sync.WaitGroup
 	ok := true
 	txhash := tx.GetHash().String()
-	api.RemoveTXs([]string{txhash})
+	daemon.RemoveTXs([]string{txhash})
 
 	if tx.TransactionType != transaction.SC_TX { //|| (len(tx.Payloads) > 10 && tx.Payloads[0].RPCType == byte(transaction.REGISTRATION))
 		ok = false
@@ -487,7 +497,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 	params := rpc.GetSC_Params{}
 	if tx.SCDATA.HasValue(rpc.SCCODE, rpc.DataString) {
 		tx_type = "install"
-		NewMessage(message{text: "SC Code:", vars: []any{tx.SCDATA.Value(rpc.SCCODE, rpc.DataString)}})
+		show.NewMessage(show.Message{Text: "SC Code:", Vars: []any{tx.SCDATA.Value(rpc.SCCODE, rpc.DataString)}})
 		params.SCID = txhash
 	} else if tx.SCDATA.HasValue(rpc.SCID, rpc.DataHash) {
 		tx_type = "invoke"
@@ -503,7 +513,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 	if CustomActions[params.SCID].Act == "discard" ||
 		(CustomActions[params.SCID].Act == "discard-before" && CustomActions[params.SCID].Block >= bheight) {
 		ok = false
-	} else if (slices.Contains(Spammers, signer)) && params.SCID == Hardcoded_SCIDS[0] { //Not great
+	} else if (slices.Contains(sql.Spammers, signer)) && params.SCID == Hardcoded_SCIDS[0] { //Not great
 		ok = false
 	}
 
@@ -524,7 +534,7 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 		wg3.Wait()
 	}
 
-	updateBlocks(api.Batch{
+	updateBlocks(daemon.Batch{
 		TxIds: []string{txhash},
 	})
 
@@ -532,12 +542,12 @@ func saveDetails(wg2 *sync.WaitGroup, tx transaction.Transaction, bheight int64,
 
 func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string, params rpc.GetSC_Params, bheight int64, signer string) {
 	defer wg3.Done()
-	if !api.OK() {
+	if !daemon.OK() {
 		return
 	}
-	api.Ask("sc")
-	sc := api.GetSC(params) //Variables: true,
-	if !api.OK() {          //|| sc.Status != "OK"
+	daemon.Ask("sc")
+	sc := daemon.GetSC(params) //Variables: true,
+	if !daemon.OK() {          //|| sc.Status != "OK"
 		return
 	}
 	vars, err := GetSCVariables(sc.VariableStringKeys, sc.VariableUint64Keys)
@@ -548,14 +558,14 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 	kv := sc.VariableStringKeys
 
 	//fmt.Println("key", kv)
-	scname := api.GetSCNameFromVars(kv)
+	scname := daemon.GetSCNameFromVars(kv)
 	scdesc := ""
 	scimgurl := ""
 	tags := ""
 	class := ""
 	if params.SCID != Hardcoded_SCIDS[0] { //only need the name for these
-		scdesc = api.GetSCDescriptionFromVars(kv)
-		scimgurl = api.GetSCIDImageURLFromVars(kv)
+		scdesc = daemon.GetSCDescriptionFromVars(kv)
+		scimgurl = daemon.GetSCIDImageURLFromVars(kv)
 		for key, name := range Filters {
 			for _, filter := range name {
 				if !strings.Contains(sc.Code, filter) { //fmt.Sprintf("%.1000s",)
@@ -574,10 +584,10 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 		entrypoint = tx.SCDATA.Value("entrypoint", rpc.DataString).(string)
 	}
 
-	staged := SCIDToIndexStage{
+	staged := structs.SCIDToIndexStage{
 		Type:       tx_type,
 		TXHash:     tx.GetHash().String(),
-		Fsi:        &FastSyncImport{Height: uint64(bheight), Signer: signer, SCName: scname, SCDesc: scdesc, SCImgURL: scimgurl}, //
+		Fsi:        &structs.FastSyncImport{Height: uint64(bheight), Signer: signer, SCName: scname, SCDesc: scdesc, SCImgURL: scimgurl}, //
 		ScVars:     vars,
 		ScCode:     sc.Code,
 		Params:     params,
@@ -590,28 +600,28 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 	//fmt.Println("staged params.scid:", params.SCID, ":", fmt.Sprint(staged.Fsi.Height))
 
 	// now add the scid to the index
-	Ask()
+	sql.Ask()
 	// if the contract already exists, record the interaction
 
 	if err := sqlindexer.AddSCIDToIndex(staged); err != nil {
-		NewMessage(message{vars: []any{err, " ", staged.TXHash, " ", staged.Fsi.Height}})
+		show.NewMessage(show.Message{Vars: []any{err, " ", staged.TXHash, " ", staged.Fsi.Height}})
 		if strings.Contains(err.Error(), "database is locked") {
-			api.NewError("database", "db lock", "Adding index")
+			daemon.NewError("database", "db lock", "Adding index")
 		}
 	}
 
 }
 
 func storeHeight(bheight int64) {
-	if !api.OK() {
+	if !daemon.OK() {
 		return
 	}
-	Ask()
+	sql.Ask()
 	//fmt.Println("Saving LastIndexHeight: ", bheight)
 	if ok, err := sqlindexer.SSSBackend.StoreLastIndexHeight(int64(bheight)); !ok && err != nil {
-		NewMessage(message{text: "Error Saving LastIndexHeight: ", vars: []any{err}})
+		show.NewMessage(show.Message{Text: "Error Saving LastIndexHeight: ", Vars: []any{err}})
 		if strings.Contains(err.Error(), "database is locked") {
-			api.NewError("database", "db lock", "Storing last index")
+			daemon.NewError("database", "db lock", "Storing last index")
 		}
 	}
 }
@@ -623,7 +633,7 @@ func decodeTx(tx_hex string) (transaction.Transaction, error) {
 	}
 	var tx transaction.Transaction
 	if err := tx.Deserialize(b); err != nil {
-		NewMessage(message{text: "TX Height:", vars: []any{tx.Height}})
+		show.NewMessage(show.Message{Text: "TX Height:", Vars: []any{tx.Height}})
 		if strings.Contains(err.Error(), "Invalid Version in Transaction") ||
 			strings.Contains(err.Error(), "Transaction version unknown") {
 			return tx, err
@@ -634,19 +644,19 @@ func decodeTx(tx_hex string) (transaction.Transaction, error) {
 }
 
 // Save at a contiguous point
-func updateBlocks(batch api.Batch) {
-	api.Mutex.Lock()
+func updateBlocks(batch daemon.Batch) {
+	daemon.Mutex.Lock()
 	var remove = []int64{}
-	for _, block := range api.Blocks {
+	for _, block := range daemon.Blocks {
 		if block.Processed || block.Height == 0 {
 			remove = append(remove, block.Height)
 		}
 	}
 	for height := range remove {
-		api.RemoveBlocks(int(height))
+		daemon.RemoveBlocks(int(height))
 	}
-	api.Mutex.Unlock()
-	for _, block := range api.Blocks {
+	daemon.Mutex.Unlock()
+	for _, block := range daemon.Blocks {
 		if block.Height > laststored {
 			storeHeight(block.Height)
 			laststored = block.Height
@@ -677,7 +687,7 @@ func findStart(start int64, top int64) (block int64) {
 	if top-start == 1 {
 		return top - 1
 	}
-	if api.GetBlockInfo(rpc.GetBlock_Params{Height: uint64(block)}).Status == "OK" {
+	if daemon.GetBlockInfo(rpc.GetBlock_Params{Height: uint64(block)}).Status == "OK" {
 		return findStart(start, offset+start)
 	} else {
 		return findStart(offset+start, top)
@@ -692,83 +702,15 @@ func fileSizeMB(filePath string) int64 {
 	return int64(float64(sizeBytes) / (1024 * 1024))
 }
 
-// Display mode selector
-var DisplayMode = 0
+func showBlockStatus(height int64) {
+	_, t := getOutCounts()
+	show.ShowBlockStatus(height, getSpeed(), t)
+}
 
 // vars for speed calulations
 var lastTime = time.Now()
 var priorTimes []int64
 
-// Store block number to display for when there is no new height to use
-var status = struct {
-	block int64
-}{
-	block: 0,
-}
-
-type message struct {
-	text   string
-	ofType string
-	vars   []any
-	err    error
-}
-
-var messages = []message{}
-
-// Print through this so that it can be coordinated with the large display
-func NewMessage(message message) {
-	Mutex.Lock()
-	messages = append(messages, message)
-	Mutex.Unlock()
-}
-
-// Prints out the block being requested and other stats needed for the display mode selected
-func showBlockStatus(bheight int64) {
-	Mutex.Lock()
-	if bheight != -1 {
-		status.block = bheight
-	}
-	for _, msg := range messages {
-		vs := []any{msg.text}
-		for _, v := range msg.vars {
-			vs = append(vs, v)
-		}
-		fmt.Println(vs)
-	}
-	skipreturn := false
-	if len(messages) > 0 && DisplayMode > 0 {
-		skipreturn = true
-	}
-	messages = []message{}
-
-	speedms := "0"
-	speedbph := "0"
-	s := getSpeed()
-	if s != 0 {
-		speedms = strconv.Itoa(s)
-		speedbph = strconv.Itoa((1000 / s) * 60 * 60)
-	}
-
-	show := ""
-	if DisplayMode == 0 || DisplayMode == 1 {
-		_, text := getOutCounts()
-		if DisplayMode != 1 {
-			show = "Block:" + strconv.Itoa(int(status.block))
-		}
-		show += " Conns:" + strconv.Itoa(int(len(api.TxOuts))) +
-			" " + text +
-			" Speed:" + speedms + "ms" +
-			" " + speedbph + "bph" +
-			" Total Errors:" + strconv.Itoa(int(api.Status.TotalErrors)) + "     "
-		if DisplayMode == 0 {
-			fmt.Print("\r", show)
-		}
-	}
-	if DisplayMode == 1 || DisplayMode == 2 {
-		bigDisplay(status.block, show, skipreturn)
-	}
-	Mutex.Unlock()
-}
 func getSpeed() int {
 	t := time.Now()
 	if len(priorTimes) > 1000 {
@@ -790,12 +732,13 @@ func getOutCounts() (int, string) {
 	text := ""
 	spacer := ""
 	tot := 0
-	if api.PreferredRequests >= 10 {
+	if daemon.PreferredRequests >= 10 {
 		spacer = " "
 	}
-	for i, out := range api.HeightOuts {
+	for i, out := range daemon.HeightOuts {
 		insert := ""
-		total := int(api.HeightOuts[i]) + int(api.TxOuts[i]) + int(api.SCOuts[i])
+
+		total := int(daemon.HeightOuts[i]) + int(daemon.TxOuts[i]) + int(daemon.SCOuts[i])
 		if total < 10 {
 			insert = spacer
 		}
@@ -807,139 +750,6 @@ func getOutCounts() (int, string) {
 	}
 	return tot, text
 }
-func bigDisplay(n int64, show string, skipreturn bool) {
-	chars := []int{}
-	ns := strconv.FormatInt(n, 10)
-	for _, ch := range ns {
-		integer, _ := strconv.Atoi(string(ch))
-		chars = append(chars, integer)
-	}
-	lines := []string{}
-	for l := 0; l < 6; l++ {
-		line := ""
-		for i, r := range chars {
-			if i == 0 {
-				line += logo[l]
-			}
-			line += " " + numbers[r][l] + " "
-		}
-		lines = append(lines, line)
-	}
-	pad := " " + strings.Repeat(" ", len(lines[0])) + " "
-	moveup := "8"
-	if show != "" {
-		moveup = "9"
-	}
-	if !skipreturn {
-		fmt.Print("\033[" + moveup + "A")
-	}
-
-	fmt.Printf(pad + " \n")
-	fmt.Printf("   ______" + pad + " \n")
-	fmt.Printf(" %v \n", lines[0])
-	fmt.Printf(" %v \n", lines[1])
-	fmt.Printf(" %v \n", lines[2])
-	fmt.Printf(" %v \n", lines[3])
-	fmt.Printf(" %v \n", lines[4])
-	fmt.Printf(" %v \n", lines[5])
-
-	if show != "" {
-		fmt.Printf(pad + " \n")
-		fmt.Printf(show)
-	}
-}
-
-var numbers = [10][6]string{
-	[6]string{
-		" 00 ",
-		"0  0",
-		"0 00",
-		"00 0",
-		"0  0",
-		" 00 ",
-	},
-	[6]string{
-		"  0 ",
-		"0 0 ",
-		"  0 ",
-		"  0 ",
-		"  0 ",
-		"0000",
-	},
-	[6]string{
-		" 00 ",
-		"0  0",
-		"  0 ",
-		" 0  ",
-		"0   ",
-		"0000",
-	},
-	[6]string{
-		"0000",
-		"   0",
-		"  0 ",
-		" 000",
-		"   0",
-		"000 ",
-	},
-	[6]string{
-		"  00",
-		" 0 0",
-		"0  0",
-		"0000",
-		"   0",
-		"   0",
-	},
-	[6]string{
-		"0000",
-		"0   ",
-		"000 ",
-		"   0",
-		"0  0",
-		" 00 ",
-	},
-	[6]string{
-		" 00 ",
-		"0  0",
-		"0   ",
-		"000 ",
-		"0  0",
-		" 00 ",
-	},
-	[6]string{
-		"0000",
-		"0  0",
-		"  0 ",
-		" 00 ",
-		" 0  ",
-		"00  ",
-	},
-	[6]string{
-		" 00 ",
-		"0  0",
-		" 00 ",
-		"0  0",
-		"0  0",
-		" 00 ",
-	},
-	[6]string{
-		" 00 ",
-		"0  0",
-		" 000",
-		"   0",
-		"0  0",
-		" 00 ",
-	},
-}
-
-var logo = [6]string{
-	` / ____ \   `,
-	`D / __ \ \  `,
-	`E/ /  \ \ \ `,
-	`R\ \  / / / `,
-	`O \_||_/ /  `,
-	`G N O M O N `,
-}
 
 /********************************/
 // ...
@@ -947,17 +757,17 @@ var logo = [6]string{
 /*
 fmt.Println("batch.TxIds:", len(batch.TxIds))
 
-	fmt.Println("api.BlockByHeight(bheight).TxIds:", len(api.BlockByHeight(bheight).TxIds))
+	fmt.Println("daemon.BlockByHeight(bheight).TxIds:", len(daemon.BlockByHeight(bheight).TxIds))
 	for _, t := range batch.TxIds {
 
-		if slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
+		if slices.Contains(daemon.BlockByHeight(bheight).TxIds, t) {
 			fmt.Println(bheight, " (bheight).TxIds Contains:", t)
 		}
-		if !slices.Contains(api.BlockByHeight(bheight).TxIds, t) {
+		if !slices.Contains(daemon.BlockByHeight(bheight).TxIds, t) {
 			fmt.Println(bheight, " (bheight).TxIds NOT Contains:", t)
 		}
 
-		api.ProcessBlocks(t) //api.RemoveTXs(batch.TxIds)
+		daemon.ProcessBlocks(t) //daemon.RemoveTXs(batch.TxIds)
 }
 	if len(tx.Txs_as_hex) != len(batch.TxIds) {
 		fmt.Println(len(r.Txs_as_hex), " fffffff ", len(batch.TxIds))

@@ -9,6 +9,8 @@ import (
 	"github.com/deroproject/derohe/cryptography/crypto"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/transaction"
+	sql "github.com/secretnamebasis/simple-gnomon/db"
+	"github.com/secretnamebasis/simple-gnomon/structs"
 )
 
 /**********************************************************************************/
@@ -28,42 +30,17 @@ type SCTXParse struct {
 	Height     int64
 }
 
-type SCIDVariable struct {
-	Key   any
-	Value any
-}
-
-type FastSyncImport struct {
-	Signer   string
-	Height   uint64
-	SCName   string
-	SCDesc   string
-	SCImgURL string
-}
-
-type SCIDToIndexStage struct {
-	Type       string
-	TXHash     string
-	Fsi        *FastSyncImport
-	ScVars     []*SCIDVariable
-	ScCode     string
-	Params     rpc.GetSC_Params
-	Entrypoint string
-	Class      string
-	Tags       string
-}
-
 type Indexer struct {
 	LastIndexedHeight int64
 	ChainHeight       int64
 	SearchFilter      []string
 	CustomActions     map[string]action
-	SSSBackend        *SqlStore
+	SSSBackend        *sql.SqlStore
 	ValidatedSCs      []string
 	Status            string
 }
 
-func NewSQLIndexer(Sqls_backend *SqlStore, last_indexedheight int64, CustomActions map[string]action) *Indexer {
+func NewSQLIndexer(Sqls_backend *sql.SqlStore, last_indexedheight int64, CustomActions map[string]action) *Indexer {
 	return &Indexer{
 		LastIndexedHeight: last_indexedheight,
 		CustomActions:     CustomActions,
@@ -72,7 +49,7 @@ func NewSQLIndexer(Sqls_backend *SqlStore, last_indexedheight int64, CustomActio
 }
 
 // Manually add/inject a SCID to be indexed. Checks validity and then stores within owner tree (no signer addr) and stores a set of current variables.
-func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) {
+func (indexer *Indexer) AddSCIDToIndex(scidstoadd structs.SCIDToIndexStage) (err error) {
 	//	fmt.Println("Adding to Index: ", scidstoadd)
 	if scidstoadd.TXHash == "" {
 		return errors.New("no scid")
@@ -157,14 +134,14 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 }
 
 // Gets SC variable details
-func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (variables []*SCIDVariable, err error) {
+func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (variables []*structs.SCIDVariable, err error) {
 	//balances = make(map[string]uint64)
 	//	fmt.Println(keysuint64)
 
 	isAlpha := regexp.MustCompile(`^[A-Za-z]+$`).MatchString
 
 	for k, v := range keysstring {
-		currVar := &SCIDVariable{}
+		currVar := &structs.SCIDVariable{}
 		currVar.Key = k
 		switch cval := v.(type) {
 		case float64:
@@ -225,7 +202,7 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 	}
 
 	for k, v := range keysuint64 {
-		currVar := &SCIDVariable{}
+		currVar := &structs.SCIDVariable{}
 		currVar.Key = k
 		switch cval := v.(type) {
 		case string:
