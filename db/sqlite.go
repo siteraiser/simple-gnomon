@@ -33,9 +33,8 @@ type SqlStore struct {
 
 var dbready = true
 var callers = 0
-var waiting = 0
 
-func ready(ready bool, caller string) {
+func ready(ready bool) {
 	if UseMem {
 		return
 	}
@@ -517,36 +516,35 @@ func (ss *SqlStore) ViewTables() {
 
 // Stores bbolt's last indexed height - this is for stateful stores on close and reference on open
 func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool, err error) {
-	ready(false, "StoreLastIndexHeight")
+	ready(false)
 	result, err := ss.DB.Exec("UPDATE state SET value = '" + strconv.Itoa(int(last_indexedheight)) + "' WHERE name = 'lastindexedheight';")
 
 	if err == nil {
 		affected_rows, _ := result.RowsAffected()
 		if affected_rows != 0 {
 			changes = true
-			ready(true, "StoreLastIndexHeight")
+			ready(true)
 			return
 		}
 	} else {
 		fmt.Println("Error storing last index height")
 	}
-	ready(true, "StoreLastIndexHeight")
+	ready(true)
 	return
 }
 
 // Gets bbolt's last indexed height - this is for stateful stores on close and reference on open
 func (ss *SqlStore) GetLastIndexHeight() (topoheight int64, err error) {
 	var lastindexedheight int
-	ready(false, "StoreLastIndexHeight")
+	ready(false)
 	ss.DB.QueryRow("SELECT value FROM state WHERE name = 'lastindexedheight' ").Scan(&lastindexedheight)
-	ready(true, "StoreLastIndexHeight")
+	ready(true)
 	if lastindexedheight > 0 {
 		topoheight = int64(lastindexedheight)
 	}
 	if topoheight == 0 {
 		fmt.Println("[sqlite-GetLastIndexHeight] No stored last index height. Starting from 0 or latest if fastsync is enabled")
 	}
-
 	return
 }
 
@@ -555,7 +553,7 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, height int, scname str
 	if ss.Cancel {
 		return
 	}
-	ready(false, "StoreOwner")
+	ready(false)
 	statement, err := ss.DB.Prepare("INSERT INTO scs (scid,owner,height,scname,scdescr,scimgurl,class,tags) VALUES (?,?,?,?,?,?,?,?)")
 	if err != nil {
 		log.Fatal(err)
@@ -577,14 +575,14 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, height int, scname str
 		//	fmt.Println("ownerinsertid: ", last_insert_id)
 		if last_insert_id >= 0 {
 			changes = true
-			ready(true, "StoreOwner")
+			ready(true)
 			return
 		}
 
 	} else {
 		ss.Cancel = true
 	}
-	ready(true, "StoreOwner")
+	ready(true)
 	return
 
 }
@@ -592,9 +590,9 @@ func (ss *SqlStore) StoreOwner(scid string, owner string, height int, scname str
 // Returns all of the deployed SCIDs with their corresponding owners (who deployed it)
 func (ss *SqlStore) GetAllOwnersAndSCIDs() map[string]string {
 	results := make(map[string]string)
-	ready(false, "GetAllOwnersAndSCIDs")
+	ready(false)
 	rows, _ := ss.DB.Query("SELECT scid, owner FROM scs", nil)
-	ready(true, "GetAllOwnersAndSCIDs")
+	ready(true)
 	var (
 		scid  string
 		owner string
@@ -618,7 +616,7 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*structs.S
 		return changes, fmt.Errorf("[StoreSCIDVariableDetails] could not marshal getinfo info: %v", err)
 	}
 
-	ready(false, "StoreSCIDVariableDetails") //maybe look up the scid id
+	ready(false) //maybe look up the scid id
 	statement, err := ss.DB.Prepare("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
 
 	if err != nil {
@@ -635,13 +633,13 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*structs.S
 		last_insert_id, _ := result.LastInsertId()
 		if last_insert_id >= 0 {
 			changes = true
-			ready(true, "StoreSCIDVariableDetails")
+			ready(true)
 			return
 		}
 	} else {
 		ss.Cancel = true
 	}
-	ready(true, "StoreSCIDVariableDetails")
+	ready(true)
 	return
 }
 
@@ -650,16 +648,12 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 	results := make(map[int64][]*structs.SCIDVariable)
 	var heights []int64
 
-	//bName := scid + "vars"
-	//fmt.Println("GetSCIDVariableDetailsAtTopoheight", bName)
-
-	//fmt.Println("SELECT height,vars FROM variables WHERE height=? AND scid =?")
-	ready(false, "GetSCIDVariableDetailsAtTopoheight")
+	ready(false)
 	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE height <= ? AND scid =? ORDER BY height ASC",
 		int(topoheight),
 		scid,
 	)
-	ready(true, "GetSCIDVariableDetailsAtTopoheight")
+	ready(true)
 	var (
 		vars   string
 		height int
@@ -687,11 +681,11 @@ func (ss *SqlStore) GetAllSCIDVariableDetails(scid string) (hVars []*structs.SCI
 	results := make(map[int64][]*structs.SCIDVariable)
 	var heights []int64
 	//fmt.Println("GetAllSCIDVariableDetails", bName)
-	ready(false, "GetAllSCIDVariableDetails")
+	ready(false)
 	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE scid =? ORDER BY height ASC",
 		scid,
 	)
-	ready(true, "GetAllSCIDVariableDetails")
+	ready(true)
 	var (
 		vars   string
 		height int
@@ -720,7 +714,7 @@ func (ss *SqlStore) StoreSCIDInvoke(scidstoadd structs.SCIDToIndexStage, height 
 
 	//	fmt.Println("\nStoreSCIDInvoke... TXHash " + scidstoadd.TXHash + " ParamsSCID " + scidstoadd.Params.SCID + " Height:" + strconv.Itoa(int(height)))
 
-	ready(false, "StoreSCIDInvoke")
+	ready(false)
 	statement, err := ss.DB.Prepare("INSERT INTO invokes (scid,signer,txid,height,entrypoint) VALUES (?,?,?,?,?);")
 	if err == nil {
 
@@ -740,7 +734,7 @@ func (ss *SqlStore) StoreSCIDInvoke(scidstoadd structs.SCIDToIndexStage, height 
 			}
 		}
 	}
-	ready(true, "StoreSCIDInvoke")
+	ready(true)
 	return
 
 }
@@ -750,21 +744,13 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd structs.SCIDToIndexSta
 
 	//fmt.Println("\nStoreSCIDInteractionHeight... TXHash " + scidstoadd.TXHash + " ParamsSCID " + scidstoadd.Params.SCID + " Height:" + strconv.Itoa(int(height)))
 
-	ready(false, "StoreSCIDInteractionHeight")
+	ready(false)
 	var scs_id int
 	if scidstoadd.Type == "install" {
 		//it is a SC install and already saved
-		ready(true, "StoreSCIDInteractionHeight")
+		ready(true)
 		return
 	}
-	/*	hopefully not needed
-		scerr := ss.DB.QueryRow("SELECT scs_id FROM scs WHERE scid = ? OR scid = ?", scidstoadd.TXHash, scidstoadd.Params.SCID).Scan(&scs_id) //don't add any installs as interactions too
-			if scerr != nil {
-				ready(true)
-				return
-			}
-	*/
-
 	statement, err := ss.DB.Prepare("INSERT INTO interactions (height,txid,sc_id) VALUES (?,?,?);")
 	if err != nil {
 		log.Fatal(err)
@@ -774,7 +760,6 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd structs.SCIDToIndexSta
 		scidstoadd.TXHash,
 		scs_id,
 	)
-
 	if err == nil {
 		last_insert_id, _ := result.LastInsertId()
 		if last_insert_id >= 0 {
@@ -782,8 +767,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd structs.SCIDToIndexSta
 			changes = true
 		}
 	}
-
-	ready(true, "StoreSCIDInteractionHeight")
+	ready(true)
 	return
 
 }
@@ -792,7 +776,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd structs.SCIDToIndexSta
 func (ss *SqlStore) GetSCIDInteractionHeight(scid string) (scidinteractions []int64) {
 	//	fmt.Println("GetSCIDInteractionHeight... ")"SELECT interaction_heights.height FROM interactions INNER JOIN interactions.i_id ON interaction_heights WHERE scid=?"
 
-	ready(false, "GetSCIDInteractionHeight")
+	ready(false)
 	rows, err := ss.DB.Query(
 		"SELECT height FROM interactions WHERE txid=?",
 		scid)
@@ -809,7 +793,7 @@ func (ss *SqlStore) GetSCIDInteractionHeight(scid string) (scidinteractions []in
 		scidinteractions = append(scidinteractions, int64(height))
 	}
 
-	ready(true, "GetSCIDInteractionHeight")
+	ready(true)
 
 	return
 
