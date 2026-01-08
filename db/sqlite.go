@@ -655,7 +655,7 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 
 	//fmt.Println("SELECT height,vars FROM variables WHERE height=? AND scid =?")
 	ready(false, "GetSCIDVariableDetailsAtTopoheight")
-	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE height=? AND scid =? ORDER BY height ASC",
+	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE height <= ? AND scid =? ORDER BY height ASC",
 		int(topoheight),
 		scid,
 	)

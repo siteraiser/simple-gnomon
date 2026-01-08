@@ -101,7 +101,7 @@ func main() {
 	_, err = fmt.Scanln(&text)
 	show.DisplayMode, _ = strconv.Atoi(text)
 
-	fmt.Println("Enter custom connection or press n to use the default remote connections eg. node.derofoundation.org:10102")
+	fmt.Println("Enter custom connection or enter n to use the default remote connections eg. node.derofoundation.org:10102")
 	_, err = fmt.Scanln(&text)
 	if text != "n" {
 		daemon.Endpoints = []daemon.Connection{
