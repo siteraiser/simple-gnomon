@@ -657,7 +657,7 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 				SELECT txid
 				FROM invokes
 				WHERE scid = ?
-			) AND height <= ?;`,
+			) AND height <= ? ORDER BY height ASC;`,
 		scid,
 		int(topoheight),
 	)
