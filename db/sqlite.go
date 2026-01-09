@@ -101,7 +101,7 @@ func (ss *SqlStore) WriteToDisk() error {
 
 		query += "INSERT INTO diskdb.interactions (height,txid,sc_id) SELECT * FROM interactions WHERE height >= " + height + ";"
 
-		query += "INSERT INTO diskdb.variables (v_id,height,scid,vars) SELECT * FROM variables WHERE height >= " + height + ";"
+		query += "INSERT INTO diskdb.variables (v_id,height,txid,vars) SELECT * FROM variables WHERE height >= " + height + ";"
 	}
 
 	_, err = ss.DB.Exec(query)
@@ -264,7 +264,7 @@ func CreateTables(Db *sql.DB) {
 	startup[2] = "CREATE TABLE IF NOT EXISTS variables (" +
 		"v_id INTEGER PRIMARY KEY, " +
 		"height INTEGER, " +
-		"scid TEXT, " +
+		"txid TEXT, " +
 		"vars TEXT)"
 		//key := signer + ":" + invokedetails.Txid[0:3] + invokedetails.Txid[txidLen-3:txidLen] + ":" + strconv.FormatInt(topoheight, 10) + ":" + entrypoint
 		/*	*/
@@ -422,7 +422,7 @@ func (ss *SqlStore) RidSpam() {
 	}
 
 	//fmt.Println("deleting vars:", spamtxs)
-	_, err = ss.DB.Exec("DELETE FROM variables WHERE scid IN (" + spamtxs + ")")
+	_, err = ss.DB.Exec("DELETE FROM variables WHERE txid IN (" + spamtxs + ")")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -617,7 +617,7 @@ func (ss *SqlStore) StoreSCIDVariableDetails(scid string, variables []*structs.S
 	}
 
 	ready(false) //maybe look up the scid id
-	statement, err := ss.DB.Prepare("INSERT INTO variables (height, scid, vars) VALUES (?,?,?)")
+	statement, err := ss.DB.Prepare("INSERT INTO variables (height, txid, vars) VALUES (?,?,?)")
 
 	if err != nil {
 		log.Fatal(err)
@@ -653,7 +653,7 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 	rows, _ := ss.DB.Query(
 		`SELECT height, vars
 			FROM variables
-			WHERE scid IN (
+			WHERE txid IN (
 				SELECT txid
 				FROM invokes
 				WHERE scid = ?
@@ -690,7 +690,7 @@ func (ss *SqlStore) GetAllSCIDVariableDetails(scid string) (hVars []*structs.SCI
 	var heights []int64
 	//fmt.Println("GetAllSCIDVariableDetails", bName)
 	ready(false)
-	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE scid =? ORDER BY height ASC",
+	rows, _ := ss.DB.Query("SELECT height,vars FROM variables WHERE txid =? ORDER BY height ASC",
 		scid,
 	)
 	ready(true)
