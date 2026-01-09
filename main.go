@@ -125,6 +125,11 @@ func main() {
 		}
 	}
 
+	fmt.Println("Start Gnomon indexer? y or n")
+	_, err = fmt.Scanln(&text)
+	if text == "n" {
+		panic("Exited")
+	}
 	//Add custom actions for scids
 	//CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
 	if SpamLevel == "0" {
