@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,9 +16,8 @@ import (
 
 var sqlite = &sql.SqlStore{}
 
-func Start(portFlag *int) {
-	flag.Parse()
-	port := strconv.Itoa(*portFlag)
+func Start(port string) {
+
 	go func() {
 		time.Sleep(200 * time.Millisecond)
 		log.Println("Server listening on port " + port)

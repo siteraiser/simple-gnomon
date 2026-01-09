@@ -115,13 +115,13 @@ func main() {
 	flag.Parse()
 	port := strconv.Itoa(*portFlag)
 	if port != "0" {
-		go api.Start(portFlag)
+		go api.Start(port)
 	} else {
 		//ask
-		fmt.Println("Launch Gnomon api on port:8080? y or n")
+		fmt.Println("Enter a port number for the api or n to skip")
 		_, err = fmt.Scanln(&text)
-		if text == "y" {
-			go api.Start(portFlag)
+		if _, err := strconv.Atoi(text); err == nil && text != "n" {
+			go api.Start(text)
 		}
 	}
 
