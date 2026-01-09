@@ -708,7 +708,7 @@ func (ss *SqlStore) GetAllSCIDVariableDetails(scid string) (hVars []*structs.SCI
 		results[topoheight] = variables
 	}
 
-	fmt.Println("results: ", results)
+	//fmt.Println("results: ", results)
 
 	if results != nil {
 		hVars = getTypedVariables(heights, results)

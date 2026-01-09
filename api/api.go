@@ -27,7 +27,10 @@ func Start(port string) {
 	db_path := filepath.Join(wd, "gnomondb")
 	sqlite, _ = sql.NewDiskDB(db_path, db_name)
 	http.HandleFunc("/GetAllOwnersAndSCIDs", GetAllOwnersAndSCIDs)
+	http.HandleFunc("/GetAllSCIDVariableDetails", GetAllSCIDVariableDetails)
 	http.HandleFunc("/GetSCIDVariableDetailsAtTopoheight", GetSCIDVariableDetailsAtTopoheight)
+	http.HandleFunc("/GetSCIDInteractionHeight", GetSCIDInteractionHeight)
+	http.HandleFunc("/GetLastIndexHeight", GetLastIndexHeight)
 
 	http.ListenAndServe("localhost:"+port, nil)
 }
@@ -47,28 +50,41 @@ func QueryParam(i string, query string) string {
 	return queryParams.Get(i)
 }
 
-// http://localhost:8080/GetAllOwnersAndSCIDs
-func GetAllOwnersAndSCIDs(w http.ResponseWriter, r *http.Request) {
+// Check Gnomon indexed height
+// http://localhost:8080/GetLastIndexHeight
+func GetLastIndexHeight(w http.ResponseWriter, r *http.Request) {
 	head(w)
-	jsonData, err := json.Marshal(sqlite.GetAllOwnersAndSCIDs())
-	if err != nil {
-		fmt.Println("Error encoding JSON:", err)
-		return
-	}
+	index, _ := sqlite.GetLastIndexHeight()
+	jsonData, _ := json.Marshal(index)
 	fmt.Fprint(w, string(jsonData))
 }
 
-// http://localhost:8080/GetSCIDVariableDetailsAtTopoheight
-// http://localhost:8080/GetSCIDVariableDetailsAtTopoheight?scid=fa71110e1b25a4dd0f3fddd2ed9ed5d35a5a332ddf34e93736feef65a428f3ad&height=4000
-// POST not yet implemented
-// Or use POST vars "scid" and "height"
+// Large request
+// http://localhost:8080/GetAllOwnersAndSCIDs
+func GetAllOwnersAndSCIDs(w http.ResponseWriter, r *http.Request) {
+	head(w)
+	jsonData, _ := json.Marshal(sqlite.GetAllOwnersAndSCIDs())
+	fmt.Fprint(w, string(jsonData))
+}
+
+// http://localhost:8080/GetAllSCIDVariableDetails?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0
+func GetAllSCIDVariableDetails(w http.ResponseWriter, r *http.Request) {
+	head(w)
+	jsonData, _ := json.Marshal(sqlite.GetAllSCIDVariableDetails(QueryParam("scid", r.URL.RawQuery)))
+	fmt.Fprint(w, string(jsonData))
+}
+
+// http://localhost:8080/GetSCIDVariableDetailsAtTopoheight?scid=805ade9294d01a8c9892c73dc7ddba012eaa0d917348f9b317b706131c82a2d5&height=50000
 func GetSCIDVariableDetailsAtTopoheight(w http.ResponseWriter, r *http.Request) {
 	head(w)
 	h, _ := strconv.Atoi(QueryParam("height", r.URL.RawQuery))
-	jsonData, err := json.Marshal(sqlite.GetSCIDVariableDetailsAtTopoheight(QueryParam("scid", r.URL.RawQuery), int64(h)))
-	if err != nil {
-		fmt.Println("Error encoding JSON:", err)
-		return
-	}
+	jsonData, _ := json.Marshal(sqlite.GetSCIDVariableDetailsAtTopoheight(QueryParam("scid", r.URL.RawQuery), int64(h)))
+	fmt.Fprint(w, string(jsonData))
+}
+
+// http://localhost:8080/GetSCIDInteractionHeight?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0
+func GetSCIDInteractionHeight(w http.ResponseWriter, r *http.Request) {
+	head(w)
+	jsonData, _ := json.Marshal(sqlite.GetSCIDInteractionHeight(QueryParam("scid", r.URL.RawQuery)))
 	fmt.Fprint(w, string(jsonData))
 }
