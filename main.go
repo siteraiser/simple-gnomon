@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"math"
 	"os"
@@ -108,35 +109,22 @@ func main() {
 			{Address: text},
 		}
 	}
-	go api.Start()
-	/*go func() {
 
-		reader := bufio.NewReader(os.Stdin)
-		for {
-			char, err := reader.ReadByte()
-			if err != nil {
-				fmt.Println("Error reading key:", err)
-
-			}
-
-			// Print the key pressed
-			//fmt.Printf("You pressed: %q (ASCII: %d)\n", char, char)
-
-			// Exit on 'q'
-			if char == 'd' {
-				panic(char)
-				if DisplayMode == 0 {
-					DisplayMode = 1
-				} else if DisplayMode == 1 {
-					DisplayMode = 2
-				} else if DisplayMode == 2 {
-					DisplayMode = 0
-				}
-				showBlockStatus(-1)
-			}
+	//if the port is set then launch the server
+	portFlag := flag.Int("port", 0000, "string")
+	flag.Parse()
+	port := strconv.Itoa(*portFlag)
+	if port != "0" {
+		go api.Start(portFlag)
+	} else {
+		//ask
+		fmt.Println("Launch Gnomon api on port:8080? y or n")
+		_, err = fmt.Scanln(&text)
+		if text == "y" {
+			go api.Start(portFlag)
 		}
-	}()
-	*/
+	}
+
 	//Add custom actions for scids
 	//CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
 	if SpamLevel == "0" {
@@ -193,7 +181,7 @@ func main() {
 	sql.StartAt = startAt
 	sql.SpamLevel = SpamLevel
 	show.PreferredRequests = &daemon.PreferredRequests
-	show.Status = *daemon.Status
+	show.Status = daemon.Status
 	start_gnomon_indexer()
 }
 

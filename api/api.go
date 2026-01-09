@@ -17,8 +17,7 @@ import (
 
 var sqlite = &sql.SqlStore{}
 
-func Start() {
-	portFlag := flag.Int("port", 8080, "string")
+func Start(portFlag *int) {
 	flag.Parse()
 	port := strconv.Itoa(*portFlag)
 	go func() {

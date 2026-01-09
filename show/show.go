@@ -39,7 +39,7 @@ func NewMessage(message Message) {
 }
 
 var PreferredRequests *int8
-var Status structs.State
+var Status *structs.State
 
 // Prints out the block being requested and other stats needed for the display mode selected
 func ShowBlockStatus(bheight int64, s int, text string) {
