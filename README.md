@@ -4,19 +4,19 @@ An SQLITE implementation of the GNOMON smart contract indexer for DERO.
 
 Gnomon Api Method Examples:
 
-**GetLastIndexHeight** Returns the last stored index height
+**GetLastIndexHeight** Returns the last stored index height<br>
 Request:
 ```bash
 curl -X GET "http://localhost:8080/GetLastIndexHeight" \
 ```
 
-**GetAllOwnersAndSCIDs** Returns a list of all scids and their owners 
+**GetAllOwnersAndSCIDs** Returns a list of all scids and their owners <br>
 Request:
 ```bash
 curl -X GET "http://localhost:8080/GetAllOwnersAndSCIDs" \
 ```
 
-**GetAllSCIDVariableDetails**  Returns a list of all variable details at
+**GetAllSCIDVariableDetails**  Returns a list of all variable details at <br>
 Request:
 ```bash
 curl -X GET "http://localhost:8080/GetAllSCIDVariableDetails?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0" \
@@ -34,7 +34,7 @@ curl -X GET "http://localhost:8080/GetAllSCIDVariableDetails?scid=b77b1f5eeff6ed
 ]
 ```
 
-**GetSCIDVariableDetailsAtTopoheight**
+**GetSCIDVariableDetailsAtTopoheight** <br>
 Request:
 ```bash
 curl -X GET "http://localhost:8080/GetSCIDVariableDetailsAtTopoheight?scid=805ade9294d01a8c9892c73dc7ddba012eaa0d917348f9b317b706131c82a2d5&height=50000" \
@@ -53,7 +53,7 @@ Response:
 ]
 ```
 
-**GetSCIDInteractionHeight**
+**GetSCIDInteractionHeight** <br>
 Request:
 ```bash
 curl -X GET "http://localhost:8080/GetSCIDInteractionHeight?scid=eae3f9c6f7fc1e24d17e2ce213be1ce5bbea0454f89452b09a495db43b21dcc0" \
@@ -64,7 +64,7 @@ Response:
 ```
 
 
-**GetSCIDValuesByKey**
+**GetSCIDValuesByKey** <br>
 Request:
 ```bash
 curl -X GET "http://localhost:8080/GetSCIDValuesByKey?scid=bb6e2f7dc7e09dfc42e9f357a66110e85a06c178b0018b38db57a317cbec9cdb&key=nameHdr&rmax=0" \
@@ -74,7 +74,7 @@ Response:
 {"valuesstring":["index.html"],"valuesuint64":null}
 ```
 
-**GetSCIDKeysByValue**
+**GetSCIDKeysByValue** <br>
 Request:
 ```bash
 curl -X GET "// http://localhost:8080/GetSCIDKeysByValue?scid=bb6e2f7dc7e09dfc42e9f357a66110e85a06c178b0018b38db57a317cbec9cdb&val=somevalue&rmax=0" \
@@ -84,7 +84,7 @@ Response:
 []
 ```
 
-**GetSCIDsByClass**
+**GetSCIDsByClass** <br>
 Request:
 ```bash
 curl -X GET "http://localhost:8080/GetSCIDsByClass?class=tela" \
@@ -99,7 +99,7 @@ Response:
 ]
 ```
 
-**GetSCIDsByTags**
+**GetSCIDsByTags** <br>
 Request:
 ```bash
 curl -X GET "http://localhost:8080/GetSCIDsByTags?tags=G45-AT&tags=G45-C" \
