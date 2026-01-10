@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -696,7 +695,12 @@ func (ss *SqlStore) GetSCIDVariableDetailsAtTopoheight(scid string, topoheight i
 				SELECT txid
 				FROM invokes
 				WHERE scid = ?
+			) OR txid IN (
+				SELECT scid
+				FROM scs
+				WHERE scid = ?
 			) AND height <= ? ORDER BY height ASC;`,
+		scid,
 		scid,
 		int(topoheight),
 	)
@@ -847,33 +851,46 @@ func (ss *SqlStore) GetSCIDInteractionHeight(scid string) (scidinteractions []in
 }
 
 // Gets SC interaction height and detail by a given SCID
-func (ss *SqlStore) GetSCIDVariableHeights(scid string) (scidinteractions []int64) {
+func (ss *SqlStore) GetSCIDVariableHeight(scid string, rmax bool) (scidinteractions int64) {
 	//	fmt.Println("GetSCIDInteractionHeight... ")"SELECT interaction_heights.height FROM interactions INNER JOIN interactions.i_id ON interaction_heights WHERE scid=?"
-
-	ready(false)
-	rows, err := ss.DB.Query(
-		"SELECT height FROM variables WHERE txid=?",
-		scid)
-
-	if err != nil {
-		fmt.Println(err)
+	sort := "DESC"
+	if !rmax {
+		sort = "ASC"
 	}
+	ready(false)
+	rows, _ := ss.DB.Query(
+		`SELECT height
+		FROM variables
+		WHERE txid IN (
+			SELECT txid
+			FROM invokes
+			WHERE scid = ?
+		) OR txid IN (
+			SELECT scid
+			FROM scs
+			WHERE scid = ?
+		) ORDER BY height `+sort+" LIMIT 1",
+		scid,
+		scid,
+	)
+	ready(true)
 	var (
 		height int
 	)
+
 	for rows.Next() {
 		rows.Scan(&height)
-		//	fmt.Println("height ", height)
-		scidinteractions = append(scidinteractions, int64(height))
+		println("height ", height)
+		return int64(height)
 	}
-
 	ready(true)
 
 	return
 
 }
 
-func (ss *SqlStore) GetInteractionIndex(topoheight int64, heights []int64, rmax bool) (height int64) {
+/*
+func (ss *SqlStore) GetInteractionIndex(topoheight int64, heights []int64) (height int64) {
 	if len(heights) <= 0 {
 		return height
 	}
@@ -898,32 +915,27 @@ func (ss *SqlStore) GetInteractionIndex(topoheight int64, heights []int64, rmax 
 	return height
 }
 
-/**/
-// Gets SC variable keys at given topoheight who's value equates to a given interface{} (string/uint64)
-func (ss *SqlStore) GetSCIDKeysByValue(scid string, val interface{}, height int64, rmax bool) (keysstring []string, keysuint64 []uint64) {
-	//scidInteractionHeights := ss.GetSCIDInteractionHeight(scid)
-	scidVariableHeights := ss.GetSCIDVariableHeights(scid)
-	interactionHeight := ss.GetInteractionIndex(height, scidVariableHeights, rmax)
+*/
+
+// Gets SC values by key at given topoheight who's key equates to a given interface{} (string/uint64)
+func (ss *SqlStore) GetSCIDValuesByKey(scid string, key interface{}, height int64, rmax bool) (valuesstring []string, valuesuint64 []uint64) {
 
 	// TODO: If there's no interaction height, do we go get scvars against daemon and store? Or do we just ignore and return nil
-	variables := ss.GetSCIDVariableDetailsAtTopoheight(scid, interactionHeight)
+	variables := ss.GetSCIDVariableDetailsAtTopoheight(scid, ss.GetSCIDVariableHeight(scid, rmax))
+	println("variables", variables)
+	// Switch against the value passed. If it's a uint64 or string
+	return getTyped(key, variables)
+}
+
+// Gets SC variable keys at given topoheight who's value equates to a given interface{} (string/uint64)
+func (ss *SqlStore) GetSCIDKeysByValue(scid string, val interface{}, height int64, rmax bool) (keysstring []string, keysuint64 []uint64) {
+
+	// TODO: If there's no interaction height, do we go get scvars against daemon and store? Or do we just ignore and return nil
+	variables := ss.GetSCIDVariableDetailsAtTopoheight(scid, ss.GetSCIDVariableHeight(scid, rmax))
 
 	// Switch against the value passed. If it's a uint64 or string
 	return getTyped(val, variables)
 
-}
-
-// Gets SC values by key at given topoheight who's key equates to a given interface{} (string/uint64)
-func (ss *SqlStore) GetSCIDValuesByKey(scid string, key interface{}, height int64, rmax bool) (valuesstring []string, valuesuint64 []uint64) {
-	//scidVariableHeights := ss.GetSCIDInteractionHeight(scid)
-	scidVariableHeights := ss.GetSCIDVariableHeights(scid)
-	interactionHeight := ss.GetInteractionIndex(height, scidVariableHeights, rmax)
-
-	// TODO: If there's no interaction height, do we go get scvars against daemon and store? Or do we just ignore and return nil
-	variables := ss.GetSCIDVariableDetailsAtTopoheight(scid, interactionHeight)
-
-	// Switch against the value passed. If it's a uint64 or string
-	return getTyped(key, variables)
 }
 
 // SC typing/value extraction fucntions

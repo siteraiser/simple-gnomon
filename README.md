@@ -67,17 +67,17 @@ Response:
 **GetSCIDValuesByKey**
 Request:
 ```bash
-curl -X GET "http://localhost:8080/GetSCIDValuesByKey?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0&key=name&rmax=0" \
+curl -X GET "http://localhost:8080/GetSCIDValuesByKey?scid=bb6e2f7dc7e09dfc42e9f357a66110e85a06c178b0018b38db57a317cbec9cdb&key=nameHdr&rmax=0" \
 ```
 Response:
 ```json
-[]
+{"valuesstring":["index.html"],"valuesuint64":null}
 ```
 
 **GetSCIDKeysByValue**
 Request:
 ```bash
-curl -X GET "// http://localhost:8080/GetSCIDKeysByValue?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0&val=somevalue&rmax=0" \
+curl -X GET "// http://localhost:8080/GetSCIDKeysByValue?scid=bb6e2f7dc7e09dfc42e9f357a66110e85a06c178b0018b38db57a317cbec9cdb&val=somevalue&rmax=0" \
 ```
 Response:
 ```json

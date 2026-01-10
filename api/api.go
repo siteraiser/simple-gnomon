@@ -87,6 +87,7 @@ func GetSCIDVariableDetailsAtTopoheight(w http.ResponseWriter, r *http.Request) 
 	fmt.Fprint(w, string(jsonData))
 }
 
+// needs works...
 // http://localhost:8080/GetSCIDInteractionHeight?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0
 func GetSCIDInteractionHeight(w http.ResponseWriter, r *http.Request) {
 	head(w)
@@ -94,7 +95,8 @@ func GetSCIDInteractionHeight(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, string(jsonData))
 }
 
-// http://localhost:8080/GetSCIDValuesByKey?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0&key=name&rmax=0
+// Tested
+// http://localhost:8080/GetSCIDValuesByKey?scid=bb6e2f7dc7e09dfc42e9f357a66110e85a06c178b0018b38db57a317cbec9cdb&key=nameHdr&rmax=0
 func GetSCIDValuesByKey(w http.ResponseWriter, r *http.Request) {
 	head(w)
 	h, _ := strconv.Atoi(QueryParam("height", r.URL.RawQuery))
