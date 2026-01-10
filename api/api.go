@@ -32,6 +32,8 @@ func Start(port string) {
 	http.HandleFunc("/GetAllSCIDVariableDetails", GetAllSCIDVariableDetails)
 	http.HandleFunc("/GetSCIDVariableDetailsAtTopoheight", GetSCIDVariableDetailsAtTopoheight)
 	http.HandleFunc("/GetSCIDInteractionHeight", GetSCIDInteractionHeight)
+	http.HandleFunc("/GetSCIDValuesByKey", GetSCIDValuesByKey)
+	http.HandleFunc("/GetSCIDKeysByValue", GetSCIDKeysByValue)
 	http.HandleFunc("/GetSCIDsByClass", GetSCIDsByClass)
 	http.HandleFunc("/GetSCIDsByTags", GetSCIDsByTags)
 
@@ -89,6 +91,42 @@ func GetSCIDVariableDetailsAtTopoheight(w http.ResponseWriter, r *http.Request) 
 func GetSCIDInteractionHeight(w http.ResponseWriter, r *http.Request) {
 	head(w)
 	jsonData, _ := json.Marshal(sqlite.GetSCIDInteractionHeight(QueryParam("scid", r.URL.RawQuery)))
+	fmt.Fprint(w, string(jsonData))
+}
+
+// http://localhost:8080/GetSCIDValuesByKey?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0&key=name&rmax=0
+func GetSCIDValuesByKey(w http.ResponseWriter, r *http.Request) {
+	head(w)
+	h, _ := strconv.Atoi(QueryParam("height", r.URL.RawQuery))
+	rmax, _ := strconv.Atoi(QueryParam("rmax", r.URL.RawQuery))
+	valuesstring, keysuint64 := sqlite.GetSCIDValuesByKey(QueryParam("scid", r.URL.RawQuery), QueryParam("key", r.URL.RawQuery), int64(h), rmax != 0)
+
+	jsonData, _ := json.Marshal(struct {
+		Valuesstring []string `json:"valuesstring"`
+		Valuesuint64 []uint64 `json:"valuesuint64"`
+	}{
+		Valuesstring: valuesstring,
+		Valuesuint64: keysuint64,
+	},
+	)
+	fmt.Fprint(w, string(jsonData))
+}
+
+// http://localhost:8080/GetSCIDKeysByValue?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0&val=somevalue&rmax=0
+func GetSCIDKeysByValue(w http.ResponseWriter, r *http.Request) {
+	head(w)
+	h, _ := strconv.Atoi(QueryParam("height", r.URL.RawQuery))
+	rmax, _ := strconv.Atoi(QueryParam("rmax", r.URL.RawQuery))
+	keysstring, keysuint64 := sqlite.GetSCIDKeysByValue(QueryParam("scid", r.URL.RawQuery), QueryParam("val", r.URL.RawQuery), int64(h), rmax != 0)
+
+	jsonData, _ := json.Marshal(struct {
+		Keysstring []string `json:"keysstring"`
+		Keysuint64 []uint64 `json:"keysuint64"`
+	}{
+		Keysstring: keysstring,
+		Keysuint64: keysuint64,
+	},
+	)
 	fmt.Fprint(w, string(jsonData))
 }
 
