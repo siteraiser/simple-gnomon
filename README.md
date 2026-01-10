@@ -77,11 +77,11 @@ Response:
 **GetSCIDKeysByValue** <br>
 Request:
 ```bash
-curl -X GET "// http://localhost:8080/GetSCIDKeysByValue?scid=bb6e2f7dc7e09dfc42e9f357a66110e85a06c178b0018b38db57a317cbec9cdb&val=somevalue&rmax=0" \
+curl -X GET "// http://localhost:8080/GetSCIDKeysByValue?scid=bb6e2f7dc7e09dfc42e9f357a66110e85a06c178b0018b38db57a317cbec9cdb&val=index.html&rmax=0" \
 ```
 Response:
 ```json
-[]
+{"keysstring":null,"keysuint64":null}
 ```
 
 **GetSCIDsByClass** <br>

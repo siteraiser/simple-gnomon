@@ -102,7 +102,6 @@ func GetSCIDValuesByKey(w http.ResponseWriter, r *http.Request) {
 	h, _ := strconv.Atoi(QueryParam("height", r.URL.RawQuery))
 	rmax, _ := strconv.Atoi(QueryParam("rmax", r.URL.RawQuery))
 	valuesstring, keysuint64 := sqlite.GetSCIDValuesByKey(QueryParam("scid", r.URL.RawQuery), QueryParam("key", r.URL.RawQuery), int64(h), rmax != 0)
-
 	jsonData, _ := json.Marshal(struct {
 		Valuesstring []string `json:"valuesstring"`
 		Valuesuint64 []uint64 `json:"valuesuint64"`
@@ -114,13 +113,12 @@ func GetSCIDValuesByKey(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, string(jsonData))
 }
 
-// http://localhost:8080/GetSCIDKeysByValue?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0&val=somevalue&rmax=0
+// http://localhost:8080/GetSCIDKeysByValue?scid=bb6e2f7dc7e09dfc42e9f357a66110e85a06c178b0018b38db57a317cbec9cdb&val=index.html&rmax=0
 func GetSCIDKeysByValue(w http.ResponseWriter, r *http.Request) {
 	head(w)
 	h, _ := strconv.Atoi(QueryParam("height", r.URL.RawQuery))
 	rmax, _ := strconv.Atoi(QueryParam("rmax", r.URL.RawQuery))
 	keysstring, keysuint64 := sqlite.GetSCIDKeysByValue(QueryParam("scid", r.URL.RawQuery), QueryParam("val", r.URL.RawQuery), int64(h), rmax != 0)
-
 	jsonData, _ := json.Marshal(struct {
 		Keysstring []string `json:"keysstring"`
 		Keysuint64 []uint64 `json:"keysuint64"`

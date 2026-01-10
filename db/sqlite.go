@@ -883,7 +883,6 @@ func (ss *SqlStore) GetSCIDVariableHeight(scid string, rmax bool) (scidinteracti
 		println("height ", height)
 		return int64(height)
 	}
-	ready(true)
 
 	return
 
@@ -919,53 +918,57 @@ func (ss *SqlStore) GetInteractionIndex(topoheight int64, heights []int64) (heig
 
 // Gets SC values by key at given topoheight who's key equates to a given interface{} (string/uint64)
 func (ss *SqlStore) GetSCIDValuesByKey(scid string, key interface{}, height int64, rmax bool) (valuesstring []string, valuesuint64 []uint64) {
-
 	// TODO: If there's no interaction height, do we go get scvars against daemon and store? Or do we just ignore and return nil
 	variables := ss.GetSCIDVariableDetailsAtTopoheight(scid, ss.GetSCIDVariableHeight(scid, rmax))
-	println("variables", variables)
 	// Switch against the value passed. If it's a uint64 or string
-	return getTyped(key, variables)
+	return getTyped(key, variables, "keys")
 }
 
 // Gets SC variable keys at given topoheight who's value equates to a given interface{} (string/uint64)
 func (ss *SqlStore) GetSCIDKeysByValue(scid string, val interface{}, height int64, rmax bool) (keysstring []string, keysuint64 []uint64) {
-
 	// TODO: If there's no interaction height, do we go get scvars against daemon and store? Or do we just ignore and return nil
 	variables := ss.GetSCIDVariableDetailsAtTopoheight(scid, ss.GetSCIDVariableHeight(scid, rmax))
-
 	// Switch against the value passed. If it's a uint64 or string
-	return getTyped(val, variables)
-
+	return getTyped(val, variables, "vars")
 }
 
 // SC typing/value extraction fucntions
-func getTyped(entity interface{}, variables []*structs.SCIDVariable) (strings []string, uint64s []uint64) {
+func getTyped(entity interface{}, variables []*structs.SCIDVariable, gettype string) (strings []string, uint64s []uint64) {
 	switch inpvar := entity.(type) {
 	case uint64:
 		for _, v := range variables {
-			switch ckey := v.Key.(type) {
+			var find any
+			var use any
+			if gettype == "keys" {
+				find = v.Key
+				use = v.Key
+			} else {
+				find = v.Value
+				use = v.Key
+			}
+			switch ckey := find.(type) {
 			case float64:
 				if inpvar == uint64(ckey) {
-					switch cval := v.Value.(type) {
+					switch cval := use.(type) {
 					case float64:
 						uint64s = append(uint64s, uint64(cval))
 					case uint64:
 						uint64s = append(uint64s, cval)
 					default:
 						// default just store as string. Keys should only ever be strings or uint64, however, but assume default to string
-						strings = append(strings, v.Value.(string))
+						strings = append(strings, use.(string))
 					}
 				}
 			case uint64:
 				if inpvar == ckey {
-					switch cval := v.Value.(type) {
+					switch cval := use.(type) {
 					case float64:
 						uint64s = append(uint64s, uint64(cval))
 					case uint64:
 						uint64s = append(uint64s, cval)
 					default:
 						// default just store as string. Keys should only ever be strings or uint64, however, but assume default to string
-						strings = append(strings, v.Value.(string))
+						strings = append(strings, use.(string))
 					}
 				}
 			default:
@@ -974,17 +977,26 @@ func getTyped(entity interface{}, variables []*structs.SCIDVariable) (strings []
 		}
 	case string:
 		for _, v := range variables {
-			switch ckey := v.Key.(type) {
+			var find any
+			var use any
+			if gettype == "keys" {
+				find = v.Key
+				use = v.Key
+			} else {
+				find = v.Value
+				use = v.Key
+			}
+			switch ckey := find.(type) {
 			case string:
 				if inpvar == ckey {
-					switch cval := v.Value.(type) {
+					switch cval := use.(type) {
 					case float64:
 						uint64s = append(uint64s, uint64(cval))
 					case uint64:
 						uint64s = append(uint64s, cval)
 					default:
 						// default just store as string. Values should only ever be strings or uint64, however, but assume default to string
-						strings = append(strings, v.Value.(string))
+						strings = append(strings, use.(string))
 					}
 				}
 			default:
