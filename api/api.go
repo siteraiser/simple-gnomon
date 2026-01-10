@@ -105,7 +105,6 @@ func GetSCIDsByTags(w http.ResponseWriter, r *http.Request) {
 	head(w)
 	query := r.URL.Query()
 	res := sqlite.GetSCsByTags(query["tags"])
-	println(res)
 	jsonData, _ := json.Marshal(res)
 	fmt.Fprint(w, string(jsonData))
 }

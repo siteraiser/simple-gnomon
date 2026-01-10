@@ -520,12 +520,11 @@ func (ss *SqlStore) GetSCsByClass(class string) (results []string) {
 func (ss *SqlStore) GetSCsByTags(tags_list []string) (results []map[string]string) {
 	qinsert := ""
 	for _, tag := range tags_list {
-		qinsert += "," + tag
+		qinsert += "OR (tags = '" + tag + "') OR ('" + tag + "' LIKE (tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags)) "
 	}
-	qinsert = strings.TrimLeft(qinsert, ",")
+	qinsert = strings.TrimPrefix(qinsert, "OR ")
 	ready(false)
-	rows, err := ss.DB.Query("SELECT scid,owner,scname,class,tags FROM scs WHERE (tags = '"+qinsert+"') OR ('"+qinsert+"' LIKE (tags || ',%')) OR ('"+qinsert+"' LIKE ('%,' || tags || ',%')) OR ('"+qinsert+"' LIKE ('%,' || tags))",
-		qinsert)
+	rows, err := ss.DB.Query("SELECT scid,owner,scname,class,tags FROM scs WHERE "+qinsert, nil)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -541,12 +540,12 @@ func (ss *SqlStore) GetSCsByTags(tags_list []string) (results []map[string]strin
 	for rows.Next() {
 		rows.Scan(&scid, &owner, &scname, &class, &tags)
 		r := map[string]string{
-			"scid":  scid,
-			"owner": owner,
-			"class": class,
-			"tags":  tags,
+			"scid":   scid,
+			"owner":  owner,
+			"scname": scname,
+			"class":  class,
+			"tags":   tags,
 		}
-
 		results = append(results, r)
 	}
 	return results
