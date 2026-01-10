@@ -26,11 +26,14 @@ func Start(port string) {
 	wd := globals.GetDataDirectory()
 	db_path := filepath.Join(wd, "gnomondb")
 	sqlite, _ = sql.NewDiskDB(db_path, db_name)
+
+	http.HandleFunc("/GetLastIndexHeight", GetLastIndexHeight)
 	http.HandleFunc("/GetAllOwnersAndSCIDs", GetAllOwnersAndSCIDs)
 	http.HandleFunc("/GetAllSCIDVariableDetails", GetAllSCIDVariableDetails)
 	http.HandleFunc("/GetSCIDVariableDetailsAtTopoheight", GetSCIDVariableDetailsAtTopoheight)
 	http.HandleFunc("/GetSCIDInteractionHeight", GetSCIDInteractionHeight)
-	http.HandleFunc("/GetLastIndexHeight", GetLastIndexHeight)
+	http.HandleFunc("/GetSCIDsByClass", GetSCIDsByClass)
+	http.HandleFunc("/GetSCIDsByTags", GetSCIDsByTags)
 
 	http.ListenAndServe("localhost:"+port, nil)
 }
@@ -86,5 +89,23 @@ func GetSCIDVariableDetailsAtTopoheight(w http.ResponseWriter, r *http.Request) 
 func GetSCIDInteractionHeight(w http.ResponseWriter, r *http.Request) {
 	head(w)
 	jsonData, _ := json.Marshal(sqlite.GetSCIDInteractionHeight(QueryParam("scid", r.URL.RawQuery)))
+	fmt.Fprint(w, string(jsonData))
+}
+
+// http://localhost:8080/GetSCIDsByClass?class=tela
+func GetSCIDsByClass(w http.ResponseWriter, r *http.Request) {
+	head(w)
+	jsonData, _ := json.Marshal(sqlite.GetSCsByClass(QueryParam("class", r.URL.RawQuery)))
+	fmt.Fprint(w, string(jsonData))
+}
+
+// Returns a map of scids attached
+// http://localhost:8080/GetSCIDsByTags?tags=G45-AT&tags=G45-C
+func GetSCIDsByTags(w http.ResponseWriter, r *http.Request) {
+	head(w)
+	query := r.URL.Query()
+	res := sqlite.GetSCsByTags(query["tags"])
+	println(res)
+	jsonData, _ := json.Marshal(res)
 	fmt.Fprint(w, string(jsonData))
 }

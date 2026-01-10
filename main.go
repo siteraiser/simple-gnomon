@@ -187,6 +187,7 @@ func main() {
 	sql.SpamLevel = SpamLevel
 	show.PreferredRequests = &daemon.PreferredRequests
 	show.Status = daemon.Status
+
 	start_gnomon_indexer()
 }
 

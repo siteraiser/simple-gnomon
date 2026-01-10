@@ -80,12 +80,6 @@ func (ss *SqlStore) WriteToDisk() error {
 
 	var scs_count int
 	dest.QueryRow("SELECT count(*) as scs_count FROM scs").Scan(&scs_count)
-	var invokes_count int
-	dest.QueryRow("SELECT count(*) as invokes_count FROM scs").Scan(&invokes_count)
-	var interactions_count int
-	dest.QueryRow("SELECT count(*) as interactions_count FROM interactions").Scan(&interactions_count)
-	var variables_count int
-	dest.QueryRow("SELECT count(*) as variables_count FROM variables").Scan(&variables_count)
 
 	_, err = ss.DB.Exec(fmt.Sprintf("ATTACH DATABASE '%s' AS diskdb", ss.Db_path))
 	if err != nil {
@@ -510,6 +504,52 @@ func (ss *SqlStore) ViewTables() {
 		                        ) tmp
 		                    )
 	*/
+}
+
+func (ss *SqlStore) GetSCsByClass(class string) (results []string) {
+	ready(false)
+	rows, _ := ss.DB.Query("SELECT scid FROM scs WHERE class=?", class)
+	ready(true)
+	var scid string
+	for rows.Next() {
+		rows.Scan(&scid)
+		results = append(results, scid)
+	}
+	return results
+}
+func (ss *SqlStore) GetSCsByTags(tags_list []string) (results []map[string]string) {
+	qinsert := ""
+	for _, tag := range tags_list {
+		qinsert += "," + tag
+	}
+	qinsert = strings.TrimLeft(qinsert, ",")
+	ready(false)
+	rows, err := ss.DB.Query("SELECT scid,owner,scname,class,tags FROM scs WHERE (tags = '"+qinsert+"') OR ('"+qinsert+"' LIKE (tags || ',%')) OR ('"+qinsert+"' LIKE ('%,' || tags || ',%')) OR ('"+qinsert+"' LIKE ('%,' || tags))",
+		qinsert)
+	if err != nil {
+		fmt.Println(err)
+	}
+	ready(true)
+	var (
+		scid   string
+		owner  string
+		scname string
+		class  string
+		tags   string
+	)
+
+	for rows.Next() {
+		rows.Scan(&scid, &owner, &scname, &class, &tags)
+		r := map[string]string{
+			"scid":  scid,
+			"owner": owner,
+			"class": class,
+			"tags":  tags,
+		}
+
+		results = append(results, r)
+	}
+	return results
 }
 
 //-----------------
