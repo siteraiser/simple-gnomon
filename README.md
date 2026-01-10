@@ -16,7 +16,7 @@ Request:
 curl -X GET "http://localhost:8080/GetAllOwnersAndSCIDs" \
 ```
 
-**GetAllSCIDVariableDetails**  Returns a list of all variable details at <br>
+**GetAllSCIDVariableDetails**  Returns a list of all variable details by scid <br>
 Request:
 ```bash
 curl -X GET "http://localhost:8080/GetAllSCIDVariableDetails?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0" \
@@ -34,7 +34,7 @@ curl -X GET "http://localhost:8080/GetAllSCIDVariableDetails?scid=b77b1f5eeff6ed
 ]
 ```
 
-**GetSCIDVariableDetailsAtTopoheight** <br>
+**GetSCIDVariableDetailsAtTopoheight** Returns a list of all variable details by scid and at height<br>
 Request:
 ```bash
 curl -X GET "http://localhost:8080/GetSCIDVariableDetailsAtTopoheight?scid=805ade9294d01a8c9892c73dc7ddba012eaa0d917348f9b317b706131c82a2d5&height=50000" \
@@ -53,14 +53,14 @@ Response:
 ]
 ```
 
-**GetSCIDInteractionHeight** <br>
+**GetSCIDInteractionHeight** Coming soon / subject to change <br>
 Request:
 ```bash
 curl -X GET "http://localhost:8080/GetSCIDInteractionHeight?scid=eae3f9c6f7fc1e24d17e2ce213be1ce5bbea0454f89452b09a495db43b21dcc0" \
 ```
 Response:
 ```json
-[700619] // subject to change...
+[700619] 
 ```
 
 
