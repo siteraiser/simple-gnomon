@@ -2,6 +2,11 @@
 
 An SQLITE implementation of the GNOMON smart contract indexer for DERO.
 
+Cli-flag Example (auto-launches api when set):
+```bash
+--port=8080
+```
+
 Gnomon Api Method Examples:
 
 **GetLastIndexHeight** Returns the last stored index height<br>
@@ -21,6 +26,7 @@ Request:
 ```bash
 curl -X GET "http://localhost:8080/GetAllSCIDVariableDetails?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0" \
 ```
+Response:
 ```json
 [
   {
