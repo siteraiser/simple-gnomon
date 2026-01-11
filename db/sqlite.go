@@ -505,9 +505,18 @@ func (ss *SqlStore) ViewTables() {
 	*/
 }
 
-func (ss *SqlStore) GetSCIDsByClass(class string) (results []string) {
+func (ss *SqlStore) GetSCIDsByClasses(classes_list []string) (results []string) {
+
+	qinsert := ""
+	for _, classes := range classes_list {
+		qinsert += "OR (classes = '" + classes + "') OR ('" + classes + "' LIKE (classes || ',%')) OR ('" + classes + "' LIKE ('%,' || classes || ',%')) OR ('" + classes + "' LIKE ('%,' || classes)) "
+	}
+	qinsert = strings.TrimPrefix(qinsert, "OR ")
 	ready(false)
-	rows, _ := ss.DB.Query("SELECT scid FROM scs WHERE class=?", class)
+	rows, err := ss.DB.Query("SELECT scid FROM scs WHERE "+qinsert, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
 	ready(true)
 	var scid string
 	for rows.Next() {

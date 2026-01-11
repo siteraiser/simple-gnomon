@@ -71,11 +71,14 @@ var CustomActions = map[string]action{}
 /* CUSTOM FILTERS */
 // "tela" is a class and "docVersion" and "telaVersion" are the tags
 // Gnomon will search for the tags and save the class and tags when the SC contains a match
-var Filters = map[string][]string{
-	"g45":   {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
-	"nfa":   {"ART-NFA-MS1"},
-	"swaps": {"StartSwap"},
-	"tela":  {"docVersion", "telaVersion"},
+var Filters = map[string]map[string][]string{
+	"g45": {
+		"tags":    {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
+		"options": {"b", "i"}, //regex filters for word boundry and c.i. matching
+	},
+	"nfa":   {"tags": {"ART-NFA-MS1"}},
+	"swaps": {"tags": {"StartSwap"}},
+	"tela":  {"tags": {"docVersion", "telaVersion"}},
 }
 var regexes = map[string]string{}
 
@@ -83,7 +86,6 @@ var rcount int32
 var rlimit = int32(2000)
 
 func main() {
-
 	var err error
 	var text string
 	fmt.Print("Enter system memory to use in GB(0,2,8,...): ")
@@ -739,30 +741,73 @@ func getOutCounts() (int, string) {
 	}
 	return tot, text
 }
+
+//func reClassify() () {}
+
 func initializeFilters() {
+	println("Active regex filters:")
 	for class, filter := range Filters {
-		for i, tag := range filter {
+		for i, tag := range filter["tags"] {
 			if i == 0 {
 				regexes[class] += tag
 			} else {
 				regexes[class] += "|" + tag
 			}
 		}
-		regexes[class] = `(?)\b(` + regexes[class] + `)\b`
+		b := false
+		i := false
+		for _, option := range filter["options"] {
+			if option == "b" {
+				b = true
+			} else if option == "i" {
+				i = true
+			}
+		}
+		ii := ""
+		rs := ""
+		re := ""
+		if b && i {
+			rs = `\b`
+			re = `\b`
+			ii = "i"
+		} else if b && !i {
+			rs = `\b`
+			re = `\b`
+		} else if !b && i {
+			rs = ``
+			re = ``
+			ii = "i"
+		}
+		regexes[class] = `(?` + ii + `)` + rs + `(` + regexes[class] + `)` + re
+
+		println(regexes[class])
 	}
 }
-func getFiltered(sc_code string) (class string, tags string) {
-	for cl, _ := range Filters {
+
+func isOfClass(tags []string, matches []string) bool {
+	for _, tag := range tags {
+		for _, match := range matches {
+			if strings.Contains(strings.ToLower(tag), strings.ToLower(match)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func getFiltered(sc_code string) (classes string, tags string) {
+	for cl, filter := range Filters {
 		matches := findMatches(sc_code, cl)
 		if len(matches) != 0 {
-			class = cl
+			if isOfClass(filter["tags"], matches) && !strings.Contains(classes, cl) { //not perfect but could be fixed with arrays...
+				classes = classes + "," + cl
+			}
 		}
 		for _, match := range matches {
 			tags = tags + "," + match
 		}
-		if tags != "" && tags[0:1] == "," {
-			tags = tags[1:]
-		}
+		classes = strings.TrimPrefix(classes, ",")
+		tags = strings.TrimPrefix(tags, ",")
 	}
 	return
 }

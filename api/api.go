@@ -130,10 +130,10 @@ func GetSCIDKeysByValue(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, string(jsonData))
 }
 
-// http://localhost:8080/GetSCIDsByClass?class=tela
+// http://localhost:8080/GetSCIDsByClasses?classes=tela
 func GetSCIDsByClass(w http.ResponseWriter, r *http.Request) {
 	head(w)
-	jsonData, _ := json.Marshal(sqlite.GetSCIDsByClass(QueryParam("class", r.URL.RawQuery)))
+	jsonData, _ := json.Marshal(sqlite.GetSCIDsByClasses(r.URL.Query()["classes"]))
 	fmt.Fprint(w, string(jsonData))
 }
 
@@ -141,9 +141,7 @@ func GetSCIDsByClass(w http.ResponseWriter, r *http.Request) {
 // http://localhost:8080/GetSCIDsByTags?tags=G45-AT&tags=G45-C
 func GetSCIDsByTags(w http.ResponseWriter, r *http.Request) {
 	head(w)
-	query := r.URL.Query()
-	res := sqlite.GetSCIDsByTags(query["tags"])
-	jsonData, _ := json.Marshal(res)
+	jsonData, _ := json.Marshal(sqlite.GetSCIDsByTags(r.URL.Query()["tags"]))
 	fmt.Fprint(w, string(jsonData))
 }
 
