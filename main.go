@@ -66,6 +66,9 @@ type action struct {
 
 var CustomActions = map[string]action{}
 
+/* CUSTOM FILTERS */
+// tela is a class and "docVersion" and "telaVersion" are the tags
+// Gnomon will search for the tags and save the class and tags when the SC contains a match
 var Filters = map[string][]string{
 	"g45":   {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
 	"nfa":   {"ART-NFA-MS1"},
