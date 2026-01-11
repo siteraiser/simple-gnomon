@@ -795,18 +795,18 @@ func isOfClass(tags []string, matches []string) bool {
 	return false
 }
 
-func getFiltered(sc_code string) (classes string, tags string) {
+func getFiltered(sc_code string) (class string, tags string) {
 	for cl, filter := range Filters {
 		matches := findMatches(sc_code, cl)
 		if len(matches) != 0 {
-			if isOfClass(filter["tags"], matches) && !strings.Contains(classes, cl) { //not perfect but could be fixed with arrays...
-				classes = classes + "," + cl
+			if isOfClass(filter["tags"], matches) && !strings.Contains(class, cl) { //not perfect but could be fixed with arrays...
+				class = class + "," + cl
 			}
 		}
 		for _, match := range matches {
 			tags = tags + "," + match
 		}
-		classes = strings.TrimPrefix(classes, ",")
+		class = strings.TrimPrefix(class, ",")
 		tags = strings.TrimPrefix(tags, ",")
 	}
 	return

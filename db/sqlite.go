@@ -505,11 +505,11 @@ func (ss *SqlStore) ViewTables() {
 	*/
 }
 
-func (ss *SqlStore) GetSCIDsByClasses(classes_list []string) (results []string) {
+func (ss *SqlStore) GetSCIDsByClass(class_list []string) (results []string) {
 
 	qinsert := ""
-	for _, classes := range classes_list {
-		qinsert += "OR (classes = '" + classes + "') OR ('" + classes + "' LIKE (classes || ',%')) OR ('" + classes + "' LIKE ('%,' || classes || ',%')) OR ('" + classes + "' LIKE ('%,' || classes)) "
+	for _, class := range class_list {
+		qinsert += "OR (class = '" + class + "') OR ('" + class + "' LIKE (class || ',%')) OR ('" + class + "' LIKE ('%,' || class || ',%')) OR ('" + class + "' LIKE ('%,' || class)) "
 	}
 	qinsert = strings.TrimPrefix(qinsert, "OR ")
 	ready(false)

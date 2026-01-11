@@ -130,10 +130,10 @@ func GetSCIDKeysByValue(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, string(jsonData))
 }
 
-// http://localhost:8080/GetSCIDsByClasses?classes=tela
+// http://localhost:8080/GetSCIDsByClass?class=tela
 func GetSCIDsByClass(w http.ResponseWriter, r *http.Request) {
 	head(w)
-	jsonData, _ := json.Marshal(sqlite.GetSCIDsByClasses(r.URL.Query()["classes"]))
+	jsonData, _ := json.Marshal(sqlite.GetSCIDsByClass(r.URL.Query()["class"]))
 	fmt.Fprint(w, string(jsonData))
 }
 
