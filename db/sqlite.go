@@ -505,7 +505,7 @@ func (ss *SqlStore) ViewTables() {
 	*/
 }
 
-func (ss *SqlStore) GetSCsByClass(class string) (results []string) {
+func (ss *SqlStore) GetSCIDsByClass(class string) (results []string) {
 	ready(false)
 	rows, _ := ss.DB.Query("SELECT scid FROM scs WHERE class=?", class)
 	ready(true)
@@ -516,34 +516,64 @@ func (ss *SqlStore) GetSCsByClass(class string) (results []string) {
 	}
 	return results
 }
-func (ss *SqlStore) GetSCsByTags(tags_list []string) (results []map[string]string) {
+
+func (ss *SqlStore) GetSCIDsByTags(tags_list []string) (results []string) {
 	qinsert := ""
 	for _, tag := range tags_list {
 		qinsert += "OR (tags = '" + tag + "') OR ('" + tag + "' LIKE (tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags)) "
 	}
 	qinsert = strings.TrimPrefix(qinsert, "OR ")
 	ready(false)
-	rows, err := ss.DB.Query("SELECT scid,owner,scname,class,tags FROM scs WHERE "+qinsert, nil)
+	rows, err := ss.DB.Query("SELECT scid FROM scs WHERE "+qinsert, nil)
 	if err != nil {
 		fmt.Println(err)
 	}
 	ready(true)
 	var (
-		scid   string
-		owner  string
-		scname string
-		class  string
-		tags   string
+		scid string
+	)
+	for rows.Next() {
+		rows.Scan(&scid)
+		r := scid
+		results = append(results, r)
+	}
+	return results
+}
+
+func (ss *SqlStore) GetSCsByTags(tags_list []string) (results []map[string]any) {
+	qinsert := ""
+	for _, tag := range tags_list {
+		qinsert += "OR (tags = '" + tag + "') OR ('" + tag + "' LIKE (tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags)) "
+	}
+	qinsert = strings.TrimPrefix(qinsert, "OR ")
+	ready(false)
+	rows, err := ss.DB.Query("SELECT scid,owner,height,scname,scdescr,scimgurl,class,tags FROM scs WHERE "+qinsert, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+	ready(true)
+	var (
+		scid     string
+		owner    string
+		height   int
+		scname   string
+		scdescr  string
+		scimgurl string
+		class    string
+		tags     string
 	)
 
 	for rows.Next() {
-		rows.Scan(&scid, &owner, &scname, &class, &tags)
-		r := map[string]string{
-			"scid":   scid,
-			"owner":  owner,
-			"scname": scname,
-			"class":  class,
-			"tags":   tags,
+		rows.Scan(&scid, &owner, &height, &scname, &scdescr, &scimgurl, &class, &tags)
+		r := map[string]any{
+			"scid":     scid,
+			"owner":    owner,
+			"height":   height,
+			"scname":   scname,
+			"scdescr":  scdescr,
+			"scimgurl": scimgurl,
+			"class":    class,
+			"tags":     tags,
 		}
 		results = append(results, r)
 	}

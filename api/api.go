@@ -36,7 +36,7 @@ func Start(port string) {
 	http.HandleFunc("/GetSCIDKeysByValue", GetSCIDKeysByValue)
 	http.HandleFunc("/GetSCIDsByClass", GetSCIDsByClass)
 	http.HandleFunc("/GetSCIDsByTags", GetSCIDsByTags)
-
+	http.HandleFunc("/GetSCsByTags", GetSCsByTags)
 	http.ListenAndServe("localhost:"+port, nil)
 }
 func head(w http.ResponseWriter) {
@@ -133,13 +133,23 @@ func GetSCIDKeysByValue(w http.ResponseWriter, r *http.Request) {
 // http://localhost:8080/GetSCIDsByClass?class=tela
 func GetSCIDsByClass(w http.ResponseWriter, r *http.Request) {
 	head(w)
-	jsonData, _ := json.Marshal(sqlite.GetSCsByClass(QueryParam("class", r.URL.RawQuery)))
+	jsonData, _ := json.Marshal(sqlite.GetSCIDsByClass(QueryParam("class", r.URL.RawQuery)))
 	fmt.Fprint(w, string(jsonData))
 }
 
 // Returns a map of scids attached
 // http://localhost:8080/GetSCIDsByTags?tags=G45-AT&tags=G45-C
 func GetSCIDsByTags(w http.ResponseWriter, r *http.Request) {
+	head(w)
+	query := r.URL.Query()
+	res := sqlite.GetSCIDsByTags(query["tags"])
+	jsonData, _ := json.Marshal(res)
+	fmt.Fprint(w, string(jsonData))
+}
+
+// Returns a map of scids attached
+// http://localhost:8080/GetSCsByTags?tags=G45-AT&tags=G45-C
+func GetSCsByTags(w http.ResponseWriter, r *http.Request) {
 	head(w)
 	query := r.URL.Query()
 	res := sqlite.GetSCsByTags(query["tags"])
