@@ -4,9 +4,11 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -67,7 +69,7 @@ type action struct {
 var CustomActions = map[string]action{}
 
 /* CUSTOM FILTERS */
-// tela is a class and "docVersion" and "telaVersion" are the tags
+// "tela" is a class and "docVersion" and "telaVersion" are the tags
 // Gnomon will search for the tags and save the class and tags when the SC contains a match
 var Filters = map[string][]string{
 	"g45":   {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
@@ -75,11 +77,13 @@ var Filters = map[string][]string{
 	"swaps": {"StartSwap"},
 	"tela":  {"docVersion", "telaVersion"},
 }
+var regexes = map[string]string{}
 
 var rcount int32
 var rlimit = int32(2000)
 
 func main() {
+
 	var err error
 	var text string
 	fmt.Print("Enter system memory to use in GB(0,2,8,...): ")
@@ -190,7 +194,7 @@ func main() {
 	sql.SpamLevel = SpamLevel
 	show.PreferredRequests = &daemon.PreferredRequests
 	show.Status = daemon.Status
-
+	initializeFilters()
 	start_gnomon_indexer()
 }
 
@@ -563,18 +567,7 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 	if params.SCID != Hardcoded_SCIDS[0] { //only need the name for these
 		scdesc = daemon.GetSCDescriptionFromVars(kv)
 		scimgurl = daemon.GetSCIDImageURLFromVars(kv)
-		for key, name := range Filters {
-			for _, filter := range name {
-				if !strings.Contains(sc.Code, filter) { //fmt.Sprintf("%.1000s",)
-					continue
-				}
-				class = key
-				tags = tags + "," + filter
-			}
-			if tags != "" && tags[0:1] == "," {
-				tags = tags[1:]
-			}
-		}
+		class, tags = getFiltered(sc.Code)
 	}
 	entrypoint := ""
 	if tx.SCDATA.HasValue("entrypoint", rpc.DataString) {
@@ -734,7 +727,6 @@ func getOutCounts() (int, string) {
 	}
 	for i, out := range daemon.HeightOuts {
 		insert := ""
-
 		total := int(daemon.HeightOuts[i]) + int(daemon.TxOuts[i]) + int(daemon.SCOuts[i])
 		if total < 10 {
 			insert = spacer
@@ -746,6 +738,52 @@ func getOutCounts() (int, string) {
 		text = text[1:]
 	}
 	return tot, text
+}
+func initializeFilters() {
+	for class, filter := range Filters {
+		for i, tag := range filter {
+			if i == 0 {
+				regexes[class] += tag
+			} else {
+				regexes[class] += "|" + tag
+			}
+		}
+		regexes[class] = `(?)\b(` + regexes[class] + `)\b`
+	}
+}
+func getFiltered(sc_code string) (class string, tags string) {
+	for cl, _ := range Filters {
+		matches := findMatches(sc_code, cl)
+		if len(matches) != 0 {
+			class = cl
+		}
+		for _, match := range matches {
+			tags = tags + "," + match
+		}
+		if tags != "" && tags[0:1] == "," {
+			tags = tags[1:]
+		}
+	}
+	return
+}
+func findMatches(text string, class string) (matches []string) {
+	re, err := regexp.Compile(regexes[class])
+	if err != nil {
+		log.Fatalf("Invalid regex: %v", err)
+	}
+	matches = uniqueSlice(re.FindAllString(text, -1))
+	return
+}
+func uniqueSlice(slice []string) []string {
+	uniqueMap := make(map[string]bool)
+	result := []string{}
+	for _, v := range slice {
+		if !uniqueMap[v] {
+			uniqueMap[v] = true
+			result = append(result, v)
+		}
+	}
+	return result
 }
 
 /********************************/
