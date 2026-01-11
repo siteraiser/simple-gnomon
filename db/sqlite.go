@@ -941,7 +941,7 @@ func getTyped(entity interface{}, variables []*structs.SCIDVariable, gettype str
 			var use any
 			if gettype == "keys" {
 				find = v.Key
-				use = v.Key
+				use = v.Value
 			} else {
 				find = v.Value
 				use = v.Key
@@ -981,7 +981,7 @@ func getTyped(entity interface{}, variables []*structs.SCIDVariable, gettype str
 			var use any
 			if gettype == "keys" {
 				find = v.Key
-				use = v.Key
+				use = v.Value
 			} else {
 				find = v.Value
 				use = v.Key
