@@ -60,7 +60,7 @@ func getConfig(update bool) Configuration {
 	// Ram settings
 	val, err := sql.LoadSetting(sqlite.DB, "RamSizeMB")
 	if val == "" || update {
-		print("Enter system memory to use in GB(0,2,8,...): ")
+		print("Enter system memory to use in GB(0,2,8,...):")
 		_, err = fmt.Scanln(&text)
 		config.RamSizeMB, _ = strconv.Atoi(text)
 		config.RamSizeMB *= int(1024)
@@ -77,7 +77,7 @@ func getConfig(update bool) Configuration {
 	// Smoothing settings
 	val, err = sql.LoadSetting(sqlite.DB, "Smoothing")
 	if val == "" || update {
-		print("Use smoothing? 0-1000")
+		print("Use smoothing? 0-1000:")
 		_, err = fmt.Scanln(&text)
 		if err != nil {
 			println("Error:", err)
@@ -85,7 +85,7 @@ func getConfig(update bool) Configuration {
 		}
 		sql.SaveSetting(sqlite.DB, "Smoothing", text)
 	} else {
-		println("Using Saved Smoothing Period: ", val)
+		println("Using Saved Smoothing Period:", val)
 		config.Smoothing, _ = strconv.Atoi(val)
 	}
 
@@ -93,7 +93,7 @@ func getConfig(update bool) Configuration {
 	val, err = sql.LoadSetting(sqlite.DB, "SpamLevel")
 	if val == "" || update {
 		println("SC spam threshold 0-50 recommended")
-		print("Enter number of name registrations allowed per wallet: ")
+		print("Enter number of name registrations allowed per wallet:")
 		_, err = fmt.Scanln(&text)
 		if err != nil {
 			println("Error:", err)
@@ -108,7 +108,7 @@ func getConfig(update bool) Configuration {
 	// Endpoint/daemon connections
 	val, err = sql.LoadSetting(sqlite.DB, "Endpoints")
 	if val == "" || update {
-		fmt.Println("Enter custom connection or enter n to use the default remote connections eg. node.derofoundation.org:10102")
+		fmt.Println("Enter custom connection or enter n to use the default remote connections eg. node.derofoundation.org:10102 ")
 		_, err = fmt.Scanln(&text)
 		if text != "n" {
 			daemon.Endpoints = []daemon.Connection{
@@ -174,7 +174,7 @@ func getConfig(update bool) Configuration {
 		go api.Start(port)
 	} else {
 		//ask
-		fmt.Println("Enter a port number for the api or n to skip")
+		fmt.Println("Enter a port number for the api or n to skip:")
 		_, err = fmt.Scanln(&text)
 		if _, err := strconv.Atoi(text); err == nil && text != "n" {
 			go api.Start(text)
@@ -182,7 +182,7 @@ func getConfig(update bool) Configuration {
 		}
 	}
 
-	fmt.Println("Choose display mode, 0, 1 or 2")
+	fmt.Println("Choose display mode, 0, 1 or 2:")
 	_, err = fmt.Scanln(&text)
 	show.DisplayMode, _ = strconv.Atoi(text)
 
@@ -200,23 +200,20 @@ func editFilters(filters map[string]map[string][]string) map[string]map[string][
 	fmt.Print(`Type the name of the class of filter to edit or "add" or "delete classname" or "done" to return:`)
 	text, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Println("Error reading input:", err)
+		println("Error reading input:", err)
 	}
 	text = strings.TrimSpace(text)
 
 	if text == "done" {
 		return filters
 	} else if len(text) > 3 && strings.Contains(text[:3], "add") {
-		f := map[string][]string{
-			"tags":    {},
-			"options": {},
-		}
+		f := map[string][]string{}
 		filters[text[4:]] = f
 		return editFilters(filters)
 	} else if len(text) > 6 && strings.Contains(text[:6], "delete") {
 		if _, exists := filters[text[7:]]; exists {
 			delete(filters, text[7:])
-			fmt.Printf("Key '%s' deleted successfully.\n", text[7:])
+			fmt.Printf("'%s' deleted.\n", text[7:])
 		}
 		return editFilters(filters)
 	}
@@ -225,7 +222,7 @@ func editFilters(filters map[string]map[string][]string) map[string]map[string][
 }
 func editFilter(filter map[string][]string) map[string][]string {
 	var text string
-	fmt.Println("Enter 1 to edit filter or 2 for options.")
+	println("Enter 1 to edit filter or 2 for options:")
 	_, _ = fmt.Scanln(&text)
 	if text == "1" {
 		filter = changeTags(filter)
@@ -237,7 +234,7 @@ func editFilter(filter map[string][]string) map[string][]string {
 func changeTags(filter map[string][]string) map[string][]string {
 	fmt.Println("Current tags:", filter["tags"])
 	var text string
-	fmt.Println("Enter new csv list of tags")
+	println("Enter new csv list of tags:")
 	_, _ = fmt.Scanln(&text)
 	filter["tags"] = strings.Split(text, ",")
 	return filter
@@ -245,8 +242,11 @@ func changeTags(filter map[string][]string) map[string][]string {
 func changeOption(option map[string][]string) map[string][]string {
 	fmt.Println("Current options:", option["options"])
 	var text string
-	fmt.Println(`Enter new csv list of options "b,i", "b" or "i"...`)
+	println(`Enter new csv list of options "b,i", "b" or "i":`)
 	_, _ = fmt.Scanln(&text)
 	option["options"] = strings.Split(text, ",")
+	if len(option["options"]) == 0 {
+		delete(option, "options")
+	}
 	return option
 }
