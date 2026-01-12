@@ -76,9 +76,9 @@ var Filters = map[string]map[string][]string{
 		"tags":    {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
 		"options": {"b", "i"}, //regex filters for word boundry and c.i. matching
 	},
-	"nfa":   {"tags": {"ART-NFA-MS1"}},
-	"swaps": {"tags": {"StartSwap"}},
-	"tela":  {"tags": {"docVersion", "telaVersion"}},
+	"nfa":          {"tags": {"ART-NFA-MS1"}},
+	"swaps":        {"tags": {"StartSwap"}},
+	"telachubbies": {"tags": {"docVersion", "telaVersion"}},
 }
 var regexes = map[string]string{}
 
@@ -131,7 +131,15 @@ func main() {
 		_, err = fmt.Scanln(&text)
 		if _, err := strconv.Atoi(text); err == nil && text != "n" {
 			go api.Start(text)
+			time.Sleep(200 * time.Millisecond)
 		}
+	}
+
+	reclassify := false
+	fmt.Println("Reclassify using a new search filter (may take a few minutes in memory)? y or n")
+	_, err = fmt.Scanln(&text)
+	if text == "yes" {
+		reclassify = true
 	}
 
 	fmt.Println("Start Gnomon indexer? y or n")
@@ -197,6 +205,9 @@ func main() {
 	show.PreferredRequests = &daemon.PreferredRequests
 	show.Status = daemon.Status
 	initializeFilters()
+	if reclassify {
+		reClassify()
+	}
 	start_gnomon_indexer()
 }
 
@@ -742,7 +753,23 @@ func getOutCounts() (int, string) {
 	return tot, text
 }
 
-//func reClassify() () {}
+func reClassify() {
+	scids := sqlite.GetSCIDS()
+	total := len(scids)
+	progress := 0
+	println("Reclassifying: ", total, " Smart Contracts")
+	for _, scid := range scids {
+		sc_code, _ := sqlite.GetSCCodeBySCID(scid)
+		class, tags := getFiltered(sc_code)
+		sqlite.UpdateSCMeta(scid, class, tags)
+		progress++
+		print("\rProgress: ", fmt.Sprintf("%.2f", 1.0/(float64(total)/float64(progress))*100.0), "%")
+	}
+	if UseMem {
+		println("\nSaving...")
+		sqlite.BackupToDisk()
+	}
+}
 
 func initializeFilters() {
 	println("Active regex filters:")

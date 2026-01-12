@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"path/filepath"
 	"strconv"
-	"time"
 
 	"github.com/deroproject/derohe/globals"
 	sql "github.com/secretnamebasis/simple-gnomon/db"
@@ -19,7 +18,6 @@ var sqlite = &sql.SqlStore{}
 func Start(port string) {
 
 	go func() {
-		time.Sleep(200 * time.Millisecond)
 		log.Println("Server listening on port " + port)
 	}()
 	db_name := fmt.Sprintf("sql%s.db", "GNOMON")

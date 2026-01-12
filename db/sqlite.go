@@ -589,6 +589,74 @@ func (ss *SqlStore) GetSCsByTags(tags_list []string) (results []map[string]any) 
 	return results
 }
 
+// Gets SC variables at a given topoheight
+func (ss *SqlStore) UpdateSCMeta(scid, class, tags string) {
+	ready(false) //not really need right now
+	result, err := ss.DB.Exec(
+		`UPDATE scs
+		SET class = ?, tags = ?
+		WHERE scid = ?;
+		`, class, tags, scid)
+	if err == nil {
+		affected_rows, _ := result.RowsAffected()
+		if affected_rows != 0 {
+			ready(true)
+			return
+		}
+	} else {
+		fmt.Println("Error updating metadata")
+	}
+	ready(true)
+	return
+}
+
+// Gets SCs
+func (ss *SqlStore) GetSCIDS() (results []string) {
+
+	ready(false)
+	rows, _ := ss.DB.Query(
+		`SELECT height,scid
+		FROM scs
+		GROUP BY height
+		ORDER BY height ASC;`)
+	ready(true)
+	var (
+		height int
+		scid   string
+	)
+	for rows.Next() {
+		rows.Scan(&height, &scid)
+		results = append(results, scid)
+	}
+	return
+}
+
+// Stores bbolt's last indexed height - this is for stateful stores on close and reference on open
+func (ss *SqlStore) GetSCCodeBySCID(scid string) (sc_code string, err error) {
+	var height int
+	var vars string
+	ready(false)
+	err = ss.DB.QueryRow("SELECT height,vars FROM variables WHERE txid = ? ", scid).Scan(&height, &vars)
+	ready(true)
+	var heights []int64
+	results := make(map[int64][]*structs.SCIDVariable)
+	var variables []*structs.SCIDVariable
+	_ = json.Unmarshal([]byte(vars), &variables)
+	topoheight, _ := strconv.ParseInt(string(height), 10, 64)
+	results[topoheight] = variables
+	heights = append(heights, topoheight)
+
+	if results != nil {
+		variables = getTypedVariables(heights, results)
+	}
+	for _, v := range variables {
+		if v.Key == "C" {
+			sc_code = v.Value.(string)
+		}
+	}
+	return
+}
+
 //-----------------
 
 // Stores bbolt's last indexed height - this is for stateful stores on close and reference on open
