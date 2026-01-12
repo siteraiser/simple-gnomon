@@ -631,8 +631,8 @@ func (ss *SqlStore) GetSCIDS() (results []string) {
 	return
 }
 
-// Stores bbolt's last indexed height - this is for stateful stores on close and reference on open
-func (ss *SqlStore) GetSCCodeBySCID(scid string) (sc_code string, err error) {
+// Get sc code from the install tx
+func (ss *SqlStore) GetInitialSCIDCode(scid string) (sc_code string, err error) {
 	var height int
 	var vars string
 	ready(false)

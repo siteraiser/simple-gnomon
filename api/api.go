@@ -70,6 +70,15 @@ func GetAllOwnersAndSCIDs(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, string(jsonData))
 }
 
+// Get the original installed SC Code
+// http://localhost:8080/GetInitialSCIDCode?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0
+func GetInitialSCIDCode(w http.ResponseWriter, r *http.Request) {
+	head(w)
+	res, _ := sqlite.GetInitialSCIDCode(QueryParam("scid", r.URL.RawQuery))
+	jsonData, _ := json.Marshal(res)
+	fmt.Fprint(w, string(jsonData))
+}
+
 // http://localhost:8080/GetAllSCIDVariableDetails?scid=b77b1f5eeff6ed39c8b979c2aeb1c800081fc2ae8f570ad254bedf47bfa977f0
 func GetAllSCIDVariableDetails(w http.ResponseWriter, r *http.Request) {
 	head(w)

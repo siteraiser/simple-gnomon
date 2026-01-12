@@ -136,7 +136,7 @@ func main() {
 	}
 
 	reclassify := false
-	fmt.Println("Reclassify using a new search filter (may take a few minutes in memory)? y or n")
+	fmt.Println("Reclassify using a new search filter (in-mem takes a few minutes and opens, processes then saves the entire db)? yes or n")
 	_, err = fmt.Scanln(&text)
 	if text == "yes" {
 		reclassify = true
@@ -759,7 +759,7 @@ func reClassify() {
 	progress := 0
 	println("Reclassifying: ", total, " Smart Contracts")
 	for _, scid := range scids {
-		sc_code, _ := sqlite.GetSCCodeBySCID(scid)
+		sc_code, _ := sqlite.GetInitialSCIDCode(scid)
 		class, tags := getFiltered(sc_code)
 		sqlite.UpdateSCMeta(scid, class, tags)
 		progress++
