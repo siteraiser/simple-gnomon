@@ -225,8 +225,8 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 			"CREATE TABLE IF NOT EXISTS main.interactions (" +
 			"height INTEGER, " +
 			"txid TEXT UNIQUE, " +
-			"sc_id TEXT);" +
-			"INSERT INTO interactions (height,txid,sc_id) SELECT * FROM diskdb.interactions;")
+			"scid TEXT);" +
+			"INSERT INTO interactions (height,txid,scid) SELECT * FROM diskdb.interactions;")
 	if err != nil {
 		log.Printf("No existing table to copy: %v", err)
 	}
