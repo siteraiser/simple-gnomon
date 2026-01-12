@@ -76,9 +76,9 @@ var Filters = map[string]map[string][]string{
 		"tags":    {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
 		"options": {"b", "i"}, //regex filters for word boundry and c.i. matching
 	},
-	"nfa":          {"tags": {"ART-NFA-MS1"}},
-	"swaps":        {"tags": {"StartSwap"}},
-	"telachubbies": {"tags": {"docVersion", "telaVersion"}},
+	"nfa":   {"tags": {"ART-NFA-MS1"}},
+	"swaps": {"tags": {"StartSwap"}},
+	"tela":  {"tags": {"docVersion", "telaVersion"}},
 }
 var regexes = map[string]string{}
 
