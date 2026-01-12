@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"log"
 	"math"
@@ -20,7 +19,6 @@ import (
 	"github.com/deroproject/derohe/globals"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/transaction"
-	"github.com/secretnamebasis/simple-gnomon/api"
 	"github.com/secretnamebasis/simple-gnomon/daemon"
 	sql "github.com/secretnamebasis/simple-gnomon/db"
 	"github.com/secretnamebasis/simple-gnomon/show"
@@ -33,7 +31,7 @@ var blockBatchSize int64
 var blockBatchSizeMem = int64(10000)
 var blockBatchSizeDisk = int64(5000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                    // Use in-memory db
-//var SpamLevel = 50
+var SpamLevel = "0"
 
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
@@ -71,78 +69,34 @@ var CustomActions = map[string]action{}
 /* CUSTOM FILTERS */
 // "tela" is a class and "docVersion" and "telaVersion" are the tags
 // Gnomon will search for the tags and save the class and tags when the SC contains a match
-var Filters = map[string]map[string][]string{
-	"g45": {
-		"tags":    {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
-		"options": {"b", "i"}, //regex filters for word boundry and c.i. matching
-	},
-	"nfa":   {"tags": {"ART-NFA-MS1"}},
-	"swaps": {"tags": {"StartSwap"}},
-	"tela":  {"tags": {"docVersion", "telaVersion"}},
-}
+
 var regexes = map[string]string{}
 
 var rcount int32
 var rlimit = int32(2000)
+var Config = Configuration{}
 
 func main() {
 	var err error
 	var text string
-	fmt.Print("Enter system memory to use in GB(0,2,8,...): ")
+	initDB()
+	fmt.Println("Configure Gnomon? y or n")
 	_, err = fmt.Scanln(&text)
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-	RamSizeMB, _ = strconv.Atoi(text)
-	RamSizeMB *= int(1000)
-
-	fmt.Println("SC spam threshold 0-50 recommended")
-	fmt.Print("Enter number of name registrations allowed per wallet: ")
-	_, err = fmt.Scanln(&text)
-	SpamLevel := text
-
-	fmt.Println("Use smoothing? 0-1000")
-	_, err = fmt.Scanln(&text)
-	daemon.Smoothing, _ = strconv.Atoi(text)
-	fmt.Println("Smoothing period: ", daemon.Smoothing)
-
-	fmt.Println("Choose display mode, 0, 1 or 2")
-	_, err = fmt.Scanln(&text)
-	show.DisplayMode, _ = strconv.Atoi(text)
-
-	fmt.Println("Enter custom connection or enter n to use the default remote connections eg. node.derofoundation.org:10102")
-	_, err = fmt.Scanln(&text)
-	if text != "n" {
-		daemon.Endpoints = []daemon.Connection{
-			{Address: text},
-		}
-	}
-
-	//if the port is set then launch the server
-	portFlag := flag.Int("port", 0000, "string")
-	flag.Parse()
-	port := strconv.Itoa(*portFlag)
-	if port != "0" {
-		go api.Start(port)
+	if text == "y" {
+		Config = getConfig(true)
 	} else {
-		//ask
-		fmt.Println("Enter a port number for the api or n to skip")
-		_, err = fmt.Scanln(&text)
-		if _, err := strconv.Atoi(text); err == nil && text != "n" {
-			go api.Start(text)
-			time.Sleep(200 * time.Millisecond)
-		}
+		Config = getConfig(false)
 	}
+	SpamLevel = Config.SpamLevel
 
 	reclassify := false
-	fmt.Println("Reclassify using a new search filter (in-mem takes a few minutes and opens, processes then saves the entire db)? yes or n")
+	println("Reclassify using a new search filter (in-mem takes a few minutes and opens, processes then saves the entire db)? yes or n")
 	_, err = fmt.Scanln(&text)
 	if text == "yes" {
 		reclassify = true
 	}
 
-	fmt.Println("Start Gnomon indexer? y or n")
+	println("Start Gnomon indexer? y or n")
 	_, err = fmt.Scanln(&text)
 	if text == "n" {
 		panic("Exited")
@@ -155,48 +109,43 @@ func main() {
 	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "discard"}
 	CustomActions["bb43c3eb626ee767c9f305772a6666f7c7300441a0ad8538a0799eb4f12ebcd2"] = action{Type: "SC", Act: "discard"}
 
-	fmt.Println("Waking the GNOMON ...")
+	println("Waking the GNOMON ...")
 
 	HighestKnownHeight = daemon.GetTopoHeight()
 	if HighestKnownHeight < 1 {
-		fmt.Println("Error getting height ....", HighestKnownHeight)
+		println("Error getting height ....", HighestKnownHeight)
 	}
 
 	db_name := fmt.Sprintf("sql%s.db", "GNOMON")
 	wd := globals.GetDataDirectory()
-
 	db_path := filepath.Join(wd, "gnomondb")
+
 	if UseMem {
 		filesize := int(fileSizeMB(filepath.Join(db_path, db_name)))
 		filetoobig := RamSizeMB <= filesize
 		if !filetoobig {
-			fmt.Println("Loading db into memory")
+			println("Loading db into memory")
 			batchSize = memBatchSize
 			blockBatchSize = blockBatchSizeMem
 			daemon.PreferredRequests = memPreferredRequests
-			//Create the tables now...
-			sqlite, err = sql.NewDiskDB(db_path, db_name)
-			sql.CreateTables(sqlite.DB)
-			sqlite.DB.Close()
 			sqlite, err = sql.NewSqlDB(db_path, db_name)
 		}
 
 		if filetoobig {
-			fmt.Println("Switching to disk mode ....")
+			println("Switching to disk mode ....")
 			UseMem = false
 		}
 	}
 	if !UseMem { //|| memModeSelect(false)
-		fmt.Println("Loading db ....")
+		println("Loading db ....")
 		batchSize = diskBatchSize
 		blockBatchSize = blockBatchSizeDisk
 		daemon.PreferredRequests = diskPreferredRequests
 		sqlite, err = sql.NewDiskDB(db_path, db_name)
-		sql.CreateTables(sqlite.DB)
 	}
 
 	if err != nil {
-		fmt.Println("[Main] Err creating sqlite:", err)
+		println("[Main] Err creating sqlite:", err)
 		return
 	}
 

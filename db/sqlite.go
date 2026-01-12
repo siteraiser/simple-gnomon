@@ -245,7 +245,7 @@ func CreateTables(Db *sql.DB) {
 		"value  INTEGER)"
 
 	startup[1] = "CREATE TABLE IF NOT EXISTS settings (" +
-		"name  TEXT, " +
+		"name  TEXT PRIMARY KEY, " +
 		"value  TEXT)"
 
 	startup[2] = "CREATE TABLE IF NOT EXISTS scs (" +
@@ -312,6 +312,18 @@ func CreateTables(Db *sql.DB) {
 
 }
 
+// admin stuff...
+func SaveSetting(Db *sql.DB, name, value string) {
+	statement, err := Db.Prepare("REPLACE INTO settings (name,value) VALUES(?,?);")
+	handleError(err)
+	statement.Exec(name, value)
+}
+
+func LoadSetting(Db *sql.DB, name string) (value string, err error) {
+	Db.QueryRow("SELECT value FROM settings WHERE name = ?;", name).Scan(&value)
+	return
+}
+
 // executeQuery prepares and executes a SQL query.
 func executeQuery(Db *sql.DB, query string) {
 	statement, err := Db.Prepare(query)
@@ -355,7 +367,7 @@ func (ss *SqlStore) TrimHeight(height int64) int64 {
 }
 
 var Spammers []string
-var SpamLevel = "0"
+var SpamLevel string
 
 func (ss *SqlStore) RidSpam() {
 
@@ -371,6 +383,7 @@ func (ss *SqlStore) RidSpam() {
 	)`, nil)
 	if err != nil {
 		fmt.Println(err)
+		fmt.Println(SpamLevel)
 	}
 	// Just filter for the latest spammers
 	Spammers := Spammers[0:0]
