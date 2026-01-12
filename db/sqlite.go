@@ -202,6 +202,7 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 	_, err = SqlBackend.DB.Exec(
 
 		"CREATE TABLE IF NOT EXISTS main.state AS SELECT * FROM diskdb.state;" +
+			"CREATE TABLE IF NOT EXISTS main.settings AS SELECT * FROM diskdb.settings;" +
 			"CREATE TABLE IF NOT EXISTS main.scs (" +
 			"scs_id INTEGER PRIMARY KEY, " +
 			"scid TEXT UNIQUE NOT NULL, " +
@@ -238,12 +239,16 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 
 func CreateTables(Db *sql.DB) {
 
-	var startup = [5]string{}
+	var startup = [6]string{}
 	startup[0] = "CREATE TABLE IF NOT EXISTS state (" +
 		"name  TEXT, " +
 		"value  INTEGER)"
 
-	startup[1] = "CREATE TABLE IF NOT EXISTS scs (" +
+	startup[1] = "CREATE TABLE IF NOT EXISTS settings (" +
+		"name  TEXT, " +
+		"value  TEXT)"
+
+	startup[2] = "CREATE TABLE IF NOT EXISTS scs (" +
 		"scs_id INTEGER PRIMARY KEY, " +
 		"scid TEXT UNIQUE NOT NULL, " +
 		"owner TEXT NOT NULL, " +
@@ -254,7 +259,7 @@ func CreateTables(Db *sql.DB) {
 		"class TEXT, " +
 		"tags TEXT) "
 
-	startup[2] = "CREATE TABLE IF NOT EXISTS variables (" +
+	startup[3] = "CREATE TABLE IF NOT EXISTS variables (" +
 		"v_id INTEGER PRIMARY KEY, " +
 		"height INTEGER, " +
 		"txid TEXT, " +
@@ -262,7 +267,7 @@ func CreateTables(Db *sql.DB) {
 		//key := signer + ":" + invokedetails.Txid[0:3] + invokedetails.Txid[txidLen-3:txidLen] + ":" + strconv.FormatInt(topoheight, 10) + ":" + entrypoint
 		/*	*/
 	//invoke details: signer:txid:height:entrypoint
-	startup[3] = "CREATE TABLE IF NOT EXISTS invokes (" +
+	startup[4] = "CREATE TABLE IF NOT EXISTS invokes (" +
 		"scid TEXT, " +
 		"signer TEXT, " +
 		"txid TEXT UNIQUE, " +
@@ -270,18 +275,11 @@ func CreateTables(Db *sql.DB) {
 		"entrypoint TEXT)"
 
 	//interactions at heightid INTEGER PRIMARY KEY
-	startup[4] = "CREATE TABLE IF NOT EXISTS interactions (" +
+	startup[5] = "CREATE TABLE IF NOT EXISTS interactions (" +
 		"height INTEGER, " +
 		"txid TEXT UNIQUE, " +
-		"sc_id TEXT)"
+		"scid TEXT)"
 
-		/*
-				//interactions at heightid INTEGER PRIMARY KEY
-			startup[5] = "CREATE TABLE IF NOT EXISTS interactions (" +
-				"height INTEGER, " +
-				"txid TEXT UNIQUE, " +
-				"sc_id TEXT)"
-		*/
 	for _, create := range startup {
 		executeQuery(Db, create)
 	}
@@ -295,7 +293,7 @@ func CreateTables(Db *sql.DB) {
 		handleError(err)
 		statement.Exec()
 
-		statement, err = Db.Prepare("CREATE INDEX height_index ON interactions(sc_id,txid);")
+		statement, err = Db.Prepare("CREATE INDEX height_index ON interactions(scid,txid);")
 		handleError(err)
 		statement.Exec()
 
@@ -493,13 +491,13 @@ func (ss *SqlStore) ViewTables() {
 
 	/*
 		SELECT sc_id FROM interactions
-		GROUP BY sc_id
+		GROUP BY scid
 		HAVING COUNT(*) = (
 		                   SELECT MAX(Cnt)
 		                   FROM(
 		                         SELECT COUNT(*) as Cnt
 		                         FROM interactions
-		                         GROUP BY sc_id
+		                         GROUP BY scid
 		                        ) tmp
 		                    )
 	*/
@@ -909,7 +907,7 @@ func (ss *SqlStore) StoreSCIDInteractionHeight(scidstoadd structs.SCIDToIndexSta
 		ready(true)
 		return
 	}
-	statement, err := ss.DB.Prepare("INSERT INTO interactions (height,txid,sc_id) VALUES (?,?,?);")
+	statement, err := ss.DB.Prepare("INSERT INTO interactions (height,txid,scid) VALUES (?,?,?);")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -957,7 +955,7 @@ func (ss *SqlStore) GetSCIDInteractionHeight(scid string) (scidinteractions []in
 
 }
 
-// Gets SC interaction height and detail by a given SCID
+// Gets SC interaction height and detail by a given SCID (maybe add to api)
 func (ss *SqlStore) GetSCIDVariableHeight(scid string, rmax bool) (scidinteractions int64) {
 	//	fmt.Println("GetSCIDInteractionHeight... ")"SELECT interaction_heights.height FROM interactions INNER JOIN interactions.i_id ON interaction_heights WHERE scid=?"
 	sort := "DESC"
@@ -987,7 +985,7 @@ func (ss *SqlStore) GetSCIDVariableHeight(scid string, rmax bool) (scidinteracti
 
 	for rows.Next() {
 		rows.Scan(&height)
-		println("height ", height)
+		//println("height ", height)
 		return int64(height)
 	}
 
