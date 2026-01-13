@@ -102,7 +102,7 @@ func getConfig(update bool) Configuration {
 		sql.SaveSetting(sqlite.DB, "SpamLevel", text)
 	} else {
 		println("Using Smoothing Level: ", val)
-		config.SpamLevel = val
+		SpamLevel = val
 	}
 
 	// Endpoint/daemon connections

@@ -274,7 +274,7 @@ func start_gnomon_indexer() {
 	//maybe skip when caught up
 	show.NewMessage(show.Message{Text: "Purging spam:", Vars: []any{sql.Spammers}})
 
-	sqlite.RidSpam(Config.SpamLevel)
+	sqlite.RidSpam(SpamLevel)
 
 	var switching = false
 	if UseMem {
