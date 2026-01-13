@@ -99,6 +99,7 @@ func getConfig(update bool) Configuration {
 			println("Error:", err)
 			panic("Use integer for value")
 		}
+		SpamLevel = text
 		sql.SaveSetting(sqlite.DB, "SpamLevel", text)
 	} else {
 		println("Using Smoothing Level: ", val)
