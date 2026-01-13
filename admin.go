@@ -203,6 +203,7 @@ func editFilters(filters map[string]map[string][]string) map[string]map[string][
 		println("Error reading input:", err)
 	}
 	text = strings.TrimSpace(text)
+	reader.Reset(os.Stdin)
 
 	if text == "done" {
 		return filters
