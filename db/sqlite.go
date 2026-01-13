@@ -92,7 +92,7 @@ func (ss *SqlStore) WriteToDisk() error {
 
 		query += "INSERT INTO diskdb.invokes (scid,signer,txid,height,entrypoint) SELECT * FROM invokes WHERE height >= " + height + ";"
 
-		query += "INSERT INTO diskdb.interactions (height,txid,sc_id) SELECT * FROM interactions WHERE height >= " + height + ";"
+		query += "INSERT INTO diskdb.interactions (height,txid,scid) SELECT * FROM interactions WHERE height >= " + height + ";"
 
 		query += "INSERT INTO diskdb.variables (v_id,height,txid,vars) SELECT * FROM variables WHERE height >= " + height + ";"
 	}
@@ -503,7 +503,7 @@ func (ss *SqlStore) ViewTables() {
 	}
 
 	/*
-		SELECT sc_id FROM interactions
+		SELECT scid FROM interactions
 		GROUP BY scid
 		HAVING COUNT(*) = (
 		                   SELECT MAX(Cnt)
