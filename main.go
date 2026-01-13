@@ -88,7 +88,7 @@ func main() {
 		Config = getConfig(false)
 	}
 	SpamLevel = Config.SpamLevel
-
+	RamSizeMB = Config.RamSizeMB
 	reclassify := false
 	println("Reclassify using a new search filter (in-mem takes a few minutes and opens, processes then saves the entire db)? yes or n")
 	_, err = fmt.Scanln(&text)
