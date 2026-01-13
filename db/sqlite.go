@@ -367,9 +367,8 @@ func (ss *SqlStore) TrimHeight(height int64) int64 {
 }
 
 var Spammers []string
-var SpamLevel string
 
-func (ss *SqlStore) RidSpam() {
+func (ss *SqlStore) RidSpam(SpamLevel string) {
 
 	rows, err := ss.DB.Query(`
 	SELECT DISTINCT signer
