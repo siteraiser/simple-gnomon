@@ -198,7 +198,7 @@ func editFilters(filters map[string]map[string][]string) map[string]map[string][
 	}
 	fmt.Println("--------------------------------------------")
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print(`Type the name of the class of filter to edit or "add" or "delete classname" or "done" to return:`)
+	fmt.Print(`Type the name of the class of filter to edit or "add classname" or "delete classname" or "done" to return:`)
 	text, err := reader.ReadString('\n')
 	if err != nil {
 		println("Error reading input:", err)
