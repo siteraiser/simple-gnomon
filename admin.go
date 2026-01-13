@@ -99,11 +99,11 @@ func getConfig(update bool) Configuration {
 			println("Error:", err)
 			panic("Use integer for value")
 		}
-		SpamLevel = text
+		config.SpamLevel = text
 		sql.SaveSetting(sqlite.DB, "SpamLevel", text)
 	} else {
 		println("Using Smoothing Level: ", val)
-		SpamLevel = val
+		config.SpamLevel = val
 	}
 
 	// Endpoint/daemon connections

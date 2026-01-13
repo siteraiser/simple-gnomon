@@ -31,7 +31,7 @@ var blockBatchSize int64
 var blockBatchSizeMem = int64(10000)
 var blockBatchSizeDisk = int64(5000) // Batch size (how many to process before saving w/ mem mode)
 var UseMem = true                    // Use in-memory db
-var SpamLevel = "0"
+//var SpamLevel = "0"
 
 // Optimized settings for mode db mode
 var memBatchSize = int16(100)
@@ -88,6 +88,7 @@ func main() {
 		Config = getConfig(false)
 	}
 	RamSizeMB = Config.RamSizeMB
+
 	reclassify := false
 	println("Reclassify using a new search filter (in-mem takes a few minutes and opens, processes then saves the entire db)? yes or n")
 	_, err = fmt.Scanln(&text)
@@ -102,7 +103,7 @@ func main() {
 	}
 	//Add custom actions for scids
 	//CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard-before", Block: 161296} //saveasinteraction
-	if SpamLevel == "0" {
+	if Config.SpamLevel == "0" {
 		CustomActions[Hardcoded_SCIDS[0]] = action{Type: "SC", Act: "discard"}
 	}
 	CustomActions[Hardcoded_SCIDS[1]] = action{Type: "SC", Act: "discard"}
@@ -149,6 +150,7 @@ func main() {
 	}
 
 	sql.StartAt = startAt
+	sql.SpamLevel = Config.SpamLevel
 	show.PreferredRequests = &daemon.PreferredRequests
 	show.Status = daemon.Status
 	initializeFilters()
@@ -274,7 +276,7 @@ func start_gnomon_indexer() {
 	//maybe skip when caught up
 	show.NewMessage(show.Message{Text: "Purging spam:", Vars: []any{sql.Spammers}})
 
-	sqlite.RidSpam(SpamLevel)
+	sqlite.RidSpam()
 
 	var switching = false
 	if UseMem {
