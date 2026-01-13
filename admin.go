@@ -191,12 +191,12 @@ func getConfig(update bool) Configuration {
 }
 
 func editFilters(filters map[string]map[string][]string) map[string]map[string][]string {
-
+	fmt.Println("-- Filters: ")
 	for class, filter := range filters {
-		fmt.Println("Class", class)
-		fmt.Println("Filter", filter)
+		fmt.Println("Class:", class, "----------------------------------------------------")
+		fmt.Println("Filter:", filter)
 	}
-
+	fmt.Println("--------------------------------------------")
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print(`Type the name of the class of filter to edit or "add" or "delete classname" or "done" to return:`)
 	text, err := reader.ReadString('\n')
@@ -234,21 +234,27 @@ func editFilter(filter map[string][]string) map[string][]string {
 	return filter
 }
 func changeTags(filter map[string][]string) map[string][]string {
-	fmt.Println("Current tags:", filter["tags"])
+	fmt.Println("Current tags:", strings.Join(filter["tags"], ","))
 	var text string
-	println("Enter new csv list of tags:")
+	println("Enter new csv list of tags or type done to return:")
 	_, _ = fmt.Scanln(&text)
-	filter["tags"] = strings.Split(text, ",")
+	if text != "done" {
+		filter["tags"] = strings.Split(text, ",")
+	}
 	return filter
 }
 func changeOption(option map[string][]string) map[string][]string {
 	fmt.Println("Current options:", option["options"])
 	var text string
-	println(`Enter new csv list of options "b,i", "b" or "i":`)
+	println(`"i" is case insensitve match and "b" is a word boudry match.`)
+	println(`Enter new csv list of options eg, "i,b", or "i" or type done to return:`)
+
 	_, _ = fmt.Scanln(&text)
-	option["options"] = strings.Split(text, ",")
-	if len(option["options"]) == 0 {
-		delete(option, "options")
+	if text != "done" {
+		option["options"] = strings.Split(text, ",")
+		if len(option["options"]) == 0 {
+			delete(option, "options")
+		}
 	}
 	return option
 }
