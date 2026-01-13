@@ -246,7 +246,7 @@ func changeTags(filter map[string][]string) map[string][]string {
 func changeOption(option map[string][]string) map[string][]string {
 	fmt.Println("Current options:", option["options"])
 	var text string
-	println(`"i" is case insensitve match and "b" is a word boudry match.`)
+	println(`"i" is case-insensitive match and "b" is word boundry match.`)
 	println(`Enter new csv list of options eg, "i,b", or "i" or type done to return:`)
 
 	_, _ = fmt.Scanln(&text)
