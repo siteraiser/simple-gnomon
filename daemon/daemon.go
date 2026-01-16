@@ -143,7 +143,6 @@ var Batches []Batch
 var BatchCount = 0
 var Blocks []Block
 var TXIDSProcessing []string
-var StartingFrom int
 
 func RemoveBlocks(bheight int) {
 	var newlist []Block
@@ -271,7 +270,31 @@ func outs(Outs []uint8) (int, int) {
 	return totouts, exceeded
 }
 
-var PreferredRequests = int8(0)
+func FindLowestHeight(start int64, top int64) int64 {
+	var starts = []int64{}
+	for i, endpoint := range Endpoints {
+		if len(Endpoints[i].Errors) != 0 {
+			continue
+		}
+		currentEndpoint = endpoint
+		starts = append(starts, FindStart(start, top))
+	}
+	return slices.Max(starts)
+}
+
+// Check indexable height at daemon
+func FindStart(start int64, top int64) (block int64) {
+	difference := top - start
+	offset := difference / 2
+	if top-start == 1 {
+		return top - 1
+	}
+	if GetBlockInfo(rpc.GetBlock_Params{Height: uint64(block)}).Status == "OK" {
+		return FindStart(start, offset+start)
+	} else {
+		return FindStart(offset+start, top)
+	}
+}
 
 // Check supplied connections, manage errors and intitialize request counters
 func AssignConnections(iserror bool) {
@@ -406,7 +429,9 @@ func getOutsByMethod(method string) []uint8 {
 	return []uint8{}
 }
 
-// Tries to select the endpoint with the fewest en-route requesets
+var PreferredRequests = int8(0)
+
+// Tries to select the endpoint with the fewest en-route requests
 func selectEndpoint(method string) Connection {
 
 	var Outs []uint8

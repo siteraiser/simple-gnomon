@@ -41,7 +41,7 @@ var diskPreferredRequests = int8(10)
 
 // Program vars
 var TargetHeight = int64(0)
-var HighestKnownHeight = int64(0)
+var LatestTopoHeight = int64(0)
 var sqlite = &sql.SqlStore{}
 var sqlindexer = &Indexer{}
 var batchSize = int16(0)
@@ -75,11 +75,19 @@ var regexes = map[string]string{}
 var rcount int32
 var rlimit = int32(2000)
 var Config = Configuration{}
+var Lowest_daemon_height int64
 
 func main() {
 	var err error
 	var text string
+
 	initDB()
+	daemon.AssignConnections(false)
+	LatestTopoHeight = daemon.GetTopoHeight()
+	if LatestTopoHeight < 1 {
+		panic("Error getting height ...." + strconv.Itoa(int(LatestTopoHeight)))
+	}
+
 	fmt.Println("Configure Gnomon? y or n")
 	_, err = fmt.Scanln(&text)
 	if text == "y" {
@@ -90,6 +98,7 @@ func main() {
 	RamSizeMB = Config.RamSizeMB
 
 	reclassify := false
+	/* could be an automated process or in another menu etc..*/
 	println("Reclassify using a new search filter (in-mem takes a few minutes and opens, processes then saves the entire db)? yes or n")
 	_, err = fmt.Scanln(&text)
 	if text == "yes" {
@@ -111,11 +120,6 @@ func main() {
 
 	println("Waking the GNOMON ...")
 
-	HighestKnownHeight = daemon.GetTopoHeight()
-	if HighestKnownHeight < 1 {
-		println("Error getting height ....", HighestKnownHeight)
-	}
-
 	db_name := fmt.Sprintf("sql%s.db", "GNOMON")
 	wd := globals.GetDataDirectory()
 	db_path := filepath.Join(wd, "gnomondb")
@@ -136,7 +140,7 @@ func main() {
 			UseMem = false
 		}
 	}
-	if !UseMem { //|| memModeSelect(false)
+	if !UseMem {
 		println("Loading db ....")
 		batchSize = diskBatchSize
 		blockBatchSize = blockBatchSizeDisk
@@ -157,16 +161,59 @@ func main() {
 	if reclassify {
 		reClassify()
 	}
+
+	var starting_height = startAt
+	intialized := true
+	// See if this is a fresh start
+	last_index, err := sqlite.GetLastIndexHeight()
+	if err != nil {
+		intialized = false
+	}
+
+	//check daemon heights
+	Lowest_daemon_height := daemon.FindLowestHeight(0, LatestTopoHeight)
+
+	if !intialized {
+		starting_height = Lowest_daemon_height
+	} else {
+		if Lowest_daemon_height < last_index {
+			starting_height = last_index
+		}
+		if Lowest_daemon_height >= starting_height {
+			starting_height = Lowest_daemon_height
+		}
+	}
+
+	var ending_height = int64(-1)
+	var completed string
+	if intialized {
+		last_start, _ := sqlite.LoadState("sessionstart")
+		completed, _ = sqlite.LoadSetting("completed") // should be minus one maybe
+		completed, starting_height, ending_height = updateCompleted(starting_height, Lowest_daemon_height, completed, last_start, int(last_index))
+		sqlite.SaveSetting("completed", completed)
+	}
+
+	if !intialized {
+		sqlite.SaveInitialHeight(starting_height)
+		sqlite.SaveInitialSessionStart(starting_height)
+	} else {
+		if starting_height != last_index {
+			sqlite.StoreLastIndexHeight(starting_height)
+		}
+		sqlite.StoreSessionStart(starting_height)
+	}
+	// Tells the indexer when the current
+	EndingHeight = ending_height
 	start_gnomon_indexer()
 }
+
+var EndingHeight = int64(-1)
+var FinishHeight int64
 
 func start_gnomon_indexer() {
 	var starting_height int64
 	starting_height, err := sqlite.GetLastIndexHeight()
 	if err != nil {
-		if sql.StartAt == 0 {
-			starting_height = findStart(0, HighestKnownHeight) //if it isn't set then find it
-		}
 		show.NewMessage(show.Message{Text: "err: ", Err: err})
 	}
 
@@ -175,7 +222,7 @@ func start_gnomon_indexer() {
 		firstRun = false
 		daemon.TXIDSProcessing = []string{}
 		daemon.BatchCount = 0
-		sqlite.TrimHeight(starting_height)
+		sqlite.TrimHeight(starting_height, EndingHeight)
 		if daemon.Status.ErrorCount != int64(0) {
 			show.NewMessage(show.Message{
 				Vars: []any{
@@ -190,22 +237,20 @@ func start_gnomon_indexer() {
 	//daemon.Cancels = map[int]context.CancelFunc{}
 	daemon.AssignConnections(daemon.Status.ErrorCount != int64(0)) //might as well check/retry new connections here
 	daemon.Status.ErrorCount = 0
-	daemon.StartingFrom = int(starting_height)
-	/*
-		if starting_height >= 150000 && starting_height < 170000 {
-			memBatchSize = int16(500)
-		} else {
-			memBatchSize = int16(100)
-		}
-	*/
+
 	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
-	show.NewMessage(show.Message{Text: "Topo Height ", Vars: []any{HighestKnownHeight}})
+	show.NewMessage(show.Message{Text: "Topo Height ", Vars: []any{LatestTopoHeight}})
 	show.NewMessage(show.Message{Text: "Last Height ", Vars: []any{fmt.Sprint(starting_height)}})
 
-	if TargetHeight < HighestKnownHeight-blockBatchSize && starting_height+blockBatchSize < HighestKnownHeight {
+	if EndingHeight != -1 {
+		FinishHeight = EndingHeight
+	} else {
+		FinishHeight = LatestTopoHeight
+	}
+	if TargetHeight < FinishHeight-blockBatchSize && starting_height+blockBatchSize < FinishHeight {
 		TargetHeight = starting_height + blockBatchSize
 	} else {
-		TargetHeight = HighestKnownHeight
+		TargetHeight = FinishHeight
 	}
 
 	var wg sync.WaitGroup
@@ -259,14 +304,14 @@ func start_gnomon_indexer() {
 		sqlite.StoreLastIndexHeight(TargetHeight)
 	}
 
-	last := HighestKnownHeight
-	HighestKnownHeight = daemon.GetTopoHeight()
-	if HighestKnownHeight < 1 {
+	last := LatestTopoHeight
+	LatestTopoHeight = daemon.GetTopoHeight()
+	if LatestTopoHeight < 1 {
 		daemon.AssignConnections(true)
 
-		show.NewMessage(show.Message{Text: "Error getting height ....", Vars: []any{HighestKnownHeight}})
-		HighestKnownHeight = daemon.GetTopoHeight()
-		if HighestKnownHeight < 1 {
+		show.NewMessage(show.Message{Text: "Error getting height ....", Vars: []any{LatestTopoHeight}})
+		LatestTopoHeight = daemon.GetTopoHeight()
+		if LatestTopoHeight < 1 {
 			panic("Too many failed connections")
 		}
 	}
@@ -281,7 +326,7 @@ func start_gnomon_indexer() {
 	var switching = false
 	if UseMem {
 		show.NewMessage(show.Message{Text: "Saving Batch...... ", Vars: []any{fileSizeMB(sqlite.Db_path), "MB"}})
-		sqlite.WriteToDisk()
+		sqlite.WriteToDisk(EndingHeight)
 		//Check size
 		if int64(RamSizeMB) <= fileSizeMB(sqlite.Db_path) {
 			switching = true
@@ -289,7 +334,21 @@ func start_gnomon_indexer() {
 			show.NewMessage(show.Message{Text: "Switching to disk mode...... ", Vars: []any{TargetHeight}})
 		}
 	}
+	fmt.Println("Target Height", TargetHeight)
+	fmt.Println("last", last)
 
+	if TargetHeight == EndingHeight {
+		last_start, _ := sqlite.LoadState("sessionstart")
+		completed, _ := sqlite.LoadSetting("completed")
+		completed, starting_height, EndingHeight = updateCompleted(TargetHeight, Lowest_daemon_height, completed, last_start, int(TargetHeight))
+		sqlite.SaveSetting("completed", completed)
+		if starting_height != TargetHeight {
+			sqlite.StoreLastIndexHeight(starting_height)
+		}
+		sqlite.StoreSessionStart(starting_height)
+	}
+
+	//Completed to target or swithcing to disk mode
 	if TargetHeight == last || switching {
 		if !switching {
 			show.NewMessage(show.Message{Text: "All caught up...... ", Vars: []any{TargetHeight}})
@@ -535,7 +594,7 @@ func processSCs(wg3 *sync.WaitGroup, tx transaction.Transaction, tx_type string,
 	if tx.SCDATA.HasValue("entrypoint", rpc.DataString) {
 		entrypoint = tx.SCDATA.Value("entrypoint", rpc.DataString).(string)
 	}
-
+	//mess
 	staged := structs.SCIDToIndexStage{
 		Type:       tx_type,
 		TXHash:     tx.GetHash().String(),
@@ -632,19 +691,6 @@ func checkGo() {
 	}
 }
 
-// Check indexable height at daemon
-func findStart(start int64, top int64) (block int64) {
-	difference := top - start
-	offset := difference / 2
-	if top-start == 1 {
-		return top - 1
-	}
-	if daemon.GetBlockInfo(rpc.GetBlock_Params{Height: uint64(block)}).Status == "OK" {
-		return findStart(start, offset+start)
-	} else {
-		return findStart(offset+start, top)
-	}
-}
 func fileSizeMB(filePath string) int64 {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {

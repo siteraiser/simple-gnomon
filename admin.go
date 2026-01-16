@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -51,6 +53,102 @@ func initDB() {
 	sql.CreateTables(sqlite.DB)
 	sqlite.DB.Close()
 }
+
+func updateCompleted(starting_height int64, lowest_daemon_height int64, completed string, start int, finish int) (string, int64, int64) {
+	ending_height := int64(-1)
+	var complete [][2]int
+	json.Unmarshal([]byte(completed), &complete)
+
+	if len(complete) == 0 {
+		complete = append(complete, [2]int{start, finish})
+	} else {
+		// Add chunks
+		for i, _ := range complete {
+			if int(start) >= complete[i][0] && int(start) <= complete[i][1] {
+				complete[i][1] = int(finish)
+				break
+			} else if int(start) > complete[i][1] || int(finish) == complete[i][0] {
+				complete = append(complete, [2]int{start, finish})
+				break
+			} else if int(start) < complete[i][0] && int(finish) < complete[i][1] {
+				var temp [][2]int
+				temp = append(temp, [2]int{start, finish})
+				complete = append(temp, complete...)
+				break
+			}
+		}
+	}
+	sort.Slice(complete, func(i, j int) bool {
+		return complete[i][0] < complete[j][0]
+	})
+	// Merge the chunks
+	if len(complete) > 1 {
+		delete_list := []int{}
+		for i, chunk := range complete {
+			if len(complete) > i+1 {
+				if chunk[1] == complete[i+1][0] {
+					complete[i+1][0] = chunk[0]
+					delete_list = append(delete_list, i)
+					break
+				}
+			}
+		}
+		if len(delete_list) < len(complete) {
+			var newcomplete = [][2]int{}
+			for i, chunk := range complete {
+				if slices.Index(delete_list, i) == -1 {
+					newcomplete = append(newcomplete, chunk)
+				}
+			}
+			complete = newcomplete
+		}
+	}
+
+	if len(complete) != 0 {
+		lastend := int64(0)
+		found := false
+		for i, _ := range complete {
+			if lowest_daemon_height < int64(complete[i][0]) {
+				found = true
+				if lastend == 0 { //first one...
+					starting_height = lowest_daemon_height
+					ending_height = int64(complete[i][0])
+					break
+				} else if lowest_daemon_height <= lastend {
+					starting_height = lastend
+					ending_height = int64(complete[i][0])
+					break
+				} else {
+					starting_height = lowest_daemon_height
+					ending_height = int64(complete[i][0])
+					break
+				}
+			}
+			lastend = int64(complete[i][1])
+		}
+		if !found && int64(complete[len(complete)-1][1]) >= lowest_daemon_height {
+			starting_height = int64(complete[len(complete)-1][1])
+			ending_height = -1
+		}
+	}
+	// If preferred starting height falls in middle of chunk (should probably be equal to etc..), move forward to end of chunk to earliest slot that needs filling
+	for _, chunk := range complete {
+		if chunk[0] > int(starting_height) && chunk[1] <= int(starting_height) && starting_height >= lowest_daemon_height {
+			starting_height = int64(chunk[1]) //-1
+			break
+		}
+	}
+	// Set ending height to start of next completed chunk
+	for _, chunk := range complete {
+		if starting_height < int64(chunk[0]) {
+			ending_height = int64(chunk[0])
+			break
+		}
+	}
+	res, _ := json.Marshal(complete)
+	return string(res), starting_height, ending_height
+}
+
 func getConfig(update bool) Configuration {
 
 	config := Configuration{}
@@ -109,7 +207,7 @@ func getConfig(update bool) Configuration {
 	// Endpoint/daemon connections
 	val, err = sql.LoadSetting(sqlite.DB, "Endpoints")
 	if val == "" || update {
-		fmt.Println("Enter custom connection or enter n to use the default remote connections eg. node.derofoundation.org:10102 ")
+		println("Enter custom connection or enter n to use the default remote connections eg. node.derofoundation.org:10102 ")
 		_, err = fmt.Scanln(&text)
 		if text != "n" {
 			daemon.Endpoints = []daemon.Connection{
@@ -131,7 +229,7 @@ func getConfig(update bool) Configuration {
 
 	val, err = sql.LoadSetting(sqlite.DB, "Filters")
 	if val == "" || update {
-		fmt.Println("Edit filters? y or n")
+		println("Edit filters? y or n")
 		_, err = fmt.Scanln(&text)
 		if text == "n" {
 			if val == "" {

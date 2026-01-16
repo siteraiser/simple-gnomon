@@ -63,38 +63,59 @@ func Ask() bool {
 		Mutex.Unlock()
 	}
 }
-func (ss *SqlStore) WriteToDisk() error {
-
+func (ss *SqlStore) WriteToDisk(end int64) error {
+	addon := ";"
+	if end != -1 {
+		addon = " AND height < " + strconv.Itoa(int(end)) + ";"
+	}
 	dest, err := sql.Open("sqlite3", ss.Db_path)
 	if err != nil {
 		return fmt.Errorf("failed to open destination DB: %w", err)
 	}
 	defer dest.Close()
-	var lastindexedheight int
-	dest.QueryRow("SELECT value FROM state WHERE name = 'lastindexedheight' ").Scan(&lastindexedheight)
-	height := ""
-	if lastindexedheight >= 0 {
-		height = strconv.Itoa(lastindexedheight)
-	}
-
-	var scs_count int
-	dest.QueryRow("SELECT count(*) as scs_count FROM scs").Scan(&scs_count)
 
 	_, err = ss.DB.Exec(fmt.Sprintf("ATTACH DATABASE '%s' AS diskdb", ss.Db_path))
 	if err != nil {
 		log.Fatalf("attach disk DB: %v", err)
 	}
 
-	query := "UPDATE diskdb.state SET value = (SELECT value FROM main.state WHERE name = 'lastindexedheight');"
+	query := ""
+
+	var lastindexedheight int
+	err = dest.QueryRow("SELECT value FROM state WHERE name = 'lastindexedheight' ").Scan(&lastindexedheight)
+	height := ""
+	if lastindexedheight >= 0 {
+		height = strconv.Itoa(lastindexedheight)
+	}
+	if err != nil {
+		query += "INSERT INTO diskdb.state (name,value) SELECT * FROM main.state WHERE  name = 'lastindexedheight';"
+		query += "INSERT INTO diskdb.state (name,value) SELECT * FROM main.state WHERE  name = 'sessionstart';"
+	} else {
+		query += "UPDATE diskdb.state SET value = (SELECT value FROM main.state WHERE name = 'lastindexedheight') WHERE name = 'lastindexedheight';"
+		query += "UPDATE diskdb.state SET value = (SELECT value FROM main.state WHERE name = 'sessionstart') WHERE name = 'sessionstart';"
+	}
+
+	//see if the competed record exists yet
+	var checkcompleted string
+	newerr := dest.QueryRow("SELECT value FROM settings WHERE name = 'completed' ").Scan(&checkcompleted)
+
+	if newerr != nil {
+		query += "INSERT INTO diskdb.settings (name,value) SELECT * FROM main.settings WHERE name = 'completed';"
+	} else {
+		query += "UPDATE diskdb.settings SET value = (SELECT value FROM main.settings WHERE name = 'completed') WHERE name = 'completed';"
+	}
+
+	var scs_count int
+	ss.DB.QueryRow("SELECT count(*) as scs_count FROM scs").Scan(&scs_count)
 
 	if scs_count > 0 {
-		query += "INSERT INTO diskdb.scs (scs_id,scid,owner,height,scname,scdescr,scimgurl,class,tags) SELECT * FROM main.scs WHERE height >= " + height + ";"
+		query += "INSERT INTO diskdb.scs (scs_id,scid,owner,height,scname,scdescr,scimgurl,class,tags) SELECT * FROM main.scs WHERE height >= " + height + addon
 
-		query += "INSERT INTO diskdb.invokes (scid,signer,txid,height,entrypoint) SELECT * FROM invokes WHERE height >= " + height + ";"
+		query += "INSERT INTO diskdb.invokes (scid,signer,txid,height,entrypoint) SELECT * FROM invokes WHERE height >= " + height + addon
 
-		query += "INSERT INTO diskdb.interactions (height,txid,scid) SELECT * FROM interactions WHERE height >= " + height + ";"
+		query += "INSERT INTO diskdb.interactions (height,txid,scid) SELECT * FROM interactions WHERE height >= " + height + addon
 
-		query += "INSERT INTO diskdb.variables (v_id,height,txid,vars) SELECT * FROM variables WHERE height >= " + height + ";"
+		query += "INSERT INTO diskdb.variables (v_id,height,txid,vars) SELECT * FROM variables WHERE height >= " + height + addon
 	}
 
 	_, err = ss.DB.Exec(query)
@@ -188,8 +209,6 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 	full_path := filepath.Join(db_path, db_name)
 	hard, err := sql.Open("sqlite3", full_path)
 	CreateTables(hard)
-	//fmt.Print("viewTables1...")
-	//	ViewTables(hard)
 	hard.Close()
 
 	SqlBackend.DB, err = sql.Open("sqlite3", "file:diskdb?mode=memory&cache=shared")
@@ -202,7 +221,10 @@ func NewSqlDB(db_path, db_name string) (*SqlStore, error) {
 	_, err = SqlBackend.DB.Exec(
 
 		"CREATE TABLE IF NOT EXISTS main.state AS SELECT * FROM diskdb.state;" +
-			"CREATE TABLE IF NOT EXISTS main.settings AS SELECT * FROM diskdb.settings;" +
+			"CREATE TABLE IF NOT EXISTS main.settings (" +
+			"name  TEXT PRIMARY KEY, " +
+			"value  TEXT) ; " +
+			"INSERT INTO settings (name,value) SELECT * FROM diskdb.settings;" +
 			"CREATE TABLE IF NOT EXISTS main.scs (" +
 			"scs_id INTEGER PRIMARY KEY, " +
 			"scid TEXT UNIQUE NOT NULL, " +
@@ -264,9 +286,7 @@ func CreateTables(Db *sql.DB) {
 		"height INTEGER, " +
 		"txid TEXT, " +
 		"vars TEXT)"
-		//key := signer + ":" + invokedetails.Txid[0:3] + invokedetails.Txid[txidLen-3:txidLen] + ":" + strconv.FormatInt(topoheight, 10) + ":" + entrypoint
-		/*	*/
-	//invoke details: signer:txid:height:entrypoint
+
 	startup[4] = "CREATE TABLE IF NOT EXISTS invokes (" +
 		"scid TEXT, " +
 		"signer TEXT, " +
@@ -284,25 +304,18 @@ func CreateTables(Db *sql.DB) {
 		executeQuery(Db, create)
 	}
 
-	var count int
-	Db.QueryRow("SELECT COUNT(*) FROM state").Scan(&count)
-	if count == 0 {
+	var exists int
+	Db.QueryRow("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='state');").Scan(&exists)
+	if exists == 0 {
 		fmt.Println("setting defaults")
-		//set defaults
-		statement, err := Db.Prepare("INSERT INTO state (name,value) VALUES('lastindexedheight'," + strconv.Itoa(int(StartAt)) + ");")
-		handleError(err)
-		statement.Exec()
-
-		statement, err = Db.Prepare("CREATE INDEX height_index ON interactions(scid,txid);")
+		statement, err := Db.Prepare("CREATE INDEX height_index ON interactions(scid,txid);")
 		handleError(err)
 		statement.Exec()
 
 		statement, err = Db.Prepare("CREATE INDEX invokes_height_index ON invokes(txid);")
 		handleError(err)
 		statement.Exec()
-		/*
-			fmt.Println("donesetting")
-		*/
+
 		/*set defaults	*/
 		statement, err = Db.Prepare(`INSERT INTO scs (scid,owner) VALUES('0000000000000000000000000000000000000000000000000000000000000001','Cap''n Crunch');`)
 		handleError(err)
@@ -311,8 +324,14 @@ func CreateTables(Db *sql.DB) {
 	}
 
 }
+func (ss *SqlStore) SaveSetting(name, value string) {
+	SaveSetting(ss.DB, name, value)
+}
 
-// admin stuff...
+func (ss *SqlStore) LoadSetting(name string) (value string, err error) {
+	return LoadSetting(ss.DB, name)
+}
+
 func SaveSetting(Db *sql.DB, name, value string) {
 	statement, err := Db.Prepare("REPLACE INTO settings (name,value) VALUES(?,?);")
 	handleError(err)
@@ -321,6 +340,81 @@ func SaveSetting(Db *sql.DB, name, value string) {
 
 func LoadSetting(Db *sql.DB, name string) (value string, err error) {
 	Db.QueryRow("SELECT value FROM settings WHERE name = ?;", name).Scan(&value)
+	return
+}
+
+// called once when we know where we can start from
+func (ss *SqlStore) SaveInitialHeight(startat int64) {
+	//set defaults
+	statement, err := ss.DB.Prepare("INSERT INTO state (name,value) VALUES('lastindexedheight',?);")
+	handleError(err)
+	statement.Exec(int(startat))
+}
+
+// called once when we know where we can start from
+func (ss *SqlStore) SaveInitialSessionStart(startat int64) {
+	//set defaults
+	statement, err := ss.DB.Prepare("INSERT INTO state (name,value) VALUES('sessionstart',?);")
+	handleError(err)
+	statement.Exec(int(startat))
+}
+
+func (ss *SqlStore) LoadState(name string) (value int, err error) {
+	ss.DB.QueryRow("SELECT value FROM state WHERE name = ?;", name).Scan(&value)
+	return
+}
+
+// Stores session starting height
+func (ss *SqlStore) StoreSessionStart(start int64) {
+	ready(false)
+	result, err := ss.DB.Exec("UPDATE state SET value = '" + strconv.Itoa(int(start)) + "' WHERE name = 'sessionstart';")
+
+	if err == nil {
+		affected_rows, _ := result.RowsAffected()
+		if affected_rows != 0 {
+			ready(true)
+			return
+		}
+	} else {
+		fmt.Println("Error storing session start")
+	}
+	ready(true)
+	return
+}
+
+// Stores last indexed height - this is for stateful stores on close and reference on open
+func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool, err error) {
+	ready(false)
+	result, err := ss.DB.Exec("UPDATE state SET value = '" + strconv.Itoa(int(last_indexedheight)) + "' WHERE name = 'lastindexedheight';")
+
+	if err == nil {
+		affected_rows, _ := result.RowsAffected()
+		if affected_rows != 0 {
+			changes = true
+			ready(true)
+			return
+		}
+	} else {
+		fmt.Println("Error storing last index height")
+	}
+	ready(true)
+	return
+}
+
+// Gets last indexed height - this is for stateful stores on close and reference on open
+func (ss *SqlStore) GetLastIndexHeight() (topoheight int64, err error) {
+	var lastindexedheight int
+	ready(false)
+	err = ss.DB.QueryRow("SELECT value FROM state WHERE name = 'lastindexedheight' ").Scan(&lastindexedheight)
+	ready(true)
+	if err == nil {
+		if lastindexedheight > 0 {
+			topoheight = int64(lastindexedheight)
+		}
+		if topoheight == 0 {
+			fmt.Println("[sqlite-GetLastIndexHeight] No stored last index height. Starting from 0 or latest if fastsync is enabled")
+		}
+	}
 	return
 }
 
@@ -338,39 +432,33 @@ func handleError(err error) {
 	}
 }
 
-func (ss *SqlStore) TrimHeight(height int64) int64 {
-	show.NewMessage(show.Message{Text: "Trimming loose ends from:", Vars: []any{height}})
-
-	statement, err := ss.DB.Prepare("DELETE FROM scs WHERE height >= " + strconv.Itoa(int(height)) + ";")
+func (ss *SqlStore) TrimHeight(start int64, end int64) int64 {
+	addon := ";"
+	if end != -1 {
+		addon = " AND height < " + strconv.Itoa(int(end)) + ";"
+	}
+	statement, err := ss.DB.Prepare("DELETE FROM scs WHERE height >= " + strconv.Itoa(int(start)) + addon)
 	handleError(err)
 	statement.Exec()
-	statement, err = ss.DB.Prepare("DELETE FROM variables WHERE height >= " + strconv.Itoa(int(height)) + ";")
+	statement, err = ss.DB.Prepare("DELETE FROM variables WHERE height >= " + strconv.Itoa(int(start)) + addon)
 	handleError(err)
 	statement.Exec()
-	statement, err = ss.DB.Prepare("DELETE FROM invokes WHERE height >= " + strconv.Itoa(int(height)) + ";")
+	statement, err = ss.DB.Prepare("DELETE FROM invokes WHERE height >= " + strconv.Itoa(int(start)) + addon)
 	handleError(err)
 	statement.Exec()
-	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE height >= " + strconv.Itoa(int(height)) + ";")
+	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE height >= " + strconv.Itoa(int(start)) + addon)
 	handleError(err)
 	statement.Exec()
-
-	//ss.StoreLastIndexHeight(int64(height))
-
-	/*
-		//could delete scs with interaction heights as well
-		statement, err = ss.DB.Prepare("DELETE FROM interaction_heights WHERE height  > " + strconv.Itoa(height) + ";")
-		handleError(err)
-		statement.Exec()
-	*/
-
-	return int64(height)
+	return int64(start)
 }
 
 var SpamLevel = "0"
 var Spammers []string
 
 func (ss *SqlStore) RidSpam() {
-
+	if SpamLevel == "n" {
+		SpamLevel = "0"
+	}
 	rows, err := ss.DB.Query(`
 	SELECT DISTINCT signer
 	FROM invokes
@@ -383,7 +471,6 @@ func (ss *SqlStore) RidSpam() {
 	)`, nil)
 	if err != nil {
 		fmt.Println(err)
-		fmt.Println(SpamLevel)
 	}
 	// Just filter for the latest spammers
 	Spammers := Spammers[0:0]
@@ -454,7 +541,7 @@ func (ss *SqlStore) ViewTables() {
 	for rows.Next() {
 		rows.Scan(&name, &value)
 		if name == "lastindexedheight" && value == "0" {
-			panic("Needs a fix still here")
+			panic("lastindexedheight should be more than 0 probably")
 		}
 		show.NewMessage(show.Message{Text: "Last Indexed Height", Vars: []any{value}})
 	}
@@ -540,7 +627,7 @@ func (ss *SqlStore) GetSCIDsByClass(class_list []string) (results []string) {
 func (ss *SqlStore) GetSCIDsByTags(tags_list []string) (results []string) {
 	qinsert := ""
 	for _, tag := range tags_list {
-		qinsert += "OR (tags = '" + tag + "') OR ('" + tag + "' LIKE (tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags)) "
+		qinsert += "OR (tags = '" + tag + "') OR ('" + tag + "' LIKE (tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags)) " //consider prepared statement
 	}
 	qinsert = strings.TrimPrefix(qinsert, "OR ")
 	ready(false)
@@ -668,41 +755,10 @@ func (ss *SqlStore) GetInitialSCIDCode(scid string) (sc_code string, err error) 
 	return
 }
 
-//-----------------
-
-// Stores bbolt's last indexed height - this is for stateful stores on close and reference on open
-func (ss *SqlStore) StoreLastIndexHeight(last_indexedheight int64) (changes bool, err error) {
-	ready(false)
-	result, err := ss.DB.Exec("UPDATE state SET value = '" + strconv.Itoa(int(last_indexedheight)) + "' WHERE name = 'lastindexedheight';")
-
-	if err == nil {
-		affected_rows, _ := result.RowsAffected()
-		if affected_rows != 0 {
-			changes = true
-			ready(true)
-			return
-		}
-	} else {
-		fmt.Println("Error storing last index height")
-	}
-	ready(true)
-	return
-}
-
-// Gets bbolt's last indexed height - this is for stateful stores on close and reference on open
-func (ss *SqlStore) GetLastIndexHeight() (topoheight int64, err error) {
-	var lastindexedheight int
-	ready(false)
-	ss.DB.QueryRow("SELECT value FROM state WHERE name = 'lastindexedheight' ").Scan(&lastindexedheight)
-	ready(true)
-	if lastindexedheight > 0 {
-		topoheight = int64(lastindexedheight)
-	}
-	if topoheight == 0 {
-		fmt.Println("[sqlite-GetLastIndexHeight] No stored last index height. Starting from 0 or latest if fastsync is enabled")
-	}
-	return
-}
+// -----------------
+// -----------------
+// -----------------
+// -----------------
 
 // Stores the owner (who deployed it) of a given scid
 func (ss *SqlStore) StoreOwner(scid string, owner string, height int, scname string, scdescr string, scimgurl string, class string, tags string) (changes bool, err error) {
