@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -81,27 +80,23 @@ func updateCompleted(starting_height int64, lowest_daemon_height int64, complete
 	sort.Slice(complete, func(i, j int) bool {
 		return complete[i][0] < complete[j][0]
 	})
+
 	// Merge the chunks
 	if len(complete) > 1 {
-		delete_list := []int{}
+		var newcomplete = [][2]int{}
 		for i, chunk := range complete {
 			if len(complete) > i+1 {
-				if chunk[1] == complete[i+1][0] {
-					complete[i+1][0] = chunk[0]
-					delete_list = append(delete_list, i)
-					break
+				if len(newcomplete) == 0 {
+					newcomplete = append(newcomplete, [2]int{chunk[0], chunk[1]})
+				}
+				if newcomplete[len(newcomplete)-1][1] == complete[i+1][0] {
+					newcomplete[len(newcomplete)-1][1] = complete[i+1][1]
+				} else {
+					newcomplete = append(newcomplete, [2]int{complete[i+1][0], complete[i+1][1]})
 				}
 			}
 		}
-		if len(delete_list) < len(complete) {
-			var newcomplete = [][2]int{}
-			for i, chunk := range complete {
-				if slices.Index(delete_list, i) == -1 {
-					newcomplete = append(newcomplete, chunk)
-				}
-			}
-			complete = newcomplete
-		}
+		complete = newcomplete
 	}
 
 	if len(complete) != 0 {

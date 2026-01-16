@@ -241,14 +241,14 @@ func start_gnomon_indexer() {
 
 	sqlindexer = NewSQLIndexer(sqlite, starting_height, CustomActions)
 	show.NewMessage(show.Message{Text: "Topo Height ", Vars: []any{LatestTopoHeight}})
-	show.NewMessage(show.Message{Text: "Last Height ", Vars: []any{fmt.Sprint(starting_height)}})
+	show.NewMessage(show.Message{Text: "Last Height", Vars: []any{fmt.Sprint(starting_height)}})
 
 	if EndingHeight != -1 {
 		FinishHeight = EndingHeight
 	} else {
 		FinishHeight = LatestTopoHeight
 	}
-	if TargetHeight < FinishHeight-blockBatchSize && starting_height+blockBatchSize < FinishHeight {
+	if FinishHeight < FinishHeight-blockBatchSize && starting_height+blockBatchSize < FinishHeight {
 		TargetHeight = starting_height + blockBatchSize
 	} else {
 		TargetHeight = FinishHeight
@@ -337,8 +337,7 @@ func start_gnomon_indexer() {
 	}
 	fmt.Println("Target Height", TargetHeight)
 	fmt.Println("last", last)
-
-	if TargetHeight == EndingHeight {
+	if TargetHeight == EndingHeight && EndingHeight != -1 {
 		last_start, _ := sqlite.LoadState("sessionstart")
 		completed, _ := sqlite.LoadSetting("completed")
 		completed, starting_height, EndingHeight = updateCompleted(TargetHeight, Lowest_daemon_height, completed, last_start, int(TargetHeight))
@@ -348,7 +347,6 @@ func start_gnomon_indexer() {
 		}
 		sqlite.StoreSessionStart(starting_height)
 	}
-
 	//Completed to target or swithcing to disk mode
 	if TargetHeight == last || switching {
 		if !switching {

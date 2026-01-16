@@ -64,12 +64,14 @@ func Ask() bool {
 	}
 }
 func (ss *SqlStore) WriteToDisk(end int64) error {
+	ready(false)
 	addon := ";"
 	if end != -1 {
 		addon = " AND height < " + strconv.Itoa(int(end)) + ";"
 	}
 	dest, err := sql.Open("sqlite3", ss.Db_path)
 	if err != nil {
+		ready(true)
 		return fmt.Errorf("failed to open destination DB: %w", err)
 	}
 	defer dest.Close()
@@ -120,10 +122,10 @@ func (ss *SqlStore) WriteToDisk(end int64) error {
 
 	_, err = ss.DB.Exec(query)
 	if err != nil {
-		log.Printf("No existing table to copy: %v", err)
+		log.Printf("Last error copying tables: %v", err)
 	}
 	_, _ = ss.DB.Exec("DETACH DATABASE diskdb")
-
+	ready(true)
 	return err
 }
 
@@ -335,11 +337,15 @@ func (ss *SqlStore) LoadSetting(name string) (value string, err error) {
 func SaveSetting(Db *sql.DB, name, value string) {
 	statement, err := Db.Prepare("REPLACE INTO settings (name,value) VALUES(?,?);")
 	handleError(err)
+	ready(false)
 	statement.Exec(name, value)
+	ready(true)
 }
 
 func LoadSetting(Db *sql.DB, name string) (value string, err error) {
+	ready(false)
 	Db.QueryRow("SELECT value FROM settings WHERE name = ?;", name).Scan(&value)
+	ready(true)
 	return
 }
 
@@ -348,7 +354,9 @@ func (ss *SqlStore) SaveInitialHeight(startat int64) {
 	//set defaults
 	statement, err := ss.DB.Prepare("INSERT INTO state (name,value) VALUES('lastindexedheight',?);")
 	handleError(err)
+	ready(false)
 	statement.Exec(int(startat))
+	ready(true)
 }
 
 // called once when we know where we can start from
@@ -356,11 +364,15 @@ func (ss *SqlStore) SaveInitialSessionStart(startat int64) {
 	//set defaults
 	statement, err := ss.DB.Prepare("INSERT INTO state (name,value) VALUES('sessionstart',?);")
 	handleError(err)
+	ready(false)
 	statement.Exec(int(startat))
+	ready(true)
 }
 
 func (ss *SqlStore) LoadState(name string) (value int, err error) {
+	ready(false)
 	ss.DB.QueryRow("SELECT value FROM state WHERE name = ?;", name).Scan(&value)
+	ready(true)
 	return
 }
 
@@ -437,6 +449,7 @@ func (ss *SqlStore) TrimHeight(start int64, end int64) int64 {
 	if end != -1 {
 		addon = " AND height < " + strconv.Itoa(int(end)) + ";"
 	}
+	ready(false)
 	statement, err := ss.DB.Prepare("DELETE FROM scs WHERE height >= " + strconv.Itoa(int(start)) + addon)
 	handleError(err)
 	statement.Exec()
@@ -449,6 +462,7 @@ func (ss *SqlStore) TrimHeight(start int64, end int64) int64 {
 	statement, err = ss.DB.Prepare("DELETE FROM interactions WHERE height >= " + strconv.Itoa(int(start)) + addon)
 	handleError(err)
 	statement.Exec()
+	ready(true)
 	return int64(start)
 }
 
