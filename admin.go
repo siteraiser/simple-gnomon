@@ -111,18 +111,14 @@ func updateCompleted(starting_height int64, lowest_daemon_height int64, complete
 			if lowest_daemon_height < int64(complete[i][0]) {
 				found = true
 				if lastend == 0 { //first one...
-					println(1)
 					starting_height = lowest_daemon_height
 					ending_height = int64(complete[i][0])
 					break
 				} else if lowest_daemon_height <= lastend {
-
-					fmt.Println(2, lastend, lowest_daemon_height)
 					starting_height = lastend
 					ending_height = int64(complete[i][0])
 					break
 				} else {
-					println(3)
 					starting_height = lowest_daemon_height
 					ending_height = int64(complete[i][0])
 					break
