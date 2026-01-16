@@ -248,12 +248,12 @@ func start_gnomon_indexer() {
 	} else {
 		FinishHeight = LatestTopoHeight
 	}
-	if FinishHeight < FinishHeight-blockBatchSize && starting_height+blockBatchSize < FinishHeight {
+	if TargetHeight < FinishHeight-blockBatchSize && starting_height+blockBatchSize < FinishHeight {
 		TargetHeight = starting_height + blockBatchSize
 	} else {
 		TargetHeight = FinishHeight
 	}
-
+	show.NewMessage(show.Message{Text: "TargetHeight", Vars: []any{fmt.Sprint(TargetHeight)}})
 	var wg sync.WaitGroup
 	for bheight := starting_height; bheight < TargetHeight; bheight++ {
 		if !daemon.OK() {
