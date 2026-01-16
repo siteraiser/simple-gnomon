@@ -78,6 +78,7 @@ var Config = Configuration{}
 var Lowest_daemon_height int64
 
 func main() {
+
 	var err error
 	var text string
 
@@ -98,7 +99,7 @@ func main() {
 	RamSizeMB = Config.RamSizeMB
 
 	reclassify := false
-	/* could be an automated process or in another menu etc..*/
+	// could be an automated process or in another menu etc..
 	println("Reclassify using a new search filter (in-mem takes a few minutes and opens, processes then saves the entire db)? yes or n")
 	_, err = fmt.Scanln(&text)
 	if text == "yes" {
@@ -171,7 +172,7 @@ func main() {
 	}
 
 	//check daemon heights
-	Lowest_daemon_height := daemon.FindLowestHeight(0, LatestTopoHeight)
+	Lowest_daemon_height = daemon.FindLowestHeight(0, LatestTopoHeight)
 
 	if !intialized {
 		starting_height = Lowest_daemon_height
