@@ -620,12 +620,14 @@ func (ss *SqlStore) ViewTables() {
 func (ss *SqlStore) GetSCIDsByClass(class_list []string) (results []string) {
 
 	qinsert := ""
+	var qvars = []any{}
 	for _, class := range class_list {
-		qinsert += "OR (class = '" + class + "') OR ('" + class + "' LIKE (class || ',%')) OR ('" + class + "' LIKE ('%,' || class || ',%')) OR ('" + class + "' LIKE ('%,' || class)) "
+		qinsert += "OR (class = ?) OR (? LIKE (class || ',%')) OR (? LIKE ('%,' || class || ',%')) OR (? LIKE ('%,' || class)) "
+		qvars = append(qvars, class, class, class, class)
 	}
 	qinsert = strings.TrimPrefix(qinsert, "OR ")
 	ready(false)
-	rows, err := ss.DB.Query("SELECT scid FROM scs WHERE "+qinsert, nil)
+	rows, err := ss.DB.Query("SELECT scid FROM scs WHERE "+qinsert, qvars...)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -640,12 +642,14 @@ func (ss *SqlStore) GetSCIDsByClass(class_list []string) (results []string) {
 
 func (ss *SqlStore) GetSCIDsByTags(tags_list []string) (results []string) {
 	qinsert := ""
+	var qvars = []any{}
 	for _, tag := range tags_list {
-		qinsert += "OR (tags = '" + tag + "') OR ('" + tag + "' LIKE (tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags)) " //consider prepared statement
+		qinsert += "OR (tags = ?) OR (? LIKE (tags || ',%')) OR (? LIKE ('%,' || tags || ',%')) OR (? LIKE ('%,' || tags)) " //consider prepared statement
+		qvars = append(qvars, tag, tag, tag, tag)
 	}
 	qinsert = strings.TrimPrefix(qinsert, "OR ")
 	ready(false)
-	rows, err := ss.DB.Query("SELECT scid FROM scs WHERE "+qinsert, nil)
+	rows, err := ss.DB.Query("SELECT scid FROM scs WHERE "+qinsert, qvars...)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -663,12 +667,14 @@ func (ss *SqlStore) GetSCIDsByTags(tags_list []string) (results []string) {
 
 func (ss *SqlStore) GetSCsByTags(tags_list []string) (results []map[string]any) {
 	qinsert := ""
+	var qvars = []any{}
 	for _, tag := range tags_list {
-		qinsert += "OR (tags = '" + tag + "') OR ('" + tag + "' LIKE (tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags || ',%')) OR ('" + tag + "' LIKE ('%,' || tags)) "
+		qinsert += "OR (tags = ?) OR (? LIKE (tags || ',%')) OR (? LIKE ('%,' || tags || ',%')) OR (? LIKE ('%,' || tags)) "
+		qvars = append(qvars, tag, tag, tag, tag)
 	}
 	qinsert = strings.TrimPrefix(qinsert, "OR ")
 	ready(false)
-	rows, err := ss.DB.Query("SELECT scid,owner,height,scname,scdescr,scimgurl,class,tags FROM scs WHERE "+qinsert, nil)
+	rows, err := ss.DB.Query("SELECT scid,owner,height,scname,scdescr,scimgurl,class,tags FROM scs WHERE "+qinsert, qvars...)
 	if err != nil {
 		fmt.Println(err)
 	}
