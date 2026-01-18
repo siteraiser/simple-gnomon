@@ -10,7 +10,7 @@ Cli-flag Example (auto-launches api when set):
 ```
 Configuration Options: <br>
 **Memory to Use** - The amount of memory Gnomon will use before switching to disk mode. <br>
-**Smoothing** - Spaces out requests using average response times. Use if defualt 0 is causing many timed-out requests. <br>
+**Smoothing** - Spaces out requests using average response times. Use if default 0 is causing many timed-out requests. <br>
 **Spam Level** - The amount of names a wallet can register before being considered spam. Best left at 0 if you don't need the name registrations.<br>
 **Reclassify** - Re-tag and classify the SCs after updating the search filters.<br>
 
