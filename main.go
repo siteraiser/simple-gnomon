@@ -337,7 +337,8 @@ func start_gnomon_indexer() {
 	}
 	fmt.Println("Target Height", TargetHeight)
 	fmt.Println("last", last)
-	if TargetHeight == EndingHeight && EndingHeight != -1 {
+	//
+	if !switching && TargetHeight == EndingHeight && EndingHeight != -1 {
 		last_start, _ := sqlite.LoadState("sessionstart")
 		completed, _ := sqlite.LoadSetting("completed")
 		completed, starting_height, EndingHeight = updateCompleted(TargetHeight, Lowest_daemon_height, completed, last_start, int(TargetHeight))
