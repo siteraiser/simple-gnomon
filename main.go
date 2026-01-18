@@ -324,9 +324,19 @@ func start_gnomon_indexer() {
 
 	sqlite.RidSpam()
 
+	var switching = false
+	if UseMem {
+		show.NewMessage(show.Message{Text: "Saving Batch...... ", Vars: []any{fileSizeMB(sqlite.Db_path), "MB"}})
+		sqlite.WriteToDisk(EndingHeight)
+		//Check size
+		if int64(RamSizeMB) <= fileSizeMB(sqlite.Db_path) {
+			switching = true
+			sqlite.DB.Close()
+			show.NewMessage(show.Message{Text: "Switching to disk mode...... ", Vars: []any{TargetHeight}})
+		}
+	}
 	fmt.Println("Target Height", TargetHeight)
 	fmt.Println("last", last)
-	save_height := EndingHeight
 	if TargetHeight == EndingHeight && EndingHeight != -1 {
 		last_start, _ := sqlite.LoadState("sessionstart")
 		completed, _ := sqlite.LoadSetting("completed")
@@ -336,18 +346,6 @@ func start_gnomon_indexer() {
 			sqlite.StoreLastIndexHeight(starting_height)
 		}
 		sqlite.StoreSessionStart(starting_height)
-	}
-
-	var switching = false
-	if UseMem {
-		show.NewMessage(show.Message{Text: "Saving Batch...... ", Vars: []any{fileSizeMB(sqlite.Db_path), "MB"}})
-		sqlite.WriteToDisk(save_height)
-		//Check size
-		if int64(RamSizeMB) <= fileSizeMB(sqlite.Db_path) {
-			switching = true
-			sqlite.DB.Close()
-			show.NewMessage(show.Message{Text: "Switching to disk mode...... ", Vars: []any{TargetHeight}})
-		}
 	}
 	//Completed to target or swithcing to disk mode
 	if TargetHeight == last || switching {
