@@ -342,7 +342,7 @@ func start_gnomon_indexer() {
 		show.NewMessage(show.Message{Text: "Saving Batch...... ", Vars: []any{fileSizeMB(sqlite.Db_path), "MB"}})
 		sqlite.WriteToDisk(EndingHeight)
 		//Check size
-		if true { //int64(RamSizeMB) <= fileSizeMB(sqlite.Db_path) {
+		if int64(RamSizeMB) <= fileSizeMB(sqlite.Db_path) {
 			switching = true
 			sqlite.DB.Close()
 			show.NewMessage(show.Message{Text: "Switching to disk mode...... ", Vars: []any{TargetHeight}})
