@@ -326,6 +326,7 @@ func start_gnomon_indexer() {
 
 	fmt.Println("Target Height", TargetHeight)
 	fmt.Println("last", last)
+	save_height := EndingHeight
 	if TargetHeight == EndingHeight && EndingHeight != -1 {
 		last_start, _ := sqlite.LoadState("sessionstart")
 		completed, _ := sqlite.LoadSetting("completed")
@@ -340,7 +341,7 @@ func start_gnomon_indexer() {
 	var switching = false
 	if UseMem {
 		show.NewMessage(show.Message{Text: "Saving Batch...... ", Vars: []any{fileSizeMB(sqlite.Db_path), "MB"}})
-		sqlite.WriteToDisk(EndingHeight)
+		sqlite.WriteToDisk(save_height)
 		//Check size
 		if int64(RamSizeMB) <= fileSizeMB(sqlite.Db_path) {
 			switching = true
