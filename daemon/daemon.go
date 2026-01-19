@@ -44,18 +44,7 @@ func NewError(einfo ...any) {
 	case "database":
 		Status.DbOk = false
 	case "connection", "rpc":
-
 		Status.ApiOk = false
-		/*
-			if len(Endpoints) > 1 {
-				for i, endp := range Endpoints {
-					if endp.Address == einfo[2] { //only append one for now
-						Endpoints[i].Errors = append(Endpoints[i].Errors, einfo[3].(error))
-						break
-					}
-				}
-			}
-		*/
 	}
 
 	Status.ErrorCount++

@@ -26,8 +26,6 @@ type Configuration struct {
 	Filters     map[string]map[string][]string
 	Endpoints   []daemon.Connection
 	Port        string
-	Network     string
-	CmdArgs     map[string]any
 }
 
 var Filters map[string]map[string][]string
