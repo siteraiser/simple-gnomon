@@ -101,7 +101,7 @@ type Connection struct {
 	Errors  []error
 }
 
-var currentEndpoint = Endpoints[0]
+var currentEndpoint Connection //= Endpoints[0]
 
 type Block struct {
 	Height    int64
@@ -339,7 +339,7 @@ func AssignConnections(iserror bool) {
 		AssignConnections(false)
 	}
 	Reset()
-
+	currentEndpoint = Endpoints[0]
 }
 
 var sheduledb = make(map[uint8]time.Time)

@@ -9,19 +9,17 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/deroproject/derohe/globals"
 	sql "github.com/secretnamebasis/simple-gnomon/db"
 )
 
 var sqlite = &sql.SqlStore{}
 
-func Start(port string) {
-
+func Start(port string, db_dir string) {
 	go func() {
 		log.Println("Server listening on port " + port)
 	}()
 	db_name := fmt.Sprintf("sql%s.db", "GNOMON")
-	wd := globals.GetDataDirectory()
+	wd := db_dir
 	db_path := filepath.Join(wd, "gnomondb")
 	sqlite, _ = sql.NewDiskDB(db_path, db_name)
 

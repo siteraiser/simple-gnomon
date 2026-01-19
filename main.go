@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/deroproject/derohe/cryptography/crypto"
-	"github.com/deroproject/derohe/globals"
 	"github.com/deroproject/derohe/rpc"
 	"github.com/deroproject/derohe/transaction"
 	"github.com/secretnamebasis/simple-gnomon/daemon"
@@ -81,13 +80,8 @@ func main() {
 
 	var err error
 	var text string
-
+	setFlags()
 	initDB()
-	daemon.AssignConnections(false)
-	LatestTopoHeight = daemon.GetTopoHeight()
-	if LatestTopoHeight < 1 {
-		panic("Error getting height ...." + strconv.Itoa(int(LatestTopoHeight)))
-	}
 
 	fmt.Println("Configure Gnomon? y or n")
 	_, err = fmt.Scanln(&text)
@@ -97,6 +91,12 @@ func main() {
 		Config = getConfig(false)
 	}
 	RamSizeMB = Config.RamSizeMB
+
+	daemon.AssignConnections(false)
+	LatestTopoHeight = daemon.GetTopoHeight()
+	if LatestTopoHeight < 1 {
+		panic("Error getting height ...." + strconv.Itoa(int(LatestTopoHeight)))
+	}
 
 	reclassify := false
 	// could be an automated process or in another menu etc..
@@ -121,19 +121,15 @@ func main() {
 
 	println("Waking the GNOMON ...")
 
-	db_name := fmt.Sprintf("sql%s.db", "GNOMON")
-	wd := globals.GetDataDirectory()
-	db_path := filepath.Join(wd, "gnomondb")
-
 	if UseMem {
-		filesize := int(fileSizeMB(filepath.Join(db_path, db_name)))
+		filesize := int(fileSizeMB(filepath.Join(dbPathAndName())))
 		filetoobig := RamSizeMB <= filesize
 		if !filetoobig {
 			println("Loading db into memory")
 			batchSize = memBatchSize
 			blockBatchSize = blockBatchSizeMem
 			daemon.PreferredRequests = memPreferredRequests
-			sqlite, err = sql.NewSqlDB(db_path, db_name)
+			sqlite, err = sql.NewSqlDB(dbPathAndName())
 		}
 
 		if filetoobig {
@@ -146,7 +142,7 @@ func main() {
 		batchSize = diskBatchSize
 		blockBatchSize = blockBatchSizeDisk
 		daemon.PreferredRequests = diskPreferredRequests
-		sqlite, err = sql.NewDiskDB(db_path, db_name)
+		sqlite, err = sql.NewDiskDB(dbPathAndName())
 	}
 
 	if err != nil {
@@ -337,7 +333,6 @@ func start_gnomon_indexer() {
 	}
 	fmt.Println("Target Height", TargetHeight)
 	fmt.Println("last", last)
-	//
 	if !switching && TargetHeight == EndingHeight && EndingHeight != -1 {
 		last_start, _ := sqlite.LoadState("sessionstart")
 		completed, _ := sqlite.LoadSetting("completed")
