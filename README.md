@@ -4,10 +4,22 @@ An SQLITE implementation of the GNOMON smart contract indexer for DERO.
 
 Launch Options: 
 
-Cli-flag Example (auto-launches api when set):
+Cli-flag Port Example (auto-launches api when set):
 ```bash
 --port=8080
 ```
+
+Cli-flag Network Example:
+```bash
+--mode=testnet
+```
+
+Cli-flag Use Simulator Example:
+```bash
+--simulator
+```
+
+
 Configuration Options: <br>
 **Memory to Use** - The amount of memory Gnomon will use before switching to disk mode. <br>
 **Smoothing** - Spaces out requests using average response times. Use if default 0 is causing many timed-out requests. <br>
