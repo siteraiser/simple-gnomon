@@ -4,86 +4,55 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"regexp"
-	"sync"
-	"time"
 
-	prefixed "github.com/x-cray/logrus-prefixed-formatter"
+	sql "gnomon/db"
+	"gnomon/structs"
 
 	"github.com/deroproject/derohe/cryptography/crypto"
 	"github.com/deroproject/derohe/rpc"
-
-	"github.com/sirupsen/logrus"
+	"github.com/deroproject/derohe/transaction"
 )
 
-type SCIDToIndexStage struct {
-	Scid   string
-	Fsi    *FastSyncImport
-	ScVars []*SCIDVariable
-	ScCode string
+/**********************************************************************************/
+// The indexer is responsible for directing the incoming response results into
+// the correct tables and provides helper functions for getting sc variable data
+/**********************************************************************************/
+type SCTXParse struct {
+	Txid       string
+	Scid       string
+	Scid_hex   []byte
+	Entrypoint string
+	Method     string
+	Sc_args    rpc.Arguments
+	Sender     string
+	Payloads   []transaction.AssetPayload
+	Fees       uint64
+	Height     int64
 }
 
 type Indexer struct {
 	LastIndexedHeight int64
 	ChainHeight       int64
 	SearchFilter      []string
-	SFSCIDExclusion   []string
-	BBSBackend        *BboltStore
-	Closing           bool
+	CustomActions     map[string]action
+	SSSBackend        *sql.SqlStore
 	ValidatedSCs      []string
 	Status            string
-	sync.RWMutex
 }
 
-var Connected bool = false
-
-// local logger
-var l *logrus.Entry
-
-func InitLog(args map[string]interface{}, console io.Writer) {
-	loglevel_console := logrus.InfoLevel
-
-	if args["--debug"] != nil && args["--debug"].(bool) {
-		loglevel_console = logrus.DebugLevel
-	}
-
-	Logger = logrus.Logger{
-		Out:   console,
-		Level: loglevel_console,
-		Formatter: &prefixed.TextFormatter{
-			ForceColors:     true,
-			DisableColors:   false,
-			TimestampFormat: "01/02/2006 15:04:05",
-			FullTimestamp:   true,
-			ForceFormatting: true,
-		},
-	}
-}
-
-func NewIndexer(
-	Bbs_backend *BboltStore,
-	last_indexedheight int64,
-	sfscidexclusion []string,
-) *Indexer {
-
-	l = l.WithFields(logrus.Fields{})
-
+func NewSQLIndexer(Sqls_backend *sql.SqlStore, last_indexedheight int64, CustomActions map[string]action) *Indexer {
 	return &Indexer{
 		LastIndexedHeight: last_indexedheight,
-		SFSCIDExclusion:   sfscidexclusion,
-		BBSBackend:        Bbs_backend,
+		CustomActions:     CustomActions,
+		SSSBackend:        Sqls_backend,
 	}
 }
 
 // Manually add/inject a SCID to be indexed. Checks validity and then stores within owner tree (no signer addr) and stores a set of current variables.
-func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) {
-
-	defer func() {
-		indexer.BBSBackend.Writing = false
-	}()
-
-	if scidstoadd.Scid == "" {
+func (indexer *Indexer) AddSCIDToIndex(scidstoadd structs.SCIDToIndexStage) (err error) {
+	//	fmt.Println("Adding to Index: ", scidstoadd)
+	if scidstoadd.TXHash == "" {
 		return errors.New("no scid")
 	}
 
@@ -91,79 +60,89 @@ func (indexer *Indexer) AddSCIDToIndex(scidstoadd SCIDToIndexStage) (err error) 
 		return errors.New("nothing to import")
 	}
 
-	writeWait, _ := time.ParseDuration("11ms")
-
-	time.Sleep(writeWait)
-
-	for indexer.BBSBackend.Writing {
-		if indexer.Closing {
-			return
-		}
-		//l.Debugf("[AddSCIDToIndex-StoreAltDBInput] GravitonDB is writing... sleeping for %v...", writeWait)
-		time.Sleep(writeWait)
-	}
-
-	indexer.BBSBackend.Writing = true
-
+	changed := false
+	//ownerstored := false
+	//	fmt.Printf("SCIDS TO ADD: %v...", scidstoadd.ScVars)
 	// By returning valid variables of a given Scid (GetSC --> parse vars), we can conclude it is a valid SCID. Otherwise, skip adding to validated scids
-	if len(scidstoadd.ScVars) != 0 {
-		l.Info("[AddSCIDToIndex] Storing Vars: ", fmt.Sprint(scidstoadd))
-		changed, err := indexer.BBSBackend.StoreSCIDVariableDetails(
-			scidstoadd.Scid,
+	if len(scidstoadd.ScVars) != 0 && indexer.CustomActions[scidstoadd.Params.SCID].Act != "saveasinteraction" {
+
+		changed, err = indexer.SSSBackend.StoreSCIDVariableDetails(
+			scidstoadd.TXHash,
 			scidstoadd.ScVars,
 			int64(scidstoadd.Fsi.Height),
 		)
 		if err != nil {
+			//	fmt.Println("err StoreSCIDVariableDetails: ", err)
 			return err
 		}
 		if !changed {
 			return errors.New("did not store scid/vars")
 		}
-		l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllSCIDVariableDetails(scidstoadd.Scid))))
 
-		l.Info("[AddSCIDToIndex] Storing Owner: ", fmt.Sprint(scidstoadd))
-		changed, err = indexer.BBSBackend.StoreOwner(
-			scidstoadd.Scid,
-			scidstoadd.Fsi.Owner,
-		)
-		if err != nil {
-			return err
-		}
-		if !changed {
-			return errors.New("did not store scid/owner")
+		if scidstoadd.ScCode != "" && scidstoadd.Type == "install" { //or custom add maybe...
+			changed, err = indexer.SSSBackend.StoreOwner(
+				scidstoadd.TXHash,
+				scidstoadd.Fsi.Signer,
+				int(scidstoadd.Fsi.Height),
+				scidstoadd.Fsi.SCName,
+				scidstoadd.Fsi.SCDesc,
+				scidstoadd.Fsi.SCImgURL,
+				scidstoadd.Class,
+				scidstoadd.Tags,
+			)
+
+			if err == nil {
+				//fmt.Println("err StoreOwner: ", err)
+				return err
+			}
+			if changed {
+				showSC(scidstoadd.Fsi.SCName, scidstoadd.TXHash, scidstoadd.ScCode)
+			}
+		} else if scidstoadd.Type == "invoke" {
+			//it is an invoke
+			changed, err = indexer.SSSBackend.StoreSCIDInvoke(
+				scidstoadd,
+				int64(scidstoadd.Fsi.Height),
+			)
+			if err != nil {
+				return err
+			}
 		}
 
-		l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetAllOwnersAndSCIDs())))
-	} else {
-		l.Info("[AddSCIDToIndex] Storing Interaction: ", fmt.Sprint(scidstoadd.Scid), " ", fmt.Sprint(scidstoadd.Fsi.Height))
-		changed, err := indexer.BBSBackend.StoreSCIDInteractionHeight(
-			scidstoadd.Scid,
+	}
+
+	if !changed || len(scidstoadd.ScVars) == 0 {
+
+		//was not an install or a failed install
+		changed, err = indexer.SSSBackend.StoreSCIDInteractionHeight(
+			scidstoadd,
 			int64(scidstoadd.Fsi.Height),
 		)
 		if err != nil {
 			return err
 		}
 
-		// multiple interactions are possible
 		if !changed {
-			l.Info("[AddSCIDToIndex] Interaction Height already recorded: ", fmt.Sprint(len(indexer.BBSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
-			return nil
+			return errors.New("did not store scid/interaction")
+		}
+		if UseMem {
+			//fmt.Print("sql [AddSCIDToIndex] New updated disk: ", fmt.Sprint(len(indexer.SSSBackend.GetSCIDInteractionHeight(scidstoadd.TXHash))))
 		}
 
-		l.Info("[AddSCIDToIndex] New stored disk: ", fmt.Sprint(len(indexer.BBSBackend.GetSCIDInteractionHeight(scidstoadd.Scid))))
+		return
 	}
-
 	return nil
 }
 
 // Gets SC variable details
-func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (variables []*SCIDVariable, err error) {
+func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (variables []*structs.SCIDVariable, err error) {
 	//balances = make(map[string]uint64)
+	//	fmt.Println(keysuint64)
 
 	isAlpha := regexp.MustCompile(`^[A-Za-z]+$`).MatchString
 
 	for k, v := range keysstring {
-		currVar := &SCIDVariable{}
+		currVar := &structs.SCIDVariable{}
 		currVar.Key = k
 		switch cval := v.(type) {
 		case float64:
@@ -224,7 +203,7 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 	}
 
 	for k, v := range keysuint64 {
-		currVar := &SCIDVariable{}
+		currVar := &structs.SCIDVariable{}
 		currVar.Key = k
 		switch cval := v.(type) {
 		case string:
@@ -284,4 +263,14 @@ func GetSCVariables(keysstring map[string]any, keysuint64 map[uint64]any) (varia
 	}
 
 	return variables, nil
+}
+
+func showSC(SCName string, TXHash string, ScCode string) {
+	fmt.Println("SC FOUND ----------------------------------")
+	fmt.Println("SC NAME:", SCName)
+	fmt.Println("-------------------------------------------")
+	fmt.Println("SCID:", TXHash)
+	fmt.Println("-------------------------------------------")
+	fmt.Println(ScCode)
+	fmt.Println("-------------------------------------------")
 }
