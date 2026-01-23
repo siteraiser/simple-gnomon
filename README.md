@@ -2,6 +2,13 @@
 
 An SQLITE implementation of the GNOMON smart contract indexer for DERO.
 
+Contents:
+<ol>
+<li>Launch Options</li>
+<li>HTTP API</li>
+<li>Example App</li>
+</ol>
+
 Launch Options: 
 
 Cli-flag Port Example (auto-launches api when set):
@@ -154,4 +161,131 @@ Response:
     "scname": "",
     "tags": "G45-AT"
   }]
+```
+
+**Example Go App Usage** <br>
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"gnomon"
+	"gnomon/daemon"
+	"gnomon/show"
+	"gnomon/structs"
+	"os"
+	"strings"
+)
+
+//var Sqlite *sql.SqlStore
+
+func main() {
+	//Creat
+	GConfig := gnomon.Configuration{
+		RamSizeMB:   2,
+		SpamLevel:   "0",
+		Smoothing:   0,
+		DisplayMode: -1, // Enables event channel
+		Filters: map[string]map[string][]string{
+			"g45": {
+				"tags":    {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
+				"options": {"i"}, //regex filters for word boundry and c.i. matching (supports: "b", "i")
+			},
+			"nfa":   {"tags": {"ART-NFA-MS1"}},
+			"swaps": {"tags": {"StartSwap"}},
+			"tela":  {"tags": {"docVersion", "telaVersion"}},
+		},
+		//Endpoints   []daemon.Connection
+		//Port        string
+		CmdFlags: map[string]any{ //Override the cmd flags with desired usage
+			"port":      "0",       //use 0 for none
+			"mode":      "mainnet", //"testnet"
+			"simulator": false,
+		},
+	}
+
+	// Start Gnomon
+	go func() {
+		gnomon.Start(GConfig, []daemon.Connection{})
+	}()
+
+	// Create a channel to receive key events
+	KeyEvents = make(chan string)
+	//Start listening
+	go input()
+	// Catch the messges and inputs
+	for {
+		select {
+		case kinput := <-KeyEvents:
+			handleKeyInput(kinput)
+		case gmsg := <-show.Events:
+			fmt.Println("Gnomon", gmsg)
+		}
+	}
+}
+
+// Create a channel for keyboard inputs
+var KeyEvents chan string
+
+func handleKeyInput(input string) {
+	sep := " "
+	command, value, _ := strings.Cut(input, sep)
+	if command == "pause" {
+		fmt.Println("Pausing Gnomon:")
+		daemon.Pause()
+	} else if command == "unpause" {
+		fmt.Println("Un-Pausing Gnomon:")
+		daemon.UnPause()
+	} else if command == "help" {
+		fmt.Println(`
+			Command list:
+			"pause" - Stop Gnomon from indexing more blocks.
+			"unpause" - Resume Gnomon indexing.
+			"show tela-indexes" - Lists Tela Indexes and details.
+		`)
+	} else if command == "show" && value == "tela-indexes" {
+		fmt.Println("Showing Tela Indexes:")
+		getTelaIndexes()
+	}
+}
+
+func input() {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print(`Type help for a list of commands`)
+	text, err := reader.ReadString('\n')
+	if err != nil {
+		println("Error reading input:", err)
+	}
+	text = strings.TrimSpace(text)
+	reader.Reset(os.Stdin)
+	go input()
+	KeyEvents <- text
+}
+
+func getTelaIndexes() {
+
+	scids := gnomon.Sqlite.GetSCIDsByTags([]string{"telaVersion"})
+
+	for _, scid := range scids {
+		fmt.Println("")
+		fmt.Println("Tela Index SCID:", scid)
+		var hVars []*structs.SCIDVariable
+		hVars = gnomon.Sqlite.GetSCIDVariableDetailsAtTopoheight(scid, int64(5500000))
+
+		for _, variable := range hVars {
+			if variable.Key == "nameHdr" ||
+				variable.Key == "iconURLHdr" ||
+				variable.Key == "descrHdr" {
+				fmt.Println(variable.Key, ":", variable.Value)
+			}
+		}
+	}
+}
+
+/* Another way to access the db
+db_name := fmt.Sprintf("sql%s.db", "GNOMON")
+db_path := filepath.Join(GConfig.CmdFlags["mode"].(string), "gnomondb")
+Sqlite, _ = sql.NewDiskDB(db_path, db_name)
+*/
 ```
