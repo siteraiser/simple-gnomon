@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"gnomon/show"
 	"gnomon/structs"
 
 	"github.com/deroproject/derohe/block"
@@ -300,6 +301,8 @@ func FindStart(start int64, top int64) (block int64) {
 	}
 }
 
+var Standalone = true
+
 // Check supplied connections, manage errors and intitialize request counters
 func AssignConnections(iserror bool) {
 	HeightOuts = HeightOuts[0:0]
@@ -313,7 +316,8 @@ func AssignConnections(iserror bool) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		nodeaddr := "http://" + endpoint.Address + "/json_rpc"
-		fmt.Println("Testing:", nodeaddr)
+		show.NewMessage(show.Message{Text: "Testing: ", Vars: []any{nodeaddr}, ShowNow: true})
+		//fmt.Println("Testing:", nodeaddr)
 		//show.NewMessage(show.Message{Text: "Testing: ", Vars: []any{nodeaddr}})
 		rpcClient = jsonrpc.NewClient(nodeaddr)
 		err := rpcClient.CallFor(ctx, &result, "DERO.GetInfo") //, params no params argument
@@ -322,7 +326,8 @@ func AssignConnections(iserror bool) {
 		TxOuts = append(TxOuts, 0)
 		SCOuts = append(SCOuts, 0)
 		if err != nil {
-			fmt.Println("Error endpoint:", endpoint, " Error:", err)
+			show.NewMessage(show.Message{Text: "Error endpoint: ", Vars: []any{endpoint}, Err: err, ShowNow: true})
+			//fmt.Println("Error endpoint:", endpoint, " Error:", err)
 			//show.NewMessage(show.Message{Text: "Error endpoint: ", Vars: []any{endpoint}, Err: err})
 			Endpoints[i].Errors = []error{err}
 		} else if lasterrcnt == 1 {
@@ -339,7 +344,8 @@ func AssignConnections(iserror bool) {
 		for i := range Endpoints {
 			Endpoints[i].Errors = []error{}
 		}
-		fmt.Println("Retrying connections")
+		show.NewMessage(show.Message{Text: "Retrying connections", ShowNow: true})
+		//fmt.Println("Retrying connections")
 		w, _ := time.ParseDuration("10s")
 		time.Sleep(w)
 		AssignConnections(false)
@@ -479,7 +485,7 @@ func callRPC[t any](method string, params any, validator func(t) bool) t {
 		return zero
 	}
 	if !validator(result) {
-		fmt.Println(errors.New("failed validation"), method)
+		show.NewMessage(show.Message{Text: method + " failed validation", Err: errors.New("failed validation"), ShowNow: true})
 		var zero t
 		return zero
 	}
@@ -556,7 +562,7 @@ func getResult[T any](method string, params any) (T, error) {
 			return zero, errors.New("No outs")
 		}*/
 		Mutex.Unlock()
-		fmt.Println(errors.New("RPC timed out:"), method)
+		show.NewMessage(show.Message{Text: "RPC Method:" + method, Err: errors.New("RPC timed out:"), ShowNow: true})
 		NewError("rpc", method, endpoint.Address, errors.New("RPC timed out"))
 
 		return zero, errors.New("RPC timed out")

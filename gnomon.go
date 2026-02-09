@@ -2,6 +2,7 @@ package gnomon
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -69,12 +70,6 @@ type action struct {
 
 var CustomActions = map[string]action{}
 
-/* CUSTOM FILTERS */
-// "tela" is a class and "docVersion" and "telaVersion" are the tags
-// Gnomon will search for the tags and save the class and tags when the SC contains a match
-
-var regexes = map[string]string{}
-
 var rcount int32
 var rlimit = int32(2000)
 var Config = Configuration{
@@ -99,6 +94,9 @@ func Start(config Configuration, endpoints []daemon.Connection) {
 	if !standalone {
 		Config = config
 		show.DisplayMode = -1
+		if len(Config.Filters) != 0 {
+			Filters = Config.Filters
+		}
 	}
 
 	if standalone {
@@ -177,7 +175,13 @@ func Start(config Configuration, endpoints []daemon.Connection) {
 			batchSize = memBatchSize
 			blockBatchSize = blockBatchSizeMem
 			daemon.PreferredRequests = memPreferredRequests
-			Sqlite, err = sql.NewSqlDB(dbPathAndName())
+			if Sqlite.DB == nil { //|| Sqlite.DB.Stats().OpenConnections == 0
+				var temp *sql.SqlStore
+				temp, err = sql.NewSqlDB(dbPathAndName())
+				if err == nil {
+					Sqlite = temp
+				}
+			}
 		}
 
 		if filetoobig {
@@ -194,7 +198,7 @@ func Start(config Configuration, endpoints []daemon.Connection) {
 	}
 
 	if err != nil {
-		println("[Main] Err creating sqlite:", err)
+		println("Err creating sqlite:", err)
 		return
 	}
 
@@ -202,9 +206,9 @@ func Start(config Configuration, endpoints []daemon.Connection) {
 	sql.SpamLevel = Config.SpamLevel
 	show.PreferredRequests = &daemon.PreferredRequests
 	show.Status = daemon.Status
-	initializeFilters()
+	InitializeFilters()
 	if reclassify {
-		reClassify()
+		ReClassify()
 	}
 
 	var starting_height = startAt
@@ -263,7 +267,7 @@ func start_gnomon_indexer() {
 	}
 
 	//Errors
-	if firstRun == true || daemon.Status.ErrorCount != int64(0) {
+	if firstRun == true || daemon.Status.ErrorCount != int64(0) { //there should be an error but if not
 		firstRun = false
 		daemon.TXIDSProcessing = []string{}
 		daemon.BatchCount = 0
@@ -335,8 +339,10 @@ func start_gnomon_indexer() {
 	place := 0
 	count := 0
 	for {
-		loading := []string{" .. .", ". .. ", ".. .."}
-		fmt.Print("\n", loading[place], "\r")
+		if standalone {
+			loading := []string{" .. .", ". .. ", ".. .."}
+			fmt.Print("\n", loading[place], "\r")
+		}
 
 		place++
 		if place == 3 {
@@ -362,11 +368,13 @@ func start_gnomon_indexer() {
 	LatestTopoHeight = daemon.GetTopoHeight()
 	if LatestTopoHeight < 1 {
 		daemon.AssignConnections(true)
-
 		show.NewMessage(show.Message{Text: "Error getting height ....", Vars: []any{LatestTopoHeight}})
 		LatestTopoHeight = daemon.GetTopoHeight()
 		if LatestTopoHeight < 1 {
-			panic("Too many failed connections")
+			//maybe pause instead but it shouldn't reach here and should be stuck in AssignConnections "as is"
+			show.NewMessage(show.Message{Text: "Too many failed connections, pausing gnomon indexing.", Err: errors.New("No connection could be made."), ShowNow: true})
+			//daemon.Pause()
+			panic("")
 		}
 	}
 	show.NewMessage(show.Message{Text: "Last:", Vars: []any{last}})
@@ -388,8 +396,9 @@ func start_gnomon_indexer() {
 			show.NewMessage(show.Message{Text: "Switching to disk mode...... ", Vars: []any{TargetHeight}})
 		}
 	}
-	fmt.Println("Target Height", TargetHeight)
-	fmt.Println("last", last)
+	show.NewMessage(show.Message{Text: "Target Height:", Vars: []any{TargetHeight}, ShowNow: true})
+	show.NewMessage(show.Message{Text: "Last:", Vars: []any{last}, ShowNow: true})
+
 	if !switching && TargetHeight == EndingHeight && EndingHeight != -1 {
 		last_start, _ := Sqlite.LoadState("sessionstart")
 		completed, _ := Sqlite.LoadSetting("completed")
@@ -800,7 +809,7 @@ func getOutCounts() (int, string) {
 	return tot, text
 }
 
-func reClassify() {
+func ReClassify() {
 	scids := Sqlite.GetSCIDS()
 	total := len(scids)
 	progress := 0
@@ -818,8 +827,9 @@ func reClassify() {
 	}
 }
 
-func initializeFilters() {
+func InitializeFilters() {
 	println("Active regex filters:")
+	regexes = map[string]string{} //reset since it is an init process
 	for class, filter := range Filters {
 		for i, tag := range filter["tags"] {
 			if i == 0 {
@@ -877,9 +887,14 @@ func getFiltered(sc_code string) (class string, tags string) {
 				class = class + "," + cl
 			}
 		}
-		for _, match := range matches {
-			tags = tags + "," + match
+		//don't save tags for class only settings
+		options, exists := filter["options"]
+		if !exists || !slices.Contains(options, "co") {
+			for _, match := range matches {
+				tags = tags + "," + match
+			}
 		}
+
 		class = strings.TrimPrefix(class, ",")
 		tags = strings.TrimPrefix(tags, ",")
 	}

@@ -29,15 +29,24 @@ type Configuration struct {
 	CmdFlags    map[string]any
 }
 
+/* CUSTOM FILTERS */
+// "tela" is a class and "docVersion" and "telaVersion" are the tags
+// Gnomon will search for the tags and save the class and tags when the SC contains a match
+
+var regexes = map[string]string{}
 var Filters map[string]map[string][]string
 var defaultFilters = map[string]map[string][]string{
 	"g45": {
 		"tags":    {"G45-AT", "G45-C", "G45-FAT", "G45-NAME", "T345"},
-		"options": {"b", "i"}, //regex filters for word boundry and c.i. matching
+		"options": {"i"}, //regex filters for word boundry and c.i. matching (supports: "b", "i"), "co" saves class only
 	},
 	"nfa":   {"tags": {"ART-NFA-MS1"}},
 	"swaps": {"tags": {"StartSwap"}},
 	"tela":  {"tags": {"docVersion", "telaVersion"}},
+	"token": {
+		"tags":    {"SEND_ASSET_TO_ADDRESS"},
+		"options": {"i", "co"}, //co saves class only
+	},
 }
 
 func dbPathAndName() (db_path string, db_name string) {
@@ -161,8 +170,10 @@ func getConfig(update bool) Configuration {
 		println("Enter custom connection or enter n to use the default remote connections eg. node.derofoundation.org:10102 ")
 		_, err = fmt.Scanln(&text)
 		if text != "n" {
-			daemon.Endpoints = []daemon.Connection{
-				{Address: text},
+			daemon.Endpoints = []daemon.Connection{}
+			addrs := strings.Split(text, ",")
+			for _, add := range addrs {
+				daemon.Endpoints = append(daemon.Endpoints, daemon.Connection{Address: strings.TrimSpace(add)})
 			}
 			sql.SaveSetting(Sqlite.DB, "Endpoints", text)
 		} else {
@@ -186,8 +197,10 @@ func getConfig(update bool) Configuration {
 		}
 	} else {
 		println("Using Connections: ", val)
-		daemon.Endpoints = []daemon.Connection{
-			{Address: val},
+		daemon.Endpoints = []daemon.Connection{}
+		addrs := strings.Split(val, ",")
+		for _, add := range addrs {
+			daemon.Endpoints = append(daemon.Endpoints, daemon.Connection{Address: strings.TrimSpace(add)})
 		}
 		config.Endpoints = daemon.Endpoints
 	}
@@ -209,13 +222,13 @@ func getConfig(update bool) Configuration {
 		} else if text == "y" {
 			var temp map[string]map[string][]string
 			if val == "" {
-				Filters = editFilters(defaultFilters)
+				Filters = EditFilters(defaultFilters)
 				bytes, _ := json.Marshal(Filters)
 				val = string(bytes)
 				sql.SaveSetting(Sqlite.DB, "Filters", val)
 			} else {
 				json.Unmarshal([]byte(val), &temp)
-				Filters = editFilters(temp)
+				Filters = EditFilters(temp)
 				bytes, _ := json.Marshal(Filters)
 				val = string(bytes)
 				sql.SaveSetting(Sqlite.DB, "Filters", val)
@@ -251,7 +264,7 @@ func getConfig(update bool) Configuration {
 	return config
 }
 
-func editFilters(filters map[string]map[string][]string) map[string]map[string][]string {
+func EditFilters(filters map[string]map[string][]string) map[string]map[string][]string {
 	fmt.Println("-- Filters: ")
 	for class, filter := range filters {
 		fmt.Println("Class:", class, "----------------------------------------------------")
@@ -272,16 +285,16 @@ func editFilters(filters map[string]map[string][]string) map[string]map[string][
 	} else if len(text) > 3 && strings.Contains(text[:3], "add") {
 		f := map[string][]string{}
 		filters[text[4:]] = f
-		return editFilters(filters)
+		return EditFilters(filters)
 	} else if len(text) > 6 && strings.Contains(text[:6], "delete") {
 		if _, exists := filters[text[7:]]; exists {
 			delete(filters, text[7:])
 			fmt.Printf("'%s' deleted.\n", text[7:])
 		}
-		return editFilters(filters)
+		return EditFilters(filters)
 	}
 	filters[text] = editFilter(filters[text])
-	return editFilters(filters)
+	return EditFilters(filters)
 }
 func editFilter(filter map[string][]string) map[string][]string {
 	var text string
@@ -325,25 +338,38 @@ func updateCompleted(starting_height int64, lowest_daemon_height int64, complete
 	var complete [][2]int
 	json.Unmarshal([]byte(completed), &complete)
 
-	if len(complete) == 0 {
-		complete = append(complete, [2]int{start, finish})
-	} else {
-		// Add chunks
+	// Add chunks
+	if start != finish {
+		if len(complete) == 0 {
+			complete = append(complete, [2]int{start, finish})
+		} else {
+			for i, _ := range complete {
+				if int(start) >= complete[i][0] && int(start) <= complete[i][1] {
+					complete[i][1] = int(finish)
+					break
+				} else if int(start) > complete[i][1] || int(finish) == complete[i][0] {
+					complete = append(complete, [2]int{start, finish})
+					break
+				} else if int(start) < complete[i][0] && int(finish) < complete[i][1] {
+					var temp [][2]int
+					temp = append(temp, [2]int{start, finish})
+					complete = append(temp, complete...)
+					break
+				}
+			}
+			//may need to skip if start and finish are the same...
+		}
+		//check for 0 len chunks and remove
 		for i, _ := range complete {
-			if int(start) >= complete[i][0] && int(start) <= complete[i][1] {
-				complete[i][1] = int(finish)
-				break
-			} else if int(start) > complete[i][1] || int(finish) == complete[i][0] {
-				complete = append(complete, [2]int{start, finish})
-				break
-			} else if int(start) < complete[i][0] && int(finish) < complete[i][1] {
-				var temp [][2]int
-				temp = append(temp, [2]int{start, finish})
-				complete = append(temp, complete...)
-				break
+			if len(complete) > i+1 {
+				if complete[i][0] == complete[i][1] {
+					complete = append(complete[:i], complete[i+1:]...)
+					break
+				}
 			}
 		}
 	}
+
 	sort.Slice(complete, func(i, j int) bool {
 		return complete[i][0] < complete[j][0]
 	})

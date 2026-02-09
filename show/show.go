@@ -25,10 +25,11 @@ var status = struct {
 }
 
 type Message struct {
-	Text   string
-	ofType string
-	Vars   []any
-	Err    error
+	Text    string
+	ofType  string
+	Vars    []any
+	Err     error
+	ShowNow bool //for standalone mode, show now instead of waiting for next block
 }
 
 var messages = []Message{}
@@ -36,9 +37,15 @@ var messages = []Message{}
 // Print through this so that it can be coordinated with the large display
 func NewMessage(message Message) {
 	Mutex.Lock()
-	messages = append(messages, message)
+
 	if DisplayMode == -1 {
 		Events <- message
+	} else {
+		if message.ShowNow {
+			fmt.Println(message)
+		} else {
+			messages = append(messages, message)
+		}
 	}
 	Mutex.Unlock()
 }

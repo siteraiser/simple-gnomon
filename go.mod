@@ -1,9 +1,8 @@
 module gnomon
 
-go 1.25.0
+go 1.25.3
 
 require (
-	github.com/deroproject/derohe v0.0.0-20240229002921-e9df1205b660
 	github.com/mattn/go-sqlite3 v1.14.33
 	github.com/ybbus/jsonrpc/v3 v3.1.7
 )
@@ -15,10 +14,11 @@ require (
 	github.com/caarlos0/env/v6 v6.10.1 // indirect
 	github.com/cenkalti/rpc2 v1.0.5 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
-	github.com/creachadair/jrpc2 v1.3.4 // indirect
-	github.com/creachadair/mds v0.25.13 // indirect
+	github.com/coder/websocket v1.8.14 // indirect
+	github.com/creachadair/jrpc2 v0.35.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dchest/siphash v1.2.3 // indirect
+	github.com/deroproject/derohe v0.0.0-20250813215012-9b6a8b82c839
 	github.com/deroproject/graviton v0.0.0-20220130070622-2c248a53b2e1 // indirect
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -48,5 +48,4 @@ require (
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	nhooyr.io/websocket v1.8.17 // indirect
 )

@@ -2,13 +2,6 @@
 
 An SQLITE implementation of the GNOMON smart contract indexer for DERO.
 
-Contents:
-<ol>
-<li>Launch Options</li>
-<li>HTTP API</li>
-<li>Example App</li>
-</ol>
-
 Launch Options: 
 
 Cli-flag Port Example (auto-launches api when set):
