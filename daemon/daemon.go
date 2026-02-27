@@ -285,7 +285,7 @@ func FindStart(start int64, top int64) (block int64) {
 	}
 }
 
-// Check supplied connections, manage errors and intitialize request counters
+// Check supplied connections, manage errors and intitialize request counters and check again for errors...
 func AssignConnections(iserror bool) {
 	HeightOuts = HeightOuts[0:0]
 	TxOuts = TxOuts[0:0]
